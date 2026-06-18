@@ -1,0 +1,21 @@
+# Global glossary layer — terms shared across every identity.
+# Seed; expand from the KB as recurring mishears surface in real transcripts.
+
+terms:
+  - FFmpeg
+  - Remotion
+  - MediaPipe
+  - Whisper
+  - Premiere Pro
+  - DaVinci Resolve
+  - Reels
+  - B-roll
+
+corrections:
+  # mishear (lowercase) -> canonical spelling
+  "f f mpeg": "FFmpeg"
+  "ff mpeg": "FFmpeg"
+  "remotion": "Remotion"
+  "media pipe": "MediaPipe"
+  "b roll": "B-roll"
+  "da vinci resolve": "DaVinci Resolve"

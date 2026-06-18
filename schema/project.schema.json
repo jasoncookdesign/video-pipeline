@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://jasonos/video-pipeline/project.schema.json",
+  "title": "video-pipeline project.yml",
+  "description": "Per-project manifest. Declares identity (-> glossary layer), profile (-> dimensions + safe-zone spec), and rough-cut behaviour.",
+  "type": "object",
+  "required": ["identity", "profile"],
+  "additionalProperties": false,
+  "properties": {
+    "project_id": {
+      "type": "string",
+      "description": "Usually the folder name: 'YYYY-MM-DD <Token> Project - <Hook>'."
+    },
+    "identity": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "Selects the config/glossary identity layer (e.g. dyson-hope, sigil-zero, jason-cook-design)."
+    },
+    "profile": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "Output target. Selects dimensions + config/safezone/<profile>.safezone.json (e.g. reels-9x16)."
+    },
+    "rough_cut": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "trim_filler": {
+          "type": "boolean",
+          "default": true,
+          "description": "Trim speech filler/false starts/dead air. Set false to preserve audio continuity (e.g. live-off-the-mixer DJ record showcases)."
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Free-form project metadata (date, hook, render_filename, notes, ...).",
+      "additionalProperties": true
+    }
+  }
+}
