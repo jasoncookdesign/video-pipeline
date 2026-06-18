@@ -4,17 +4,20 @@ Pure and fully unit-tested. Given per-frame subject centres and the source
 dimensions, produce a 9:16 (profile-aspect) crop window that:
   - has the exact output aspect ratio,
   - is clamped inside the source frame (never crops outside the footage),
-  - is stabilised (EMA smoothing + per-sample shift clamp + dead-band) so the
-    reframe doesn't jitter when the subject makes small movements.
+  - is stabilised so the reframe pans *smoothly* rather than snapping.
 
 Two modes:
-  - ``static``  (probe default) — one robust window for the whole clip. Simplest
-    thing that proves the trust model.
-  - ``dynamic`` — a window per sample, smoothed; the seam for motion tracking.
+  - ``static``  (probe default) — one robust window for the whole clip.
+  - ``dynamic`` — a smooth pan that follows the subject. Built only from frames
+    where the subject was actually detected (gaps are interpolated across, not
+    snapped to a centred guess), zero-phase smoothed, velocity-capped, then
+    reduced to a few linear keyframes. The crop x interpolates linearly between
+    keyframes — continuous motion, no steps.
 """
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from statistics import median
 from typing import List, Optional, Tuple
@@ -24,6 +27,9 @@ from .tracker import FrameSubject
 
 @dataclass(frozen=True)
 class CropWindow:
+    """In dynamic mode this is a keyframe: x is the crop left edge at ``t_start``;
+    the renderer interpolates linearly to the next keyframe's x by ``t_end``."""
+
     t_start: float
     t_end: float
     x: int
@@ -50,13 +56,11 @@ class CropPlan:
 
 def crop_dims(src_w: int, src_h: int, out_w: int, out_h: int) -> Tuple[int, int]:
     """Largest crop of (src_w, src_h) matching the out aspect, even dimensions."""
-    target = out_w / out_h
     cw = src_h * out_w / out_h
     if cw <= src_w:
         crop_w, crop_h = cw, float(src_h)
     else:
         crop_w, crop_h = float(src_w), src_w * out_h / out_w
-    # round to even (encoder-friendly) and never exceed the source
     crop_w = min(src_w, int(round(crop_w / 2) * 2))
     crop_h = min(src_h, int(round(crop_h / 2) * 2))
     return crop_w, crop_h
@@ -66,7 +70,7 @@ def clamp_center(cx: float, crop_w: int, src_w: int) -> float:
     """Clamp a desired centre x so the crop window stays inside the frame."""
     lo = crop_w / 2
     hi = src_w - crop_w / 2
-    if hi < lo:  # crop spans the whole width
+    if hi < lo:
         return src_w / 2
     return min(max(cx, lo), hi)
 
@@ -87,6 +91,79 @@ def ema_smooth(values: List[float], alpha: float) -> List[float]:
     return out
 
 
+def _ema_zero_phase(values: List[float], alpha: float) -> List[float]:
+    """Forward+backward EMA = zero phase lag (no directional bias)."""
+    fwd = ema_smooth(values, alpha)
+    back = ema_smooth(list(reversed(fwd)), alpha)
+    return list(reversed(back))
+
+
+def _interp(grid: List[float], ts: List[float], xs: List[float]) -> List[float]:
+    """Linear interpolation of (ts, xs) onto grid; holds the end values."""
+    out: List[float] = []
+    j = 0
+    n = len(ts)
+    for t in grid:
+        if t <= ts[0]:
+            out.append(xs[0])
+            continue
+        if t >= ts[-1]:
+            out.append(xs[-1])
+            continue
+        while j + 1 < n and ts[j + 1] < t:
+            j += 1
+        # ts[j] <= t <= ts[j+1]
+        t0, t1 = ts[j], ts[j + 1]
+        x0, x1 = xs[j], xs[j + 1]
+        f = (t - t0) / (t1 - t0) if t1 > t0 else 0.0
+        out.append(x0 + (x1 - x0) * f)
+    return out
+
+
+def _douglas_peucker(ts: List[float], xs: List[float], tol: float) -> List[int]:
+    """Indices to keep so the polyline x(t) is within ``tol`` of the original."""
+    n = len(xs)
+    if n <= 2:
+        return list(range(n))
+    keep = {0, n - 1}
+    stack = [(0, n - 1)]
+    while stack:
+        a, b = stack.pop()
+        if b <= a + 1:
+            continue
+        t0, t1 = ts[a], ts[b]
+        x0, x1 = xs[a], xs[b]
+        dmax, idx = -1.0, -1
+        for i in range(a + 1, b):
+            xlin = x0 if t1 == t0 else x0 + (x1 - x0) * (ts[i] - t0) / (t1 - t0)
+            d = abs(xs[i] - xlin)
+            if d > dmax:
+                dmax, idx = d, i
+        if dmax > tol and idx != -1:
+            keep.add(idx)
+            stack.append((a, idx))
+            stack.append((idx, b))
+    return sorted(keep)
+
+
+def sample_x(plan: CropPlan, t: float) -> float:
+    """Crop left edge at time t (mirrors the renderer: linear between keyframes)."""
+    ws = plan.windows
+    if len(ws) == 1:
+        return float(ws[0].x)
+    ts = [w.t_start for w in ws]
+    xs = [w.x for w in ws]
+    if t <= ts[0]:
+        return float(xs[0])
+    if t >= ts[-1]:
+        return float(xs[-1])
+    for i in range(len(ts) - 1):
+        if ts[i] <= t <= ts[i + 1]:
+            f = (t - ts[i]) / (ts[i + 1] - ts[i]) if ts[i + 1] > ts[i] else 0.0
+            return xs[i] + (xs[i + 1] - xs[i]) * f
+    return float(xs[-1])
+
+
 def _robust_center(subjects: List[FrameSubject], src_w: int) -> float:
     if not subjects:
         return src_w / 2
@@ -97,6 +174,17 @@ def _robust_center(subjects: List[FrameSubject], src_w: int) -> float:
 
 # ── plan builders ─────────────────────────────────────────────────────────────
 
+def _static_plan(subjects, src_w, src_h, out_w, out_h, crop_w, crop_h, y, duration) -> CropPlan:
+    cx = _robust_center(subjects, src_w)
+    x = window_x(cx, crop_w, src_w)
+    t_start = subjects[0].t if subjects else 0.0
+    t_end = duration if duration is not None else (subjects[-1].t if subjects else 0.0)
+    return CropPlan(
+        src_w, src_h, out_w, out_h, "static",
+        [CropWindow(t_start, max(t_end, t_start), x, y, crop_w, crop_h)],
+    )
+
+
 def build_crop_plan(
     subjects: List[FrameSubject],
     src_w: int,
@@ -104,64 +192,81 @@ def build_crop_plan(
     out_w: int = 1080,
     out_h: int = 1920,
     mode: str = "static",
-    ema_alpha: float = 0.2,
-    max_shift_frac: float = 0.04,
-    deadband_frac: float = 0.02,
+    grid_fps: float = 15.0,
+    smoothing_seconds: float = 0.6,
+    max_pan_frac_per_s: float = 0.12,
+    simplify_tol_px: float = 3.0,
     duration: Optional[float] = None,
 ) -> CropPlan:
     """Build a crop plan from subject centres.
 
     Args:
-        subjects:      per-frame subject centres (may be empty -> centred crop).
-        src_w, src_h:  source dimensions.
-        out_w, out_h:  output (profile) dimensions; sets the crop aspect.
-        mode:          "static" | "dynamic".
-        ema_alpha:     smoothing factor for dynamic mode.
-        max_shift_frac:max centre shift between samples, as a fraction of src_w.
-        deadband_frac: ignore centre moves smaller than this fraction of src_w.
-        duration:      clip duration (for the static window end / last sample).
+        subjects:           per-frame subject centres (may be empty -> centred).
+        src_w, src_h:       source dimensions.
+        out_w, out_h:       output (profile) dimensions; sets the crop aspect.
+        mode:               "static" | "dynamic".
+        grid_fps:           resample rate for the dynamic smoothing pass.
+        smoothing_seconds:  zero-phase EMA time constant (larger = smoother).
+        max_pan_frac_per_s: max pan speed as a fraction of src_w per second
+                            (caps how fast the crop can travel -> eased moves).
+        simplify_tol_px:    keyframe simplification tolerance (Douglas-Peucker).
+        duration:           clip duration (for the final keyframe's end time).
     """
     crop_w, crop_h = crop_dims(src_w, src_h, out_w, out_h)
-    y = (src_h - crop_h) // 2  # vertical: centre band (subjects are framed in it)
+    y = (src_h - crop_h) // 2
 
-    if mode == "static" or len(subjects) <= 1:
-        cx = _robust_center(subjects, src_w)
-        x = window_x(cx, crop_w, src_w)
-        t_end = duration if duration is not None else (subjects[-1].t if subjects else 0.0)
-        t_start = subjects[0].t if subjects else 0.0
-        return CropPlan(
-            src_w, src_h, out_w, out_h, "static",
-            [CropWindow(t_start, max(t_end, t_start), x, y, crop_w, crop_h)],
-        )
+    confident = [s for s in subjects if s.confidence > 0]
+
+    if mode == "static" or len(confident) < 2:
+        return _static_plan(subjects, src_w, src_h, out_w, out_h, crop_w, crop_h, y, duration)
 
     if mode != "dynamic":
         raise ValueError(f"unknown mode: {mode!r}")
 
-    # dynamic: clamp raw centres, EMA-smooth, apply dead-band + per-sample shift clamp
-    max_shift = max_shift_frac * src_w
-    deadband = deadband_frac * src_w
-    raw = [clamp_center(s.cx, crop_w, src_w) for s in subjects]
-    smoothed = ema_smooth(raw, ema_alpha)
+    # 1. keyframes from DETECTED frames only (clamped centres). Gaps -> interpolated.
+    conf_t = [s.t for s in confident]
+    conf_c = [clamp_center(s.cx, crop_w, src_w) for s in confident]
 
-    centres: List[float] = []
-    for i, c in enumerate(smoothed):
-        if i == 0:
-            centres.append(c)
-            continue
-        prev = centres[-1]
-        if abs(c - prev) < deadband:
-            centres.append(prev)
-            continue
-        step = max(-max_shift, min(max_shift, c - prev))
-        centres.append(prev + step)
+    t0 = conf_t[0]
+    t_end = duration if duration is not None else subjects[-1].t
+    if t_end <= t0:
+        return _static_plan(subjects, src_w, src_h, out_w, out_h, crop_w, crop_h, y, duration)
+
+    # 2. dense uniform grid + linear interpolation across detection gaps
+    n_steps = max(2, int(math.ceil((t_end - t0) * grid_fps)) + 1)
+    grid = [t0 + i * (t_end - t0) / (n_steps - 1) for i in range(n_steps)]
+    dense = _interp(grid, conf_t, conf_c)
+
+    # 3. zero-phase smoothing
+    dt = (t_end - t0) / (n_steps - 1)
+    alpha = 1.0 - math.exp(-dt / max(smoothing_seconds, 1e-6))
+    dense = _ema_zero_phase(dense, alpha)
+
+    # 4. velocity cap (bounded pan speed -> a far move eases over more time)
+    max_step = max_pan_frac_per_s * src_w * dt
+    for i in range(1, len(dense)):
+        lo, hi = dense[i - 1] - max_step, dense[i - 1] + max_step
+        dense[i] = min(max(dense[i], lo), hi)
+    for i in range(len(dense) - 2, -1, -1):  # backward pass keeps it symmetric
+        lo, hi = dense[i + 1] - max_step, dense[i + 1] + max_step
+        dense[i] = min(max(dense[i], lo), hi)
+
+    # 5. simplify to a few linear keyframes
+    keep = _douglas_peucker(grid, dense, simplify_tol_px)
 
     windows: List[CropWindow] = []
-    n = len(subjects)
-    for i, s in enumerate(subjects):
-        t_start = s.t
-        t_end = subjects[i + 1].t if i + 1 < n else (
-            duration if duration is not None else s.t
-        )
-        x = window_x(centres[i], crop_w, src_w)
-        windows.append(CropWindow(t_start, max(t_end, t_start), x, y, crop_w, crop_h))
-    return CropPlan(src_w, src_h, out_w, out_h, "dynamic", windows)
+    for k, gi in enumerate(keep):
+        t_start = grid[gi]
+        t_next = grid[keep[k + 1]] if k + 1 < len(keep) else t_end
+        x = window_x(dense[gi], crop_w, src_w)
+        windows.append(CropWindow(t_start, max(t_next, t_start), x, y, crop_w, crop_h))
+
+    # collapse identical-x neighbours (purely constant stretches need no keyframe)
+    collapsed: List[CropWindow] = []
+    for w in windows:
+        if collapsed and collapsed[-1].x == w.x:
+            prev = collapsed[-1]
+            collapsed[-1] = CropWindow(prev.t_start, w.t_end, prev.x, y, crop_w, crop_h)
+        else:
+            collapsed.append(w)
+    return CropPlan(src_w, src_h, out_w, out_h, "dynamic", collapsed)

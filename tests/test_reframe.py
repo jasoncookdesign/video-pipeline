@@ -15,7 +15,9 @@ from video_pipeline.reframe import (
     build_crop_plan,
     ffmpeg_crop_command,
 )
-from video_pipeline.reframe.plan import crop_dims, clamp_center, window_x, ema_smooth
+from video_pipeline.reframe.plan import (
+    crop_dims, clamp_center, window_x, ema_smooth, sample_x,
+)
 from video_pipeline.reframe.crop import filtergraph, static_filtergraph, dynamic_filtergraph
 
 
@@ -89,39 +91,55 @@ class TestStaticPlan(unittest.TestCase):
 
 
 class TestDynamicPlan(unittest.TestCase):
-    def _subjects(self):
-        xs = [960, 970, 1500, 980, 300, 990, 1000]  # jittery with big jumps
-        return [FrameSubject(t=i * 0.2, cx=x, cy=540) for i, x in enumerate(xs)]
+    def _jumpy_with_gaps(self):
+        # big swings AND detection gaps (confidence 0 = no face that frame)
+        data = [
+            (0.0, 960, 1.0), (0.2, 970, 1.0), (0.4, 1500, 1.0),
+            (0.6, 0, 0.0), (0.8, 0, 0.0),                 # gap (no detection)
+            (1.0, 300, 1.0), (1.2, 990, 1.0), (1.4, 1000, 1.0),
+        ]
+        return [FrameSubject(t=t, cx=cx, cy=540, confidence=c) for t, cx, c in data]
 
-    def test_one_window_per_sample(self):
-        subs = self._subjects()
-        plan = build_crop_plan(subs, *LANDSCAPE, mode="dynamic", duration=1.4)
+    def test_mode_is_dynamic(self):
+        plan = build_crop_plan(self._jumpy_with_gaps(), *LANDSCAPE, mode="dynamic", duration=1.6)
         self.assertEqual(plan.mode, "dynamic")
-        self.assertEqual(len(plan.windows), len(subs))
+        self.assertGreaterEqual(len(plan.windows), 1)
 
-    def test_times_are_contiguous(self):
-        subs = self._subjects()
-        plan = build_crop_plan(subs, *LANDSCAPE, mode="dynamic", duration=1.4)
-        for a, b in zip(plan.windows, plan.windows[1:]):
-            self.assertEqual(a.t_end, b.t_start)
-
-    def test_max_shift_respected(self):
-        subs = self._subjects()
-        max_shift_frac = 0.04
-        plan = build_crop_plan(
-            subs, *LANDSCAPE, mode="dynamic",
-            max_shift_frac=max_shift_frac, duration=1.4,
-        )
-        max_shift_px = max_shift_frac * 1920
-        for a, b in zip(plan.windows, plan.windows[1:]):
-            self.assertLessEqual(abs(b.x - a.x), max_shift_px + 1)  # +1 rounding
-
-    def test_windows_stay_in_frame(self):
-        subs = self._subjects()
-        plan = build_crop_plan(subs, *LANDSCAPE, mode="dynamic", duration=1.4)
+    def test_keyframes_stay_in_frame(self):
+        plan = build_crop_plan(self._jumpy_with_gaps(), *LANDSCAPE, mode="dynamic", duration=1.6)
         for w in plan.windows:
             self.assertGreaterEqual(w.x, 0)
             self.assertLessEqual(w.x + w.w, 1920)
+
+    def test_no_sudden_jumps(self):
+        # the core regression: x(t) is continuous, never snaps (old step bug)
+        plan = build_crop_plan(self._jumpy_with_gaps(), *LANDSCAPE, mode="dynamic", duration=1.6)
+        dt = 0.02
+        prev = sample_x(plan, 0.0)
+        for i in range(1, int(1.6 / dt)):
+            cur = sample_x(plan, i * dt)
+            self.assertLess(abs(cur - prev), 25.0)  # a snap would be hundreds of px
+            prev = cur
+
+    def test_velocity_is_bounded(self):
+        frac = 0.12
+        plan = build_crop_plan(self._jumpy_with_gaps(), *LANDSCAPE, mode="dynamic",
+                               max_pan_frac_per_s=frac, duration=1.6)
+        max_v = frac * 1920  # px/s
+        dt = 0.05
+        prev = sample_x(plan, 0.0)
+        for i in range(1, int(1.6 / dt)):
+            cur = sample_x(plan, i * dt)
+            self.assertLessEqual(abs(cur - prev) / dt, max_v * 1.5)  # generous margin
+            prev = cur
+
+    def test_too_few_detections_falls_back_to_static(self):
+        subs = [
+            FrameSubject(t=0.0, cx=500, cy=540, confidence=1.0),
+            FrameSubject(t=0.2, cx=500, cy=540, confidence=0.0),  # only 1 detection
+        ]
+        plan = build_crop_plan(subs, *LANDSCAPE, mode="dynamic", duration=1.0)
+        self.assertEqual(plan.mode, "static")
 
 
 class TestFfmpegCommand(unittest.TestCase):
@@ -136,25 +154,29 @@ class TestFfmpegCommand(unittest.TestCase):
         self.assertIn(f"crop={w.w}:{w.h}:{w.x}:{w.y}", fg)
         self.assertIn("scale=1080:1920", fg)
 
-    def test_dynamic_filtergraph_is_time_keyed(self):
-        subs = [FrameSubject(t=i * 0.5, cx=x, cy=540) for i, x in enumerate([400, 1400, 900])]
-        plan = build_crop_plan(subs, *LANDSCAPE, mode="dynamic", duration=1.5)
+    def _moving_subjects(self):
+        xs = [400, 500, 900, 1300, 1400]
+        return [FrameSubject(t=i * 0.5, cx=x, cy=540, confidence=1.0)
+                for i, x in enumerate(xs)]
+
+    def test_dynamic_filtergraph_is_linear_and_keyed(self):
+        plan = build_crop_plan(self._moving_subjects(), *LANDSCAPE, mode="dynamic", duration=2.5)
         fg = dynamic_filtergraph(plan)
         self.assertIn("crop=w=", fg)
         self.assertIn("if(lt(t", fg)
+        self.assertIn("(t-", fg)        # a linear ramp term, not a constant step
+        self.assertIn("clip(", fg)      # clamped into frame
         self.assertIn("scale=1080:1920", fg)
 
     def test_dynamic_filtergraph_not_double_escaped(self):
         # regression: commas are single-quoted, must NOT also be backslash-escaped
-        subs = [FrameSubject(t=i * 0.5, cx=x, cy=540) for i, x in enumerate([400, 1400, 900])]
-        plan = build_crop_plan(subs, *LANDSCAPE, mode="dynamic", duration=1.5)
+        plan = build_crop_plan(self._moving_subjects(), *LANDSCAPE, mode="dynamic", duration=2.5)
         fg = dynamic_filtergraph(plan)
         self.assertNotIn("\\,", fg)
-        self.assertIn("x='if(lt(t,", fg)
 
-    def test_dynamic_filtergraph_collapses_constant_x(self):
-        # a stationary subject collapses to a single segment (no conditional)
-        subs = [FrameSubject(t=i * 0.2, cx=960, cy=540) for i in range(6)]
+    def test_dynamic_filtergraph_constant_is_single_value(self):
+        # a stationary subject collapses to one keyframe (no conditional)
+        subs = [FrameSubject(t=i * 0.2, cx=960, cy=540, confidence=1.0) for i in range(6)]
         plan = build_crop_plan(subs, *LANDSCAPE, mode="dynamic", duration=1.2)
         fg = dynamic_filtergraph(plan)
         self.assertNotIn("if(", fg)
