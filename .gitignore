@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Test / tooling
+.pytest_cache/
+.coverage
+htmlcov/
+
+# OS
+.DS_Store
+
+# Project data never lives in the repo (projects are data under ~/Video/Projects/)
+/projects/
+*.mp4
+*.mov
+# ...except tiny committed test fixtures, if any are added under tests/fixtures/
+!tests/fixtures/**

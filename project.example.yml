@@ -1,0 +1,25 @@
+# project.yml — per-project manifest (example).
+# Lives at ~/Video/Projects/{project-id}/project.yml on the daily driver.
+#
+# project-id (folder name) convention:
+#   "YYYY-MM-DD <Token> Project - <Hook>"
+#   e.g. "2026-06-03 Reel Project - I used to make fun of ravers"
+# The <Token> ("Reel") is profile-supplied; date + hook are parsed from the folder.
+
+project_id: "2026-06-03 Reel Project - I used to make fun of ravers"
+
+# identity -> config/glossary/identities/<identity>.yml (caption vocabulary layer)
+identity: dyson-hope
+
+# profile -> output dimensions + config/safezone/<profile>.safezone.json
+profile: reels-9x16
+
+rough_cut:
+  # Trim speech filler / false starts / dead air. Default true.
+  # Set false to preserve audio continuity — e.g. a Radio DJ record showcase
+  # recorded live off the mixer, where speech-only cutting would break the audio.
+  trim_filler: true
+
+metadata:
+  hook: "I used to make fun of ravers"
+  notes: "Optional free-form notes."

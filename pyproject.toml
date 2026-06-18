@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "video-pipeline"
+version = "0.1.0"
+description = "AI pre-editing pipeline for vertical short-form video (Instagram Reels)."
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "Pillow>=10.0",
+    "PyYAML>=6.0",
+    "jsonschema>=3.2",
+]
+
+[project.optional-dependencies]
+# Daily-driver (Ono-Sendai) runtime extras for the reframe probe + transcription.
+# Not installable in the JasonOS sandbox; the pure logic is tested without them.
+reframe = [
+    "mediapipe>=0.10",
+    "opencv-python>=4.8",
+]
+dev = [
+    "pytest>=7.0",
+]
+
+[project.scripts]
+video-pipeline = "video_pipeline.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

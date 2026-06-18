@@ -1,0 +1,74 @@
+{
+  "profile": "reels-9x16",
+  "source_template": "instagram-safe-zone-reels-9x16.png",
+  "image": {
+    "width": 1080,
+    "height": 1920
+  },
+  "key": {
+    "mode": "alpha",
+    "threshold": 128
+  },
+  "bounding_box": {
+    "x0": 35,
+    "y0": 250,
+    "x1": 1045,
+    "y1": 1470
+  },
+  "polygon": [
+    [
+      1045,
+      250
+    ],
+    [
+      1045,
+      1117
+    ],
+    [
+      915,
+      1117
+    ],
+    [
+      915,
+      1470
+    ],
+    [
+      35,
+      1470
+    ],
+    [
+      35,
+      250
+    ]
+  ],
+  "bands": [
+    {
+      "x0": 35,
+      "y0": 250,
+      "x1": 1045,
+      "y1": 1117
+    },
+    {
+      "x0": 35,
+      "y0": 1117,
+      "x1": 915,
+      "y1": 1470
+    }
+  ],
+  "notch_rects": [
+    [
+      915,
+      1117,
+      1045,
+      1470
+    ]
+  ],
+  "stats": {
+    "safe_area_px": 1186310,
+    "total_px": 2073600,
+    "safe_fraction": 0.572102,
+    "has_notch": true
+  },
+  "generator_version": "1.0",
+  "coordinate_convention": "integer pixel-edge; origin top-left; x right, y down; rects are half-open x0<=x<x1, y0<=y<y1"
+}
