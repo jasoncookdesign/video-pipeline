@@ -21,6 +21,11 @@ reframe = [
     "mediapipe>=0.10",
     "opencv-python>=4.8",
 ]
+# Rough-cut phase: local Apple-Silicon transcription (word-level timestamps).
+# WhisperX / ElevenLabs Scribe are deferred alternatives behind the same seam.
+roughcut = [
+    "mlx-whisper>=0.4",
+]
 dev = [
     "pytest>=7.0",
 ]

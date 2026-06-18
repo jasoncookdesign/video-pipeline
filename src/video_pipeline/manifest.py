@@ -82,6 +82,27 @@ class Manifest:
     def identity_glossary_filename(self) -> str:
         return f"{self.identity}.yml"
 
+    def propose_config(self):
+        """Build a roughcut ProposeConfig from this manifest's rough_cut block.
+
+        Lazily imported so the manifest layer carries no dependency on the
+        rough-cut phase. Unspecified knobs fall back to ProposeConfig defaults.
+        """
+        from .roughcut.propose import ProposeConfig
+
+        rough = (self.raw.get("rough_cut") or {}) if self.raw else {}
+        defaults = ProposeConfig()
+        extra = frozenset(rough.get("extra_filler_words") or [])
+        return ProposeConfig(
+            trim_filler=bool(rough.get("trim_filler", self.trim_filler)),
+            extra_filler_words=extra,
+            silence_gap_s=float(rough.get("silence_gap_s", defaults.silence_gap_s)),
+            keep_pad_s=float(rough.get("keep_pad_s", defaults.keep_pad_s)),
+            detect_false_starts=bool(
+                rough.get("detect_false_starts", defaults.detect_false_starts)
+            ),
+        )
+
 
 def _load_schema() -> dict:
     with open(_SCHEMA_PATH, "r", encoding="utf-8") as fh:

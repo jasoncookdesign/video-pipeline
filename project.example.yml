@@ -19,6 +19,11 @@ rough_cut:
   # Set false to preserve audio continuity — e.g. a Radio DJ record showcase
   # recorded live off the mixer, where speech-only cutting would break the audio.
   trim_filler: true
+  # Optional rough-cut knobs (defaults shown):
+  silence_gap_s: 0.6          # inter-word gap above which dead air is trimmed
+  keep_pad_s: 0.08            # padding kept around speech at each cut
+  detect_false_starts: true  # drop immediately-repeated tokens (stutters/restarts)
+  extra_filler_words: []     # extra per-project filler tokens, e.g. ["basically"]
 
 metadata:
   hook: "I used to make fun of ravers"
