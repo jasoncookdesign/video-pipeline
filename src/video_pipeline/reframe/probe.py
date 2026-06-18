@@ -28,16 +28,24 @@ def reframe(
     out_h: int = 1920,
     mode: str = "static",
     tracker: Optional[SubjectTracker] = None,
+    tracker_name: str = "opencv",
     dry_run: bool = False,
 ) -> list:
     """Reframe one clip. Returns the FFmpeg argv (and runs it unless dry_run).
 
-    If ``tracker`` is None, a MediaPipeTracker is constructed lazily (daily
-    driver only). Pass an explicit tracker to override (e.g. for a dry run).
+    If ``tracker`` is None, one is constructed from ``tracker_name``:
+    ``"opencv"`` (default — bundled Haar cascade, no model download) or
+    ``"mediapipe"`` (Tasks API; downloads a model on first use).
     """
     if tracker is None:
-        from .tracker import MediaPipeTracker
-        tracker = MediaPipeTracker()
+        if tracker_name == "mediapipe":
+            from .tracker import MediaPipeTracker
+            tracker = MediaPipeTracker()
+        elif tracker_name == "opencv":
+            from .tracker import OpenCVFaceTracker
+            tracker = OpenCVFaceTracker()
+        else:
+            raise ValueError(f"unknown tracker: {tracker_name!r}")
 
     src_w, src_h, duration = _probe_dimensions(input_path)
     subjects = tracker.track(input_path)

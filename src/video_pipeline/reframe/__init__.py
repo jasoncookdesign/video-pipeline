@@ -14,7 +14,13 @@ Three layers, kept separate so the taste-bearing parts stay inspectable:
 against real footage — that run is the trust-model acceptance, not a sandbox test.
 """
 
-from .tracker import FrameSubject, SubjectTracker, FixedTracker
+from .tracker import (
+    FrameSubject,
+    SubjectTracker,
+    FixedTracker,
+    OpenCVFaceTracker,
+    MediaPipeTracker,
+)
 from .plan import CropPlan, CropWindow, build_crop_plan
 from .crop import ffmpeg_crop_command
 
@@ -22,6 +28,8 @@ __all__ = [
     "FrameSubject",
     "SubjectTracker",
     "FixedTracker",
+    "OpenCVFaceTracker",
+    "MediaPipeTracker",
     "CropPlan",
     "CropWindow",
     "build_crop_plan",

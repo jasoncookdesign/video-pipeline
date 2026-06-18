@@ -26,15 +26,36 @@ def static_filtergraph(plan: CropPlan) -> str:
 
 
 def dynamic_filtergraph(plan: CropPlan) -> str:
-    """Piecewise-constant x(t) crop. Each window holds its x until the next."""
+    """Piecewise-LINEAR x(t) crop: interpolate between keyframes (no steps).
+
+    Each window is a keyframe (its x at ``t_start``). Between consecutive
+    keyframes the crop x ramps linearly; after the last it holds. The x value is
+    single-quoted, so commas inside the expression are literal and must NOT also
+    be backslash-escaped (doing both corrupts the filter).
+    """
     ws = plan.windows
     h = ws[0].h
     cw = ws[0].w
     y = ws[0].y
-    # build nested if() expression: if(lt(t,t1), x0, if(lt(t,t2), x1, ... xN))
-    expr = str(ws[-1].x)
-    for w in reversed(ws[:-1]):
-        expr = f"if(lt(t\\,{w.t_end:.3f})\\,{w.x}\\,{expr})"
+    max_x = plan.src_w - cw
+
+    kf = [(w.t_start, w.x) for w in ws]
+    if len(kf) == 1:
+        expr = str(kf[0][1])
+    else:
+        expr = str(kf[-1][1])  # hold after the last keyframe
+        for i in range(len(kf) - 2, -1, -1):
+            t0, x0 = kf[i]
+            t1, x1 = kf[i + 1]
+            dt = t1 - t0
+            if dt <= 1e-6:
+                seg = str(x1)
+            else:
+                # x0 + (x1-x0)*(t-t0)/dt  -> linear ramp over [t0, t1]
+                seg = f"({x0}+({x1 - x0})*(t-{t0:.3f})/{dt:.3f})"
+            expr = f"if(lt(t,{t1:.3f}),{seg},{expr})"
+        expr = f"clip({expr},0,{max_x})"  # belt-and-suspenders: stay in frame
+
     return (
         f"crop=w={cw}:h={h}:x='{expr}':y={y},"
         f"{_scale_filter(plan.out_w, plan.out_h)}"
