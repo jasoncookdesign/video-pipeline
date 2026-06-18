@@ -29,6 +29,29 @@
           "type": "boolean",
           "default": true,
           "description": "Trim speech filler/false starts/dead air. Set false to preserve audio continuity (e.g. live-off-the-mixer DJ record showcases)."
+        },
+        "silence_gap_s": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 0.6,
+          "description": "Inter-word gap (seconds) above which dead air is trimmed."
+        },
+        "keep_pad_s": {
+          "type": "number",
+          "minimum": 0,
+          "default": 0.08,
+          "description": "Padding (seconds) kept around speech at each cut so words are not clipped."
+        },
+        "detect_false_starts": {
+          "type": "boolean",
+          "default": true,
+          "description": "Drop immediately-repeated tokens (stutters/restarts)."
+        },
+        "extra_filler_words": {
+          "type": "array",
+          "items": {"type": "string"},
+          "default": [],
+          "description": "Additional per-project filler tokens to trim (lowercased, punctuation-stripped)."
         }
       }
     },
