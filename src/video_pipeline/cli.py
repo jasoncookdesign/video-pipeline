@@ -61,7 +61,8 @@ def _cmd_reframe(args: argparse.Namespace) -> int:
     out_w, out_h = _PROFILE_DIMS.get(args.profile, (1080, 1920))
     cmd = reframe(
         args.input, args.output,
-        out_w=out_w, out_h=out_h, mode=args.mode, dry_run=args.dry_run,
+        out_w=out_w, out_h=out_h, mode=args.mode,
+        tracker_name=args.tracker, dry_run=args.dry_run,
     )
     if args.dry_run:
         print("ffmpeg command (dry run):")
@@ -96,6 +97,9 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("-o", "--output", required=True)
     r.add_argument("--profile", default="reels-9x16")
     r.add_argument("--mode", default="static", choices=["static", "dynamic"])
+    r.add_argument("--tracker", default="opencv", choices=["opencv", "mediapipe"],
+                   help="subject tracker: opencv (default, bundled, no download) "
+                        "or mediapipe (Tasks API; downloads a model on first use)")
     r.add_argument("--dry-run", action="store_true",
                    help="print the FFmpeg command without tracking/rendering")
     r.set_defaults(func=_cmd_reframe)

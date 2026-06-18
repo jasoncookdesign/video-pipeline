@@ -49,9 +49,13 @@ PNG and re-run `safezone-gen` — no code change.
 `src/video_pipeline/reframe/` does landscape → portrait auto-reframe, in three
 separable layers:
 
-- `tracker.py` — subject detection behind a `SubjectTracker` Protocol. Production
-  uses `MediaPipeTracker` (lazy import; daily driver only). `FixedTracker` drives
-  tests with no native deps.
+- `tracker.py` — subject detection behind a `SubjectTracker` Protocol.
+  `OpenCVFaceTracker` is the **default** (`--tracker opencv`): the Haar cascade
+  ships inside the `opencv-python` wheel, so there is no model download and no
+  dependence on MediaPipe's API churn. `MediaPipeTracker` (`--tracker mediapipe`)
+  uses the current MediaPipe **Tasks API** — the legacy `mp.solutions` API was
+  removed from recent wheels — and downloads a model bundle on first use.
+  `FixedTracker` drives tests with no native deps.
 - `plan.py` — subject centres → a stabilised crop window: exact output aspect,
   clamped inside the frame, EMA-smoothed with a dead-band + per-sample shift clamp
   so the reframe doesn't jitter. `static` mode (probe default) emits one robust
