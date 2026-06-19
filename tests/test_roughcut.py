@@ -135,6 +135,27 @@ class TestProposeFiller(unittest.TestCase):
         self.assertTrue(any(s.reason == R_FILLER for s in d.segments if not s.keep))
 
 
+class TestPadding(unittest.TestCase):
+    def test_tail_pad_larger_than_lead(self):
+        # one content word in a long clip: kept segment extends further AFTER the
+        # word (tail) than BEFORE it (lead).
+        t = Transcript([W("word", 5.0, 5.5)])
+        cfg = ProposeConfig(keep_pad_lead_s=0.06, keep_pad_tail_s=0.15)
+        d = propose(t, duration=10.0, config=cfg)
+        kept = d.kept()[0]
+        lead = 5.0 - kept.start
+        tail = kept.end - 5.5
+        self.assertAlmostEqual(lead, 0.06, places=3)
+        self.assertAlmostEqual(tail, 0.15, places=3)
+        self.assertGreater(tail, lead)
+
+    def test_pads_clamp_to_clip_bounds(self):
+        t = Transcript([W("a", 0.0, 0.4), W("b", 9.7, 10.0)])
+        d = propose(t, duration=10.0, config=ProposeConfig(keep_pad_tail_s=0.5))
+        self.assertGreaterEqual(d.segments[0].start, 0.0)
+        self.assertLessEqual(d.segments[-1].end, 10.0)
+
+
 class TestProposeSilence(unittest.TestCase):
     def test_drops_mid_dead_air(self):
         t = Transcript([W("start", 0.0, 0.5), W("end", 4.0, 4.5)])  # 3.5s gap

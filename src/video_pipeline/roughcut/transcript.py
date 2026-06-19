@@ -241,15 +241,35 @@ class MLXWhisperTranscriber:
     Daily-driver only — needs ``mlx-whisper`` (the ``[roughcut]`` extra) and an
     Apple-Silicon machine. Lazy import keeps the sandbox suite free of native
     deps; ``transcript_from_whisper_dict`` does the shared parsing.
+
+    Network behaviour: ``offline`` (default True) sets ``HF_HUB_OFFLINE=1`` before
+    importing huggingface_hub, so the model loads from the local cache with **no
+    network calls** — the fast path once the model is cached. If the model is not
+    cached, huggingface_hub raises a cryptic "outgoing traffic disabled" error;
+    this class catches it and raises a clear instruction to re-run online. Pass
+    ``offline=False`` (CLI ``--online``) to allow the one-time download;
+    huggingface_hub auto-reads the ambient ``HF_TOKEN`` env var for faster,
+    rate-limit-free downloads (no token is passed via argv).
     """
 
     DEFAULT_MODEL = "mlx-community/whisper-large-v3-turbo"
 
-    def __init__(self, model: Optional[str] = None, language: Optional[str] = None):
+    def __init__(
+        self,
+        model: Optional[str] = None,
+        language: Optional[str] = None,
+        offline: bool = True,
+    ):
         self.model = model or self.DEFAULT_MODEL
         self.language = language
+        self.offline = offline
 
     def transcribe(self, media_path: str) -> Transcript:  # pragma: no cover - native deps + footage
+        import os
+
+        # Must be set BEFORE huggingface_hub is imported (mlx_whisper imports it).
+        os.environ["HF_HUB_OFFLINE"] = "1" if self.offline else "0"
+
         try:
             import mlx_whisper
         except ImportError as exc:
@@ -258,10 +278,37 @@ class MLXWhisperTranscriber:
                 "extra) on an Apple-Silicon machine."
             ) from exc
 
-        result = mlx_whisper.transcribe(
-            media_path,
-            path_or_hf_repo=self.model,
-            word_timestamps=True,
-            language=self.language,
-        )
+        try:
+            result = mlx_whisper.transcribe(
+                media_path,
+                path_or_hf_repo=self.model,
+                word_timestamps=True,
+                language=self.language,
+            )
+        except Exception as exc:  # noqa: BLE001 - re-raise with a clear instruction
+            if self.offline and _looks_like_offline_cache_miss(exc):
+                raise RuntimeError(
+                    f"Model {self.model!r} is not in the local cache and the "
+                    f"pipeline is running offline. Re-run with `--online` to "
+                    f"download it once (set HF_TOKEN in your shell for faster, "
+                    f"rate-limit-free downloads); after that, offline runs use the "
+                    f"cache with no network."
+                ) from exc
+            raise
+
         return transcript_from_whisper_dict(result)
+
+
+def _looks_like_offline_cache_miss(exc: Exception) -> bool:  # pragma: no cover - error-shape heuristic
+    """True if an exception looks like 'offline mode + model not cached'."""
+    name = type(exc).__name__.lower()
+    msg = str(exc).lower()
+    return (
+        "offline" in name
+        or "offline" in msg
+        or "outgoing traffic" in msg
+        or "local_files_only" in msg
+        or "can't load" in msg
+        or "couldn't find" in msg
+        or "no such file" in msg
+    )

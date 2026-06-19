@@ -97,7 +97,8 @@ class Manifest:
             trim_filler=bool(rough.get("trim_filler", self.trim_filler)),
             extra_filler_words=extra,
             silence_gap_s=float(rough.get("silence_gap_s", defaults.silence_gap_s)),
-            keep_pad_s=float(rough.get("keep_pad_s", defaults.keep_pad_s)),
+            keep_pad_lead_s=float(rough.get("keep_pad_lead_s", defaults.keep_pad_lead_s)),
+            keep_pad_tail_s=float(rough.get("keep_pad_tail_s", defaults.keep_pad_tail_s)),
             detect_false_starts=bool(
                 rough.get("detect_false_starts", defaults.detect_false_starts)
             ),
