@@ -112,6 +112,18 @@ Whisper-JSON transcript via `--transcript` (e.g. the one the rough-cut phase wro
 to `work/`). The Remotion overlay needs the bundled project installed once:
 `cd remotion && npm install`.
 
+## Control-tower schema (GUI)
+
+The pipeline is the single source of truth for an optional desktop control-tower
+GUI: it emits the steps, tasks, artifacts, parameters, and export targets the GUI
+reads at launch to build its forms and previewer. Adding a step on this side
+surfaces in the GUI with no recompile. See `docs/gui-schema.md`.
+
+```bash
+video-pipeline schema --format yaml|json [-o file]   # emit the schema
+video-pipeline schema --check                        # validate without emitting
+```
+
 ## Configuration
 
 Settings come from two places, low to high precedence:
