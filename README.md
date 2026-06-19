@@ -120,6 +120,7 @@ captions:
   target_words: 0        # words-per-cue to aim for; 0 = auto (midpoint of range)
   max_chars: 24          # hard character cap per cue
   max_gap_s: 0.6         # pause (s) that forces a caption break
+  karaoke: false         # true = active-word highlight (each word lights up as spoken)
   uppercase: true        # render text uppercase
   position: lower-third  # caption box anchor: upper-third | center | lower-third
   # font_family, font_size, fill_color, stroke_color, emphasis_color, …
@@ -132,6 +133,21 @@ break *before* function words ("the", "and", "I") rather than stranding them. Th
 range is the only control you normally touch — set `1`/`1` for word-by-word,
 `2`/`4` for phrases. Output is the editable caption file, so any cue can still be
 hand-adjusted.
+
+**Karaoke** (`karaoke: true`) highlights each word as it is spoken — the active
+word takes the accent colour and grows slightly, earlier words stay lit, later
+words are dimmed. Timing comes from the transcript's per-word timestamps (it
+even-splits a cue's duration as a fallback). It composes with any range.
+
+**Trying variations without editing files.** The `captions` command takes
+overrides that win over the config, so you can A/B settings from the terminal:
+
+```bash
+video-pipeline captions <clip> -o review/captions.yml --identity <identity> \
+    --min-words 1 --max-words 1      # single-word captions
+video-pipeline captions <clip> -o review/captions.yml --identity <identity> \
+    --min-words 2 --max-words 4 --karaoke   # phrase groups + karaoke highlight
+```
 
 ## Test
 

@@ -73,6 +73,26 @@ balance/widow/phrase refinements simply have nothing to act on. `target_words`
 function-word list. All live in `config/caption-styles/` (per identity) or a
 project's `captions:` block.
 
+### Karaoke (active-word highlight)
+
+`karaoke: true` (style/config, or `--karaoke`) highlights each word as it is
+spoken — the active word takes the accent colour and grows slightly, earlier
+words stay lit, later words are dimmed. Timing comes from the transcript's
+per-word timestamps, which the chunker carries onto each cue (`word_times`) and
+the exporter converts to per-word frame windows (`wordTimings`) in the Remotion
+props. If a cue has no usable per-word timing (e.g. after a hand-edit changes the
+word count), the renderer even-splits the cue's duration across its words, so it
+still animates. In karaoke mode the per-word timings are persisted in the caption
+file (`wt:` per cue); otherwise the file stays lean.
+
+### Terminal overrides
+
+The `captions` command takes per-run overrides that win over the identity/global
+config, so variations can be A/B'd without editing files:
+`--min-words` / `--max-words` (the range — `1 1` = single-word, `2 4` = phrases),
+`--target-words`, and `--karaoke`. `captions-render` also accepts `--karaoke`
+and otherwise honours the flag recorded in the caption file.
+
 ## Style is layered config
 
 `config/caption-styles/` mirrors the glossary: `global.yml` + `identities/<id>.yml`

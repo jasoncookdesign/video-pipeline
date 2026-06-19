@@ -59,6 +59,9 @@ class CaptionStyle:
     target_words: int = 0
     # empty = built-in English function-word set (chunk.DEFAULT_BREAK_WORDS).
     break_words: tuple = ()
+    # Karaoke active-word highlight: each word lights up as it is spoken. Works at
+    # any range; most striking at 2-4 words per cue.
+    karaoke: bool = False
 
     def __post_init__(self):
         if self.position not in POSITIONS:
@@ -95,6 +98,7 @@ class CaptionStyle:
             "max_gap_s": self.max_gap_s,
             "emphasize_glossary_terms": self.emphasize_glossary_terms,
             "target_words": self.target_words,
+            "karaoke": self.karaoke,
         }
 
 
@@ -117,6 +121,7 @@ _COERCE = {
     "emphasize_glossary_terms": bool,
     "target_words": int,
     "break_words": lambda v: [str(x) for x in (v if isinstance(v, (list, tuple)) else [v])],
+    "karaoke": bool,
 }
 
 

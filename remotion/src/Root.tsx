@@ -12,6 +12,7 @@ const defaultProps: CaptionProps = {
   identity: "dyson-hope",
   profile: "reels-9x16",
   fps: 30,
+  karaoke: true,
   dimensions: { width: 1080, height: 1920 },
   safeBox: { x: 70, y: 1100, width: 800, height: 360 },
   style: {
@@ -40,6 +41,11 @@ const defaultProps: CaptionProps = {
       durationInFrames: 24,
       startSeconds: 0.0,
       endSeconds: 0.8,
+      wordTimings: [
+        { from: 0, durationInFrames: 8 },
+        { from: 8, durationInFrames: 8 },
+        { from: 16, durationInFrames: 8 },
+      ],
     },
     {
       index: 1,
@@ -50,6 +56,12 @@ const defaultProps: CaptionProps = {
       durationInFrames: 30,
       startSeconds: 0.8,
       endSeconds: 1.8,
+      wordTimings: [
+        { from: 0, durationInFrames: 7 },
+        { from: 7, durationInFrames: 7 },
+        { from: 14, durationInFrames: 6 },
+        { from: 20, durationInFrames: 10 },
+      ],
     },
   ],
 };

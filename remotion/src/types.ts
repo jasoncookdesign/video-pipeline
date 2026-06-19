@@ -18,6 +18,8 @@ export type CaptionStyle = {
   emphasize_glossary_terms: boolean;
 };
 
+export type WordTiming = { from: number; durationInFrames: number };
+
 export type CaptionCue = {
   index: number;
   text: string;
@@ -27,6 +29,8 @@ export type CaptionCue = {
   durationInFrames: number;
   startSeconds: number;
   endSeconds: number;
+  // per-word frame windows RELATIVE to the cue start (for the karaoke highlight)
+  wordTimings?: WordTiming[];
 };
 
 export type SafeBox = { x: number; y: number; width: number; height: number };
@@ -37,6 +41,7 @@ export type CaptionProps = {
   identity: string | null;
   profile: string | null;
   fps: number;
+  karaoke?: boolean;
   dimensions: { width: number; height: number };
   safeBox: SafeBox;
   style: CaptionStyle;

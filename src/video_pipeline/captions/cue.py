@@ -54,12 +54,25 @@ class Cue:
     words: List[str] = field(default_factory=list)
     emphasis: List[int] = field(default_factory=list)
     keep: bool = True
+    # Optional per-word (start, end) timings, parallel to ``words`` — used for the
+    # karaoke active-word highlight. Dropped if the count stops matching ``words``
+    # (e.g. after a hand-edit of ``text``); the renderer then even-splits instead.
+    word_times: List[tuple] = field(default_factory=list)
 
     def __post_init__(self):
         self.start = _round(self.start)
         self.end = _round(self.end)
         self.words = [str(w) for w in self.words]
         self.emphasis = sorted({int(i) for i in self.emphasis if 0 <= int(i) < len(self.words)})
+        wt = []
+        for pair in (self.word_times or []):
+            try:
+                s, e = pair
+                wt.append((_round(s), _round(e)))
+            except (TypeError, ValueError):
+                wt = []
+                break
+        self.word_times = wt if len(wt) == len(self.words) else []
 
     @property
     def text(self) -> str:
@@ -72,11 +85,11 @@ class Cue:
     def emphasis_words(self) -> List[str]:
         return [self.words[i] for i in self.emphasis]
 
-    def to_dict(self) -> dict:
+    def to_dict(self, include_word_times: bool = False) -> dict:
         # compact, key-ordered mapping (renders inline as flow style). ``text`` is
         # the editable surface; ``words`` is reconstructed from it on read so a
         # hand-edit of ``text`` is honoured without the editor touching ``words``.
-        return {
+        d = {
             "i": self.index,
             "start": self.start,
             "end": self.end,
@@ -84,6 +97,11 @@ class Cue:
             "text": self.text,
             "emphasis": list(self.emphasis),
         }
+        # ``wt`` (per-word timings) is written only in karaoke mode, to keep the
+        # default editable file uncluttered.
+        if include_word_times and self.word_times:
+            d["wt"] = [[s, e] for s, e in self.word_times]
+        return d
 
     @classmethod
     def from_dict(cls, d: dict) -> "Cue":
@@ -100,6 +118,7 @@ class Cue:
             words=words,
             emphasis=[int(i) for i in (d.get("emphasis") or [])],
             keep=bool(d.get("keep", True)),
+            word_times=[tuple(p) for p in (d.get("wt") or [])],
         )
 
 
@@ -122,6 +141,9 @@ class CaptionTrack:
     profile: Optional[str] = None
     style_ref: Optional[str] = None
     language: Optional[str] = None
+    # When true, per-word timings (``wt``) are persisted so the renderer can do the
+    # karaoke active-word highlight; off keeps the file lean.
+    karaoke: bool = False
 
     # ── views ──
     def kept(self) -> List[Cue]:
@@ -142,6 +164,7 @@ class CaptionTrack:
             "profile": self.profile,
             "style_ref": self.style_ref,
             "language": self.language,
+            "karaoke": self.karaoke,
             "cue_count": len(self.cues),
         }
         head_yaml = yaml.safe_dump(
@@ -150,8 +173,8 @@ class CaptionTrack:
         lines = ["cues:"]
         for c in self.cues:
             row = yaml.safe_dump(
-                c.to_dict(), sort_keys=False, allow_unicode=True,
-                default_flow_style=True, width=10_000,
+                c.to_dict(include_word_times=self.karaoke), sort_keys=False,
+                allow_unicode=True, default_flow_style=True, width=10_000,
             ).strip()
             lines.append(f"  - {row}")
         return _HEADER + head_yaml + "\n".join(lines) + "\n"
@@ -169,6 +192,7 @@ class CaptionTrack:
             profile=data.get("profile"),
             style_ref=data.get("style_ref"),
             language=data.get("language"),
+            karaoke=bool(data.get("karaoke", False)),
         )
 
     def write(self, path) -> None:

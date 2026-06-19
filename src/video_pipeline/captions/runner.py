@@ -62,6 +62,7 @@ def build_caption_track(
         profile=profile,
         style_ref=f"caption-styles/{identity}",
         language=transcript.language,
+        karaoke=style.karaoke,
     )
 
 
@@ -118,7 +119,7 @@ def make_captions(  # pragma: no cover - daily-driver orchestration (native deps
         if not safezone_spec_path:
             raise ValueError("props_out requires safezone_spec_path")
         spec = SafeZoneSpec.from_json(Path(safezone_spec_path).read_text(encoding="utf-8"))
-        props = build_props_from_safezone(track, style, spec, fps=fps)
+        props = build_props_from_safezone(track, style, spec, fps=fps, karaoke=style.karaoke)
         write_remotion_props(props, props_out)
 
     return track

@@ -36,6 +36,7 @@ layers to the built-in `CaptionStyle` defaults.
 | `max_chars` | Hard character cap per cue. |
 | `max_gap_s` | Inter-word gap (s) that forces a cue break (a natural pause). |
 | `break_words` | Optional override of the built-in function-word list used for phrase-aware breaking. |
+| `karaoke` | Active-word highlight — each word lights up (accent colour + slight scale) as it is spoken; earlier words stay lit, later words are dimmed. Works at any range; most striking at 2–4 words. |
 | `emphasize_glossary_terms` | Flag glossary canonical terms as emphasis words. |
 
 ### The range is the mode
