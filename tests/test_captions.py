@@ -426,6 +426,70 @@ class RemotionPropsTests(unittest.TestCase):
 
 # ── Remotion render command (pure argv) ───────────────────────────────────────
 
+class KaraokeTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        spec_path = REPO_ROOT / "config" / "safezone" / "reels-9x16.safezone.json"
+        cls.spec = SafeZoneSpec.from_json(spec_path.read_text(encoding="utf-8"))
+
+    def test_chunker_captures_per_word_timings(self):
+        t = words_to_transcript([("hi", 0.0, 0.4), ("there", 0.45, 0.9)])
+        cues = chunk_transcript(t, CaptionStyle(min_words=2, max_words=4, max_gap_s=5, max_chars=100))
+        self.assertEqual(cues[0].word_times, [(0.0, 0.4), (0.45, 0.9)])
+
+    def test_word_times_dropped_on_count_mismatch(self):
+        cue = Cue(0, 0.0, 1.0, ["a", "b", "c"], word_times=[(0.0, 0.3), (0.3, 0.6)])
+        self.assertEqual(cue.word_times, [])  # 2 timings, 3 words -> dropped
+
+    def test_karaoke_round_trip_persists_wt(self):
+        track = CaptionTrack(
+            source="x", karaoke=True,
+            cues=[Cue(0, 0.0, 0.9, ["hi", "there"], word_times=[(0.0, 0.4), (0.45, 0.9)])],
+        )
+        text = track.to_yaml()
+        self.assertIn("wt:", text)
+        back = CaptionTrack.from_yaml(text)
+        self.assertTrue(back.karaoke)
+        self.assertEqual(back.cues[0].word_times, [(0.0, 0.4), (0.45, 0.9)])
+
+    def test_non_karaoke_file_omits_wt(self):
+        track = CaptionTrack(
+            source="x", karaoke=False,
+            cues=[Cue(0, 0.0, 0.9, ["hi", "there"], word_times=[(0.0, 0.4), (0.45, 0.9)])],
+        )
+        self.assertNotIn("wt:", track.to_yaml())
+
+    def test_props_carry_karaoke_flag_and_word_timings(self):
+        track = CaptionTrack(
+            source="x", identity="dyson-hope", profile="reels-9x16", karaoke=True,
+            cues=[Cue(0, 0.0, 1.0, ["hi", "there"], word_times=[(0.0, 0.5), (0.5, 1.0)])],
+        )
+        props = build_props_from_safezone(track, CaptionStyle(karaoke=True), self.spec, fps=30)
+        self.assertTrue(props["karaoke"])
+        wt = props["cues"][0]["wordTimings"]
+        self.assertEqual(len(wt), 2)  # parallel to words
+        self.assertEqual(wt[0]["from"], 0)        # relative to cue start
+        self.assertEqual(wt[1]["from"], 15)       # 0.5s * 30fps
+
+    def test_word_timings_even_split_fallback(self):
+        # cue with NO captured per-word timings -> exporter even-splits
+        track = CaptionTrack(source="x", cues=[Cue(0, 0.0, 1.0, ["a", "b"])])
+        props = build_props_from_safezone(track, CaptionStyle(), self.spec, fps=30)
+        wt = props["cues"][0]["wordTimings"]
+        self.assertEqual(len(wt), 2)
+        self.assertEqual(wt[0]["from"], 0)
+        self.assertEqual(wt[1]["from"], 15)  # half of 1.0s at 30fps
+
+    def test_karaoke_default_off_in_props(self):
+        track = CaptionTrack(source="x", cues=[Cue(0, 0.0, 1.0, ["a", "b"])])
+        props = build_props_from_safezone(track, CaptionStyle(), self.spec, fps=30)
+        self.assertFalse(props["karaoke"])
+
+    def test_style_override_enables_karaoke(self):
+        s = load_caption_style(CONFIG_ROOT, identity="dyson-hope", overrides={"karaoke": True})
+        self.assertTrue(s.karaoke)
+
+
 class RemotionCommandTests(unittest.TestCase):
     def test_render_command_shape(self):
         cmd = remotion_render_command("work/props.json", "out/captions.mov")

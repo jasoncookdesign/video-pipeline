@@ -81,6 +81,7 @@
         "max_gap_s": {"type": "number", "exclusiveMinimum": 0, "description": "Inter-word gap (s) that forces a cue break (chunker)."},
         "target_words": {"type": "integer", "minimum": 0, "description": "Words-per-cue the chunker aims for (balance target). 0 = auto (midpoint of the range). If set, must lie within [min_words, max_words]."},
         "break_words": {"type": "array", "items": {"type": "string"}, "description": "Override the built-in function-word list the chunker prefers to break before / avoid breaking after (phrase-aware breaking)."},
+        "karaoke": {"type": "boolean", "description": "Karaoke active-word highlight: each word lights up as it is spoken. Works at any range; most striking at 2-4 words per cue."},
         "emphasize_glossary_terms": {"type": "boolean", "description": "Flag glossary canonical terms as emphasis words."}
       }
     },

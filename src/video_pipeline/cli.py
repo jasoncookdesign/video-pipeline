@@ -164,6 +164,17 @@ def _cmd_captions(args: argparse.Namespace) -> int:
         from .roughcut.transcript import MLXWhisperTranscriber
         transcriber = MLXWhisperTranscriber(model=args.model, offline=not args.online)
 
+    # Per-run style overrides (highest precedence over identity/global config).
+    overrides = {}
+    if args.min_words is not None:
+        overrides["min_words"] = args.min_words
+    if args.max_words is not None:
+        overrides["max_words"] = args.max_words
+    if args.target_words is not None:
+        overrides["target_words"] = args.target_words
+    if args.karaoke:
+        overrides["karaoke"] = True
+
     track = make_captions(
         args.input,
         caption_out=args.output,
@@ -172,6 +183,7 @@ def _cmd_captions(args: argparse.Namespace) -> int:
         config_root=args.config_root,
         transcript_json=args.transcript,
         transcriber=transcriber,
+        style_overrides=overrides or None,
         srt_out=args.srt,
         props_out=args.props,
         safezone_spec_path=args.safezone,
@@ -212,7 +224,9 @@ def _cmd_captions_render(args: argparse.Namespace) -> int:
         return 2
     style = load_caption_style(args.config_root, identity)
     spec = SafeZoneSpec.from_json(_P(args.safezone).read_text(encoding="utf-8"))
-    props = build_props_from_safezone(track, style, spec, fps=args.fps)
+    # karaoke is on if the style/config, the caption file header, or --karaoke says so.
+    karaoke = style.karaoke or track.karaoke or args.karaoke
+    props = build_props_from_safezone(track, style, spec, fps=args.fps, karaoke=karaoke)
 
     props_path = args.props or str(_P(args.output).with_suffix(".props.json"))
     write_remotion_props(props, props_path)
@@ -329,6 +343,15 @@ def build_parser() -> argparse.ArgumentParser:
                    help="also render the styled overlay here via Remotion "
                         "(daily driver; requires --props)")
     c.add_argument("--fps", type=int, default=30, help="frame rate for props (default 30)")
+    # words-per-cue range overrides (default: the identity/global caption-style config)
+    c.add_argument("--min-words", type=int, default=None,
+                   help="min words per cue (1/1 with --max-words = single-word captions)")
+    c.add_argument("--max-words", type=int, default=None,
+                   help="max words per cue (e.g. 4 for phrase groups)")
+    c.add_argument("--target-words", type=int, default=None,
+                   help="words-per-cue the chunker aims for (0 = auto midpoint)")
+    c.add_argument("--karaoke", action="store_true",
+                   help="karaoke active-word highlight (each word lights up as spoken)")
     c.add_argument("--config-root", default=str(_DEFAULT_CONFIG_ROOT),
                    help="repo config/ dir (glossary + caption-styles)")
     c.add_argument("--model", default=None,
@@ -349,6 +372,9 @@ def build_parser() -> argparse.ArgumentParser:
     cr.add_argument("--props", default=None,
                     help="props JSON path to write (default: alongside output)")
     cr.add_argument("--fps", type=int, default=30)
+    cr.add_argument("--karaoke", action="store_true",
+                    help="force the karaoke active-word highlight on (also honored "
+                         "from the caption file / style config)")
     cr.add_argument("--config-root", default=str(_DEFAULT_CONFIG_ROOT))
     cr.add_argument("--dry-run", action="store_true",
                     help="print the Remotion command without rendering")

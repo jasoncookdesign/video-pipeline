@@ -248,6 +248,7 @@ def chunk_transcript(
                     words=texts,
                     emphasis=emphasis,
                     keep=True,
+                    word_times=[(w.start, w.end) for w in seg],
                 )
             )
     return cues

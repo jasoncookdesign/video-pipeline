@@ -5,16 +5,28 @@ import {
   useCurrentFrame,
   interpolate,
 } from "remotion";
-import type { CaptionProps, CaptionCue, CaptionStyle, SafeBox } from "./types";
+import type { CaptionProps, CaptionCue, CaptionStyle, SafeBox, WordTiming } from "./types";
 
-// A single caption, positioned inside the safe-zone box. Emphasis words take the
-// style's emphasis colour; a short fade keeps cue transitions from snapping.
+// Even-split fallback when a cue carries no (or mismatched) per-word timings.
+const wordWindows = (cue: CaptionCue): WordTiming[] => {
+  if (cue.wordTimings && cue.wordTimings.length === cue.words.length) {
+    return cue.wordTimings;
+  }
+  const n = cue.words.length || 1;
+  const step = cue.durationInFrames / n;
+  return cue.words.map((_, i) => ({
+    from: Math.round(i * step),
+    durationInFrames: Math.max(1, Math.round(step)),
+  }));
+};
+
 const CueBlock: React.FC<{
   cue: CaptionCue;
   style: CaptionStyle;
   box: SafeBox;
-}> = ({ cue, style, box }) => {
-  const frame = useCurrentFrame();
+  karaoke: boolean;
+}> = ({ cue, style, box, karaoke }) => {
+  const frame = useCurrentFrame(); // relative to the cue (Sequence-shifted)
   const fade = interpolate(
     frame,
     [0, 3, cue.durationInFrames - 3, cue.durationInFrames],
@@ -28,6 +40,8 @@ const CueBlock: React.FC<{
       : style.position === "center"
       ? "center"
       : "flex-end";
+
+  const windows = karaoke ? wordWindows(cue) : [];
 
   return (
     <AbsoluteFill
@@ -56,26 +70,48 @@ const CueBlock: React.FC<{
           textTransform: style.uppercase ? "uppercase" : "none",
         }}
       >
-        {cue.words.map((w, i) => (
-          <span
-            key={i}
-            style={{
-              color: cue.emphasis.includes(i)
-                ? style.emphasis_color
-                : style.fill_color,
-            }}
-          >
-            {w}
-            {i < cue.words.length - 1 ? " " : ""}
-          </span>
-        ))}
+        {cue.words.map((w, i) => {
+          const isGlossary = cue.emphasis.includes(i);
+          let color = isGlossary ? style.emphasis_color : style.fill_color;
+          let opacity = 1;
+          let scale = 1;
+
+          if (karaoke) {
+            const win = windows[i];
+            const spoken = win ? frame >= win.from : false;
+            const active = win
+              ? frame >= win.from && frame < win.from + win.durationInFrames
+              : false;
+            opacity = spoken ? 1 : 0.5; // dim until reached
+            if (active) {
+              color = style.emphasis_color; // light up the spoken word
+              scale = 1.08;
+            }
+          }
+
+          return (
+            <span
+              key={i}
+              style={{
+                display: "inline-block",
+                color,
+                opacity,
+                transform: `scale(${scale})`,
+                transition: "none",
+              }}
+            >
+              {w}
+              {i < cue.words.length - 1 ? " " : ""}
+            </span>
+          );
+        })}
       </div>
     </AbsoluteFill>
   );
 };
 
 export const Captions: React.FC<CaptionProps> = (props) => {
-  const { cues, style, safeBox } = props;
+  const { cues, style, safeBox, karaoke } = props;
   return (
     <AbsoluteFill style={{ backgroundColor: "transparent" }}>
       {cues.map((cue) => (
@@ -84,7 +120,7 @@ export const Captions: React.FC<CaptionProps> = (props) => {
           from={cue.from}
           durationInFrames={cue.durationInFrames}
         >
-          <CueBlock cue={cue} style={style} box={safeBox} />
+          <CueBlock cue={cue} style={style} box={safeBox} karaoke={!!karaoke} />
         </Sequence>
       ))}
     </AbsoluteFill>

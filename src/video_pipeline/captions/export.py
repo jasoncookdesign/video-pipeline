@@ -60,6 +60,32 @@ def seconds_to_frame(seconds: float, fps: int) -> int:
     return int(round(seconds * fps))
 
 
+def _even_split(start: float, end: float, n: int):
+    """Split [start, end] into n equal (start, end) sub-intervals."""
+    if n <= 0:
+        return []
+    step = (end - start) / n
+    return [(start + i * step, start + (i + 1) * step) for i in range(n)]
+
+
+def _word_timings_frames(cue, fps: int):
+    """Per-word frame windows **relative to the cue start**, for the karaoke
+    highlight. Uses the cue's captured per-word timings when their count matches
+    its words; otherwise even-splits the cue duration across the words (so a
+    hand-edited or hand-added cue still highlights smoothly)."""
+    n = len(cue.words)
+    if n == 0:
+        return []
+    times = cue.word_times if len(cue.word_times) == n else _even_split(cue.start, cue.end, n)
+    cue_frame = seconds_to_frame(cue.start, fps)
+    out = []
+    for ws, we in times:
+        wf = max(0, seconds_to_frame(ws, fps) - cue_frame)
+        wd = max(1, seconds_to_frame(we, fps) - cue_frame - wf)
+        out.append({"from": wf, "durationInFrames": wd})
+    return out
+
+
 def track_to_remotion_props(
     track: CaptionTrack,
     style: CaptionStyle,
@@ -67,13 +93,16 @@ def track_to_remotion_props(
     width: int,
     height: int,
     fps: int = 30,
+    karaoke: bool = False,
 ) -> dict:
     """Build the Remotion props object for the styled caption overlay.
 
     Times are converted to frames at ``fps``; ``durationInFrames`` per cue is at
     least 1 so a very short cue still renders. ``box`` (from
     :func:`~video_pipeline.captions.placement.caption_box`) constrains layout to
-    the safe zone.
+    the safe zone. ``karaoke`` adds the top-level flag; ``wordTimings`` (per-word
+    frame windows relative to each cue) is always emitted so the renderer can
+    highlight the active word when karaoke is on.
     """
     out_cues = []
     for cue in track.kept():
@@ -89,6 +118,7 @@ def track_to_remotion_props(
                 "durationInFrames": max(1, f_out - f_in),
                 "startSeconds": cue.start,
                 "endSeconds": cue.end,
+                "wordTimings": _word_timings_frames(cue, fps),
             }
         )
 
@@ -98,6 +128,7 @@ def track_to_remotion_props(
         "identity": track.identity,
         "profile": track.profile,
         "fps": fps,
+        "karaoke": bool(karaoke),
         "dimensions": {"width": width, "height": height},
         "safeBox": box.to_dict(),
         "style": style.to_dict(),
@@ -117,11 +148,13 @@ def build_props_from_safezone(
     safezone_spec,
     fps: int = 30,
     position: Optional[str] = None,
+    karaoke: Optional[bool] = None,
 ) -> dict:
     """Convenience: derive the caption box from a safe-zone spec, then build props.
 
     Frame dimensions come from the spec's template image size (the profile's
-    native frame). ``position`` defaults to the style's anchor.
+    native frame). ``position`` defaults to the style's anchor; ``karaoke``
+    defaults to ``style.karaoke``.
     """
     box = caption_box(safezone_spec, position=position or style.position)
     return track_to_remotion_props(
@@ -129,4 +162,5 @@ def build_props_from_safezone(
         width=safezone_spec.image_width,
         height=safezone_spec.image_height,
         fps=fps,
+        karaoke=style.karaoke if karaoke is None else karaoke,
     )

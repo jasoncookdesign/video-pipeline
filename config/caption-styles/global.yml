@@ -26,4 +26,5 @@ max_chars: 24
 max_gap_s: 0.6
 target_words: 0          # 0 = auto (midpoint of the range); the balance target
 # break_words: []        # optional: override the built-in function-word list
+karaoke: false           # true = active-word highlight (each word lights up as spoken)
 emphasize_glossary_terms: true

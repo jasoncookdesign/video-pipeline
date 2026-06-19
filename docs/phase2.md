@@ -3,7 +3,7 @@
 Phase 2 turns a transcript into the **editable decision file** — the product of
 this phase — and renders a regenerable rough cut from it. The machine does
 mechanical labor only (dropping filler, false starts, dead air); pacing, taste,
-and the comedic pause stay with the CEO.
+and the comedic pause stay with you.
 
 > The decision file *is the deliverable*. The rough cut is just a render of it.
 
@@ -72,9 +72,25 @@ video-pipeline roughcut-render review/decision.yml -i "<clip.mp4>" -o work/rough
 | `--noise-db` | `--transcriber silence` | -30 | silence threshold (dB); raise toward 0 to treat low-level non-speech (handling noise) as silence |
 | `--min-silence` | `--transcriber silence` | 0.6 | min silence duration (s) to detect |
 
-These are also settable per project in `project.yml` under `rough_cut`
-(`silence_gap_s`, `keep_pad_lead_s`, `keep_pad_tail_s`, `detect_false_starts`,
-`extra_filler_words`).
+### Configuration (`project.yml`)
+
+Every flag above has a persistent equivalent in the project's `project.yml`, so a
+project keeps its rough-cut behaviour without re-passing flags. The CLI flag, when
+given, overrides the file. Authoritative key list: `schema/project.schema.json`.
+
+```yaml
+# project.yml
+rough_cut:
+  trim_filler: true        # false = no speech-based cuts (--no-trim-filler)
+  silence_gap_s: 0.6       # dead-air gap threshold (s)          (--silence-gap)
+  keep_pad_lead_s: 0.06    # padding kept before each kept span  (--pad-lead)
+  keep_pad_tail_s: 0.15    # padding kept after each kept span   (--pad-tail)
+  detect_false_starts: true # drop immediate repeats/stutters    (--no-false-starts)
+  extra_filler_words: []   # extra words to treat as filler, e.g. ["basically"]
+```
+
+Caption configuration (the `captions:` block, including the words-per-cue range)
+is documented in [phase3.md](phase3.md) and `config/caption-styles/README.md`.
 
 ### mlx-whisper network: offline by default
 
@@ -101,7 +117,7 @@ preserved. This is the live-off-the-mixer DJ case in the initiative DoD.
 | Piece | Where | Why |
 |---|---|---|
 | `propose`, decision round-trip, render-command assembly | sandbox (pure, unit-tested) | no native deps |
-| mlx-whisper transcription | Ono-Sendai (`[roughcut]` extra) | Apple-Silicon, local-first |
+| mlx-whisper transcription | an Apple-Silicon Mac (`[roughcut]` extra) | local-first, word-level timestamps |
 | FFmpeg trim/concat render | anywhere with an FFmpeg binary | rough preview |
 
 Transcription, the silence model (derived from word-gap timestamps), and the
