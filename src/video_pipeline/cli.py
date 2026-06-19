@@ -86,14 +86,31 @@ def _cmd_roughcut(args: argparse.Namespace) -> int:
     cfg = ProposeConfig(
         trim_filler=not args.no_trim_filler,
         silence_gap_s=args.silence_gap,
+        keep_pad_lead_s=args.pad_lead,
+        keep_pad_tail_s=args.pad_tail,
         detect_false_starts=not args.no_false_starts,
     )
+
+    # Build the transcriber with its knobs (unless a precomputed transcript is given).
+    transcriber = None
+    if not args.transcript:
+        if args.transcriber == "silence":
+            from .roughcut.transcript import SilenceTranscriber
+            transcriber = SilenceTranscriber(
+                noise_db=args.noise_db, min_silence_s=args.min_silence
+            )
+        else:  # mlx-whisper (offline by default; --online allows the one-time download)
+            from .roughcut.transcript import MLXWhisperTranscriber
+            transcriber = MLXWhisperTranscriber(
+                model=args.model, offline=not args.online
+            )
+
     decision = make_rough_cut(
         args.input,
         decision_out=args.output,
         render_out=args.render,
         transcript_json=args.transcript,
-        transcriber_name=args.transcriber,
+        transcriber=transcriber,
         config=cfg,
         profile=args.profile,
         dry_run=args.dry_run,
@@ -175,7 +192,26 @@ def build_parser() -> argparse.ArgumentParser:
     rc.add_argument("--no-false-starts", action="store_true",
                     help="disable false-start (immediate-repeat) detection")
     rc.add_argument("--silence-gap", type=float, default=0.6,
-                    help="inter-word gap (s) above which dead air is trimmed")
+                    help="inter-word gap (s) above which dead air is trimmed (default 0.6)")
+    rc.add_argument("--pad-lead", type=float, default=0.06,
+                    help="padding (s) kept BEFORE speech at each cut (default 0.06)")
+    rc.add_argument("--pad-tail", type=float, default=0.15,
+                    help="padding (s) kept AFTER speech at each cut (default 0.15; "
+                         "larger because Whisper clips word ends early)")
+    # mlx-whisper-only knobs:
+    rc.add_argument("--model", default=None,
+                    help="[mlx-whisper] HF model repo (default "
+                         "mlx-community/whisper-large-v3-turbo)")
+    rc.add_argument("--online", action="store_true",
+                    help="[mlx-whisper] allow network: download the model if it is "
+                         "not cached (default is OFFLINE/cache-only). huggingface_hub "
+                         "auto-uses the ambient HF_TOKEN env var if set.")
+    # silence-transcriber-only knobs:
+    rc.add_argument("--noise-db", type=float, default=-30.0,
+                    help="[--transcriber silence] silence threshold in dB (default -30)")
+    rc.add_argument("--min-silence", type=float, default=0.6,
+                    help="[--transcriber silence] min silence duration (s) to detect "
+                         "(default 0.6)")
     rc.add_argument("--dry-run", action="store_true",
                     help="write the decision file but do not run the render")
     rc.set_defaults(func=_cmd_roughcut)

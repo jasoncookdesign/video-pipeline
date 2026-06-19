@@ -36,11 +36,17 @@
           "default": 0.6,
           "description": "Inter-word gap (seconds) above which dead air is trimmed."
         },
-        "keep_pad_s": {
+        "keep_pad_lead_s": {
           "type": "number",
           "minimum": 0,
-          "default": 0.08,
-          "description": "Padding (seconds) kept around speech at each cut so words are not clipped."
+          "default": 0.06,
+          "description": "Padding (seconds) kept BEFORE speech at each cut."
+        },
+        "keep_pad_tail_s": {
+          "type": "number",
+          "minimum": 0,
+          "default": 0.15,
+          "description": "Padding (seconds) kept AFTER speech at each cut (larger — Whisper clips word ends early)."
         },
         "detect_false_starts": {
           "type": "boolean",

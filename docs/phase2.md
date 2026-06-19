@@ -59,6 +59,37 @@ video-pipeline roughcut "<clip.mp4>" -o review/decision.yml --no-trim-filler
 video-pipeline roughcut-render review/decision.yml -i "<clip.mp4>" -o work/rough.mp4
 ```
 
+### Tuning knobs
+
+| Flag | Applies to | Default | What it does |
+|---|---|---|---|
+| `--silence-gap` | all | 0.6 | inter-word gap (s) above which dead air is trimmed |
+| `--pad-lead` | all | 0.06 | padding (s) kept **before** speech at each cut |
+| `--pad-tail` | all | 0.15 | padding (s) kept **after** speech — larger, because Whisper clips word ends early |
+| `--no-false-starts` | all | off | disable immediate-repeat (stutter) trimming |
+| `--model` | mlx-whisper | large-v3-turbo | HF model repo |
+| `--online` | mlx-whisper | off (offline) | allow network to download an uncached model |
+| `--noise-db` | `--transcriber silence` | -30 | silence threshold (dB); raise toward 0 to treat low-level non-speech (handling noise) as silence |
+| `--min-silence` | `--transcriber silence` | 0.6 | min silence duration (s) to detect |
+
+These are also settable per project in `project.yml` under `rough_cut`
+(`silence_gap_s`, `keep_pad_lead_s`, `keep_pad_tail_s`, `detect_false_starts`,
+`extra_filler_words`).
+
+### mlx-whisper network: offline by default
+
+The model (`whisper-large-v3-turbo`, ~1.6 GB) downloads **once** to
+`~/.cache/huggingface/hub`. After that the pipeline runs **offline by default**
+(`HF_HUB_OFFLINE=1` is set internally) — cache-only, no network, fastest startup.
+You do **not** need to set `HF_HUB_OFFLINE` in your shell.
+
+- **First run / new `--model`:** add `--online` to allow the one-time download.
+  Set `HF_TOKEN` in your shell (a free read-only token from
+  huggingface.co/settings/tokens) for faster, rate-limit-free downloads;
+  huggingface_hub reads it automatically — never pass a token on the command line.
+- **Offline + model not cached:** the pipeline prints a clear instruction to
+  re-run with `--online`, rather than a cryptic Hub error.
+
 ## `trim_filler: false`
 
 When `rough_cut.trim_filler` is false (or `--no-trim-filler`), the proposal makes

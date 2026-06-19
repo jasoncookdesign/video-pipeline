@@ -43,7 +43,8 @@ class ProposeConfig:
     filler_words: FrozenSet[str] = FILLER_WORDS
     extra_filler_words: FrozenSet[str] = frozenset()
     silence_gap_s: float = 0.6        # inter-word gap above this => dead air
-    keep_pad_s: float = 0.08          # padding kept around speech at each cut
+    keep_pad_lead_s: float = 0.06     # padding kept BEFORE speech at each cut
+    keep_pad_tail_s: float = 0.15     # padding kept AFTER speech (Whisper clips ends early)
     detect_false_starts: bool = True
     false_start_max_gap_s: float = 0.5  # adjacent repeat within this gap => restart
 
@@ -123,13 +124,18 @@ def _keep_runs(
 def _pad_runs(
     runs: List[Tuple[float, float]], duration: float, cfg: ProposeConfig
 ) -> List[Tuple[float, float]]:
-    """Expand each run by keep_pad_s without overlapping a neighbour or the clip."""
+    """Expand each run by the lead/tail pads without overlapping a neighbour or clip.
+
+    The tail pad is larger than the lead pad by default because Whisper word-end
+    timestamps tend to land slightly early — a bigger tail keeps word endings from
+    being clipped at a cut.
+    """
     padded: List[Tuple[float, float]] = []
     for idx, (a, b) in enumerate(runs):
         lo_bound = runs[idx - 1][1] if idx > 0 else 0.0
         hi_bound = runs[idx + 1][0] if idx + 1 < len(runs) else duration
-        a2 = max(lo_bound, a - cfg.keep_pad_s, 0.0)
-        b2 = min(hi_bound, b + cfg.keep_pad_s, duration)
+        a2 = max(lo_bound, a - cfg.keep_pad_lead_s, 0.0)
+        b2 = min(hi_bound, b + cfg.keep_pad_tail_s, duration)
         padded.append((a2, max(a2, b2)))
     return padded
 

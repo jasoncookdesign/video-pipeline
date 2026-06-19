@@ -21,7 +21,8 @@ rough_cut:
   trim_filler: true
   # Optional rough-cut knobs (defaults shown):
   silence_gap_s: 0.6          # inter-word gap above which dead air is trimmed
-  keep_pad_s: 0.08            # padding kept around speech at each cut
+  keep_pad_lead_s: 0.06       # padding kept BEFORE speech at each cut
+  keep_pad_tail_s: 0.15       # padding kept AFTER speech (larger — Whisper clips ends early)
   detect_false_starts: true  # drop immediately-repeated tokens (stutters/restarts)
   extra_filler_words: []     # extra per-project filler tokens, e.g. ["basically"]
 
