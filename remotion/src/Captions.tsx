@@ -76,6 +76,10 @@ const CueBlock: React.FC<{
           textAlign: "center",
           lineHeight: 1.05,
           textTransform: style.uppercase ? "uppercase" : "none",
+          // Balance multi-line cues by line width (real font metrics) instead of
+          // greedy wrapping — avoids a single word stranded on the last line.
+          maxWidth: "100%",
+          textWrap: "balance",
         }}
       >
         {cue.words.map((w, i) => {
