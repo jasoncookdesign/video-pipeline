@@ -65,7 +65,9 @@ const CueBlock: React.FC<{
     >
       <div
         style={{
-          fontFamily: style.font_family,
+          // Sans-serif fallback chain: a missing named font degrades to
+          // Helvetica/Arial/sans, never to the browser's serif default.
+          fontFamily: `${style.font_family}, Helvetica, Arial, sans-serif`,
           fontSize: style.font_size,
           fontWeight: style.font_weight,
           color: style.fill_color,
