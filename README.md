@@ -18,7 +18,8 @@ transitions, and music placement stay with the editor.
 | 2 — Rough cut | Transcription seam (mlx-whisper) + silence fallback; pure proposer (filler / false-start / dead-air, honors `trim_filler`); **editable decision file** (the product); FFmpeg trim/concat render | ✅ accepted on real footage |
 | 3 — Captions | Glossary-corrected 2–4-word chunker (timing layer); **editable caption file** (the product); safe-zone-aware placement; SRT export; **Remotion** styled-overlay renderer (style layer) driven by a props contract; layered caption-style config | ✅ accepted on real footage |
 | 4 — Safe-zone QC | Validate a frame layout against the derived safe polygon (notch included): flag captions/logos/CTAs intruding on the danger region, captions over the speaker's face, and faces in the danger region; **QC report** (JSON + printable) + **danger-zone preview** + **clean render** | ✅ built (pure logic tested; face detection + FFmpeg burn-in are the local acceptance gate) |
-| 5–6 | FCPXML handoff; source-card overlays | designed; not yet built |
+| 5 — FCPXML handoff | Assemble the editor project: the decision file's KEEP segments over the reframed clip on a labeled **Base Cut** track + the caption overlay on a **Captions** track; cues **remapped to cut time** so they line up with the compressed timeline. Opens in Premiere / Resolve / Final Cut | ✅ built (pure assembly + remap tested; opening the project + overlay render are the local acceptance gate) |
+| 6 | Source-card overlays | designed; not yet built |
 
 Captions are **two layers, kept separate**: the pipeline owns *timing* (transcript
 → cues, glossary-corrected) and *placement* (a safe-zone-derived box); **Remotion**
@@ -96,6 +97,13 @@ video-pipeline qc out/clip-9x16.mp4 \
     --safezone config/safezone/reels-9x16.safezone.json \
     --props work/caption-props.json \
     --report out/qc-report.json --preview out/qc-preview.mp4
+
+# 8. Assemble the editor handoff (FCPXML: base cut over the reframed clip +
+#    captions). Also writes a cut-time caption file; render that to the overlay.
+video-pipeline fcpxml review/decision.yml -o out/reel.fcpxml \
+    --reframed out/clip-9x16.mp4 --captions review/captions.yml --profile reels-9x16
+video-pipeline captions-render out/reel.captions.cut.yml -o out/reel.captions.mov \
+    --safezone config/safezone/reels-9x16.safezone.json
 ```
 
 Captions need real words — supply mlx-whisper (the `[roughcut]` extra) or a cached
@@ -188,10 +196,11 @@ src/video_pipeline/
   roughcut/                       transcript seam -> propose -> decision file -> render
   captions/                       chunk (timing) -> caption file -> placement/export -> Remotion (style)
   qc/                             validate frame layout vs safe polygon -> report + danger preview + clean
+  fcpxml/                         base cut + cue cut-time remap -> FCPXML (Premiere / Resolve / FCP)
   manifest.py  project.py         project.yml load/validate + scaffolding
   glossary.py  cli.py
 tests/                            unittest/pytest suite (runs without native deps)
-docs/phase1.md  phase2.md  phase3.md  phase4.md   what each phase delivers + acceptance steps
+docs/phase1.md … phase5.md        what each phase delivers + acceptance steps
 ```
 
 Projects are **data**, not code: each lives in its own folder (with `source/` as
