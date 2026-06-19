@@ -23,10 +23,20 @@ from .propose import ProposeConfig, propose
 from .render import ffmpeg_roughcut_command
 from .transcript import (
     MLXWhisperTranscriber,
+    SilenceTranscriber,
     Transcriber,
     Transcript,
     transcript_from_whisper_dict,
 )
+
+
+def build_transcriber(name: str) -> Transcriber:
+    """Construct a transcriber by name: 'mlx-whisper' (default) or 'silence'."""
+    if name in ("mlx-whisper", "mlx", "whisper"):
+        return MLXWhisperTranscriber()
+    if name == "silence":
+        return SilenceTranscriber()
+    raise ValueError(f"unknown transcriber: {name!r} (use 'mlx-whisper' or 'silence')")
 
 
 def probe_duration(media_path: str) -> float:  # pragma: no cover - needs ffprobe + a file
@@ -51,6 +61,7 @@ def make_rough_cut(  # pragma: no cover - daily-driver orchestration (native dep
     render_out: Optional[str] = None,
     transcript_json: Optional[str] = None,
     transcriber: Optional[Transcriber] = None,
+    transcriber_name: str = "mlx-whisper",
     config: Optional[ProposeConfig] = None,
     profile: Optional[str] = None,
     dry_run: bool = False,
@@ -58,16 +69,17 @@ def make_rough_cut(  # pragma: no cover - daily-driver orchestration (native dep
     """Produce (and persist) the decision file; optionally render the rough cut.
 
     If ``transcript_json`` is given it is used directly; otherwise ``transcriber``
-    (default ``MLXWhisperTranscriber``) transcribes ``input_path``. The decision
-    file is always written to ``decision_out``. If ``render_out`` is set, the
-    rough cut is rendered there (unless ``dry_run``).
+    (or one built from ``transcriber_name`` — ``"mlx-whisper"`` default, or
+    ``"silence"`` for the ASR-free dead-air fallback) transcribes ``input_path``.
+    The decision file is always written to ``decision_out``. If ``render_out`` is
+    set, the rough cut is rendered there (unless ``dry_run``).
     """
     cfg = config or ProposeConfig()
 
     if transcript_json:
         transcript = load_transcript_json(transcript_json)
     else:
-        transcriber = transcriber or MLXWhisperTranscriber()
+        transcriber = transcriber or build_transcriber(transcriber_name)
         transcript = transcriber.transcribe(input_path)
 
     duration = probe_duration(input_path)

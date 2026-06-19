@@ -49,6 +49,9 @@ video-pipeline roughcut "<clip.mp4>" -o review/decision.yml --render work/rough.
 # Re-propose from a cached transcript (no MLX needed):
 video-pipeline roughcut "<clip.mp4>" --transcript work/transcript.json -o review/decision.yml
 
+# ASR-free fallback (no model, no network) — trims DEAD AIR ONLY:
+video-pipeline roughcut "<clip.mp4>" --transcriber silence -o review/decision.yml --render work/rough.mp4
+
 # Preserve audio continuity — NO speech-based edits (DJ record showcases):
 video-pipeline roughcut "<clip.mp4>" -o review/decision.yml --no-trim-filler
 
