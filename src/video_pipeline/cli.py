@@ -93,6 +93,7 @@ def _cmd_roughcut(args: argparse.Namespace) -> int:
         decision_out=args.output,
         render_out=args.render,
         transcript_json=args.transcript,
+        transcriber_name=args.transcriber,
         config=cfg,
         profile=args.profile,
         dry_run=args.dry_run,
@@ -159,7 +160,12 @@ def build_parser() -> argparse.ArgumentParser:
     rc.add_argument("input")
     rc.add_argument("-o", "--output", required=True, help="decision file path (.yml)")
     rc.add_argument("--transcript", default=None,
-                    help="precomputed Whisper-shaped JSON; skips mlx-whisper")
+                    help="precomputed Whisper-shaped JSON; skips transcription")
+    rc.add_argument("--transcriber", default="mlx-whisper",
+                    choices=["mlx-whisper", "silence"],
+                    help="mlx-whisper (default; needs the [roughcut] extra) or "
+                         "silence (ASR-free FFmpeg silencedetect — trims dead air "
+                         "only, runs anywhere with ffmpeg). Ignored if --transcript is set.")
     rc.add_argument("--render", default=None,
                     help="also render the rough cut to this path")
     rc.add_argument("--profile", default=None)

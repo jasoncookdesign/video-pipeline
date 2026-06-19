@@ -28,9 +28,13 @@ from .propose import ProposeConfig, FILLER_WORDS, propose
 from .render import ffmpeg_roughcut_command, concat_filtergraph
 from .transcript import (
     FixedTranscriber,
+    SilenceTranscriber,
     Transcriber,
     Transcript,
     Word,
+    parse_silencedetect,
+    speech_regions,
+    transcript_from_speech_regions,
     transcript_from_whisper_dict,
 )
 
@@ -43,8 +47,12 @@ __all__ = [
     "ffmpeg_roughcut_command",
     "concat_filtergraph",
     "FixedTranscriber",
+    "SilenceTranscriber",
     "Transcriber",
     "Transcript",
     "Word",
+    "parse_silencedetect",
+    "speech_regions",
+    "transcript_from_speech_regions",
     "transcript_from_whisper_dict",
 ]

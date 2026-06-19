@@ -18,7 +18,10 @@ from video_pipeline.roughcut import (
     Word,
     concat_filtergraph,
     ffmpeg_roughcut_command,
+    parse_silencedetect,
     propose,
+    speech_regions,
+    transcript_from_speech_regions,
     transcript_from_whisper_dict,
 )
 from video_pipeline.roughcut.propose import R_FILLER, R_FALSE_START, R_SILENCE
@@ -253,6 +256,64 @@ class TestRenderCommand(unittest.TestCase):
                          segments=[Segment(0, 0.0, 2.0, keep=False, reason="silence")])
         with self.assertRaises(ValueError):
             ffmpeg_roughcut_command("in.mp4", "out.mp4", d)
+
+
+# ── silence-based fallback (no ASR) ───────────────────────────────────────────
+
+_SILENCE_LOG = """
+[silencedetect @ 0x1] silence_start: 0.315
+[silencedetect @ 0x1] silence_end: 1.751 | silence_duration: 1.436
+[silencedetect @ 0x1] silence_start: 4.803
+[silencedetect @ 0x1] silence_end: 5.577 | silence_duration: 0.774
+[silencedetect @ 0x1] silence_start: 9.000
+"""  # note: trailing silence_start with no end (runs to EOF)
+
+
+class TestSilenceParse(unittest.TestCase):
+    def test_parses_pairs_and_trailing_open_silence(self):
+        sils = parse_silencedetect(_SILENCE_LOG)
+        self.assertEqual(sils[0], (0.315, 1.751))
+        self.assertEqual(sils[1], (4.803, 5.577))
+        self.assertEqual(sils[2], (9.000, None))  # open -> EOF
+
+    def test_speech_regions_complement(self):
+        sils = [(0.315, 1.751), (4.803, 5.577), (9.0, None)]
+        regs = speech_regions(sils, duration=10.0)
+        # speech: [0,0.315],[1.751,4.803],[5.577,9.0] ; 9.0->10 is silence (open)
+        self.assertEqual(regs[0], (0.0, 0.315))
+        self.assertEqual(regs[1], (1.751, 4.803))
+        self.assertEqual(regs[2], (5.577, 9.0))
+        self.assertTrue(all(b > a for a, b in regs))
+
+    def test_min_speech_filters_slivers(self):
+        sils = [(0.30, 0.305)]  # a 0.005s "speech" sliver around it
+        regs = speech_regions(sils, duration=2.0, min_speech_s=0.1)
+        # the [0,0.30] region survives; the tiny [0.305,2.0]? that's 1.695 -> survives
+        self.assertTrue(all((b - a) >= 0.1 for a, b in regs))
+
+    def test_transcript_markers_are_distinct(self):
+        t = transcript_from_speech_regions([(0.0, 1.0), (1.2, 2.0), (2.1, 3.0)])
+        norms = [w.normalized() for w in t.words]
+        self.assertEqual(len(set(norms)), len(norms))  # all distinct
+
+    def test_propose_on_silence_transcript_trims_only_dead_air(self):
+        # speech regions separated by a 0.7s gap -> dead air trimmed, no false-start
+        regs = [(0.0, 2.0), (2.7, 4.0)]
+        t = transcript_from_speech_regions(regs)
+        d = propose(t, duration=4.0)
+        # exactly the two speech regions kept, the gap dropped as silence
+        self.assertEqual(len(d.kept()), 2)
+        reasons = {s.reason for s in d.segments if not s.keep}
+        self.assertEqual(reasons, {R_SILENCE})
+
+    def test_distinct_markers_avoid_false_start_on_small_gaps(self):
+        # regression: a sub-0.5s gap between identical-looking regions must NOT be
+        # misread as a false-start (markers are numbered, hence distinct).
+        regs = [(0.0, 1.0), (1.3, 2.0)]  # 0.3s gap < false_start_max_gap_s
+        t = transcript_from_speech_regions(regs)
+        d = propose(t, duration=2.0, config=ProposeConfig(silence_gap_s=0.2))
+        self.assertFalse(any(s.reason == R_FALSE_START for s in d.segments))
+        self.assertEqual(len(d.kept()), 2)
 
 
 if __name__ == "__main__":  # pragma: no cover
