@@ -27,12 +27,18 @@ const CueBlock: React.FC<{
   karaoke: boolean;
 }> = ({ cue, style, box, karaoke }) => {
   const frame = useCurrentFrame(); // relative to the cue (Sequence-shifted)
-  const fade = interpolate(
-    frame,
-    [0, 3, cue.durationInFrames - 3, cue.durationInFrames],
-    [0, 1, 1, 0],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
-  );
+  // Fade in/out, but keep a strictly-increasing input range for very short cues
+  // (a 6-frame cue would otherwise give [0,3,3,6] and crash interpolate). fadeLen
+  // shrinks toward 0 as the cue shortens; tiny cues just show at full opacity.
+  const d = cue.durationInFrames;
+  const fadeLen = Math.min(3, Math.floor((d - 1) / 2));
+  const fade =
+    fadeLen > 0
+      ? interpolate(frame, [0, fadeLen, d - fadeLen, d], [0, 1, 1, 0], {
+          extrapolateLeft: "clamp",
+          extrapolateRight: "clamp",
+        })
+      : 1;
 
   const justify =
     style.position === "upper-third"
