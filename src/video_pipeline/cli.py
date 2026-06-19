@@ -31,6 +31,12 @@ Subcommands:
       Safe-zone QC: flag captions/logos/CTAs intruding on the danger polygon
       (notch included) and captions over the speaker's face; write a QC report
       and a danger-zone preview (daily driver: face detection + FFmpeg burn-in).
+
+  fcpxml <decision.yml> -o <out.fcpxml> --reframed <clip.mp4> [--captions cap.yml]
+      Assemble the editor handoff: the decision file's KEEP segments laid over
+      the reframed clip on a labeled Base Cut track, plus the caption overlay on
+      a Captions track. Opens in Premiere / Resolve / Final Cut. Also writes a
+      cut-time caption file to render the aligned overlay (captions-render).
 """
 
 from __future__ import annotations
@@ -297,6 +303,35 @@ def _cmd_qc(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_fcpxml(args: argparse.Namespace) -> int:
+    from .fcpxml.runner import assemble_project
+
+    out_w, out_h = _PROFILE_DIMS.get(args.profile, (1080, 1920))
+    result = assemble_project(
+        args.decision,
+        args.output,
+        reframed_clip=args.reframed,
+        caption_path=args.captions,
+        overlay_path=args.overlay,
+        width=out_w,
+        height=out_h,
+        fps=args.fps,
+        event_name=args.event,
+        project_name=args.project_name,
+    )
+    print(
+        f"wrote {result['fcpxml']}  base-cut clips={result['clips']}  "
+        f"duration={result['kept_duration']:.2f}s"
+    )
+    if result["cut_captions"]:
+        print(f"wrote cut-time caption file -> {result['cut_captions']}")
+        print(
+            "  render the aligned overlay:  video-pipeline captions-render "
+            f"{result['cut_captions']} -o {result['overlay']} --safezone <spec.json>"
+        )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="video-pipeline", description=__doc__)
     sub = p.add_subparsers(dest="command", required=True)
@@ -465,6 +500,28 @@ def build_parser() -> argparse.ArgumentParser:
     q.add_argument("--dry-run", action="store_true",
                    help="compute + write the report but do not run FFmpeg renders")
     q.set_defaults(func=_cmd_qc)
+
+    fx = sub.add_parser(
+        "fcpxml", help="assemble the editor handoff (FCPXML: base cut + captions)"
+    )
+    fx.add_argument("decision", help="decision file path (.yml) — the base cut")
+    fx.add_argument("-o", "--output", required=True, help="FCPXML output path (.fcpxml)")
+    fx.add_argument("--reframed", required=True,
+                    help="the reframed vertical clip the base cut references "
+                         "(work/<clip>-9x16.mp4); reframe is baked, not a transform")
+    fx.add_argument("--captions", default=None,
+                    help="caption file (.yml); remapped to cut-time + referenced as "
+                         "the Captions overlay track")
+    fx.add_argument("--overlay", default=None,
+                    help="path the cut-time caption overlay (.mov) will be rendered to "
+                         "and referenced from (default: alongside the FCPXML)")
+    fx.add_argument("--profile", default="reels-9x16",
+                    help="output profile -> sequence dimensions (default reels-9x16)")
+    fx.add_argument("--fps", type=int, default=30, help="sequence frame rate (default 30)")
+    fx.add_argument("--event", default="JasonOS", help="FCPXML event name")
+    fx.add_argument("--project-name", default=None,
+                    help="FCPXML project name (default: the decision file's source)")
+    fx.set_defaults(func=_cmd_fcpxml)
 
     return p
 
