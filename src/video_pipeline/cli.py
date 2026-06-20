@@ -361,9 +361,50 @@ def _add_handoff_args(parser: argparse.ArgumentParser) -> None:
                         help="project/sequence name (default: the decision file's source)")
 
 
+def _cmd_schema(args: argparse.Namespace) -> int:
+    """Emit the control-tower schema (the GUI's single source of truth, INI-087).
+
+    The GUI discovers every step/flag/layer/export target from this document at
+    runtime; nothing about the pipeline is hardcoded in the GUI.
+    """
+    from . import schema as _schema
+
+    problems = _schema.check()
+    if args.check:
+        if problems:
+            for prob in problems:
+                print(f"schema: {prob}", file=sys.stderr)
+            print(f"schema: {len(problems)} problem(s)", file=sys.stderr)
+            return 1
+        print("schema: OK")
+        return 0
+    if problems:
+        # Never emit a non-conformant schema — fail loudly (deny-by-default).
+        for prob in problems:
+            print(f"schema: {prob}", file=sys.stderr)
+        return 1
+
+    text = _schema.to_json() if args.format == "json" else _schema.to_yaml()
+    if args.output:
+        Path(args.output).write_text(text, encoding="utf-8")
+        print(f"schema -> {args.output}")
+    else:
+        sys.stdout.write(text)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="video-pipeline", description=__doc__)
     sub = p.add_subparsers(dest="command", required=True)
+
+    sc = sub.add_parser("schema",
+                        help="emit the control-tower GUI schema (SSOT, INI-087)")
+    sc.add_argument("--format", default="yaml", choices=["yaml", "json"],
+                    help="yaml (authored SSOT, default) or json (Rust-boundary form)")
+    sc.add_argument("-o", "--output", default=None, help="write here instead of stdout")
+    sc.add_argument("--check", action="store_true",
+                    help="validate the schema and exit (no emit)")
+    sc.set_defaults(func=_cmd_schema)
 
     g = sub.add_parser("safezone-gen", help="derive a safe-zone spec from a template PNG")
     g.add_argument("template")
