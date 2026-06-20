@@ -167,6 +167,15 @@ def build_schema() -> Schema:
                        "Convention: \"YYYY-MM-DD Token Project - Hook\".",
                   example="YYYY-MM-DD Token Project - Hook",
                   ui=UI(label="Project name", group="Setup")),
+            Param("source", "path", flag="--source",
+                  hint="Source video to ingest.",
+                  help="Pick the source clip. On run it is copied into the project — "
+                       "archived in source/ and seeded as the base layer "
+                       "(work/base.mp4) — so the reframe / rough-cut steps have their "
+                       "input. Browse or drag a file onto the field.",
+                  path=PathSpec(kind="file",
+                                extensions=["mp4", "mov", "m4v", "webm", "mkv", "avi"]),
+                  ui=UI(label="Source video", group="Setup")),
             _identity_param(required=True,
                   hint="Brand/identity id for styling defaults.",
                   help="Selects the caption style + glossary set for this creator "
