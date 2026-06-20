@@ -25,6 +25,7 @@ from .model import (
     ExportTarget,
     IOBinding,
     Param,
+    PathSpec,
     Schema,
     Step,
     Task,
@@ -121,6 +122,7 @@ def build_schema() -> Schema:
             Param("root", "path", flag="--root",
                   hint="Parent folder for projects.",
                   help="Where the project folder is created. Defaults to ~/Video/Projects.",
+                  path=PathSpec(kind="directory"),
                   ui=UI(label="Projects root", group="Setup")),
             Param("no_trim_filler", "bool", arity="switch", flag="--no-trim-filler",
                   default=False,
@@ -148,6 +150,7 @@ def build_schema() -> Schema:
                   help="The design template image. The marked region becomes the danger "
                        "polygon (notch-aware).",
                   example="template.png",
+                  path=PathSpec(kind="file", extensions=["png", "jpg", "jpeg", "webp"]),
                   ui=UI(label="Template PNG", group="Input")),
             _profile_param(required=False, default=None),
             Param("key", "enum", flag="--key", options=["auto", "alpha", "color"],
