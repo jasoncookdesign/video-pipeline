@@ -71,6 +71,32 @@ class UI:
 
 
 @dataclass(frozen=True)
+class PathSpec:
+    """Selection metadata for a ``type="path"`` param (SADD §3.4).
+
+    Drives the GUI's native file/folder picker and drag-drop filtering so the
+    operator can only choose the right kind of object. The GUI hardcodes none of
+    this — a new picker's behavior is described here and discovered at runtime.
+
+    ``kind``       — "file" (default) or "directory".
+    ``extensions`` — lowercase, dot-less file extensions to mask to (files only).
+    ``multiple``   — allow selecting more than one path.
+    """
+
+    kind: str = "file"                      # file | directory
+    extensions: list[str] | None = None     # files only, e.g. ["png", "jpg"]
+    multiple: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {"kind": self.kind}
+        if self.extensions:
+            d["extensions"] = list(self.extensions)
+        if self.multiple:
+            d["multiple"] = True
+        return d
+
+
+@dataclass(frozen=True)
 class Param:
     """A single controllable input to a task.
 
@@ -94,6 +120,7 @@ class Param:
     hint: str = ""                  # one-line tooltip
     help: str = ""                  # docked-panel long form
     example: str | None = None      # example invocation fragment
+    path: PathSpec | None = None    # type="path" only: picker/drag-drop metadata
 
     def resolved_control(self) -> str:
         if self.ui.control:
@@ -130,6 +157,8 @@ class Param:
             d["help"] = self.help
         if self.example:
             d["example"] = self.example
+        if self.path is not None:
+            d["path"] = self.path.to_dict()
         return d
 
 
@@ -364,6 +393,24 @@ class Schema:
                         f"task {t.id!r} param {p.key!r} depends_on unknown sibling "
                         f"{p.ui.depends_on_key!r}"
                     )
+                # path metadata is only meaningful on a path param, and extensions
+                # only on a file picker
+                if p.path is not None:
+                    if p.type != "path":
+                        problems.append(
+                            f"task {t.id!r} param {p.key!r} has path metadata but is "
+                            f"type {p.type!r}, not 'path'"
+                        )
+                    if p.path.kind not in ("file", "directory"):
+                        problems.append(
+                            f"task {t.id!r} param {p.key!r} path.kind must be "
+                            f"'file' or 'directory', got {p.path.kind!r}"
+                        )
+                    if p.path.extensions and p.path.kind != "file":
+                        problems.append(
+                            f"task {t.id!r} param {p.key!r} path.extensions set on a "
+                            f"non-file picker (kind={p.path.kind!r})"
+                        )
             # io bindings must reference declared consumes/produces and be runnable
             for b in t.io:
                 if b.role == "input" and b.artifact not in t.consumes:
