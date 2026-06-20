@@ -16,6 +16,7 @@ treat "file present in render/" as "deliverable ready".
 
 from __future__ import annotations
 
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -25,6 +26,10 @@ import yaml
 from .manifest import Manifest, parse_folder_name
 
 SUBDIRS = ("source", "work", "review", "out", "render")
+
+# Canonical filename of the `base` working channel (mirrors the GUI schema's
+# `base` artifact path, work/base.mp4).
+BASE_FILENAME = "base.mp4"
 
 
 @dataclass(frozen=True)
@@ -73,6 +78,35 @@ def _manifest_yaml(manifest: Manifest, folder_name: str) -> str:
     return header + yaml.safe_dump(data, sort_keys=False, allow_unicode=True)
 
 
+def ingest_asset(
+    paths: ProjectPaths,
+    src: str | Path,
+    work_relpath: str | Path,
+) -> Path:
+    """Bring an arbitrary external asset into a project, reusably.
+
+    Two copies, matching the project contract: the pristine original is archived
+    under ``source/`` (the human-input layer, never rewritten by processing), and
+    a working copy is placed at ``work_relpath`` (the regenerable channel the next
+    step consumes — renaming as needed so downstream finds its input).
+
+    This is the single ingest primitive: the base video uses it today; future
+    assets (overlay images, lower-thirds, b-roll) reuse it by passing their own
+    ``work_relpath`` (e.g. ``work/overlay.png``). Returns the working-copy path.
+    """
+    src = Path(src).expanduser()
+    if not src.is_file():
+        raise FileNotFoundError(f"source asset not found: {src}")
+
+    paths.source.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(src, paths.source / src.name)  # pristine, in source/
+
+    dest = paths.root / work_relpath
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(src, dest)  # working copy the pipeline consumes
+    return dest
+
+
 def create_project(
     projects_root: str | Path,
     folder_name: str,
@@ -80,11 +114,16 @@ def create_project(
     profile: str,
     trim_filler: bool = True,
     exist_ok: bool = False,
+    source_video: str | Path | None = None,
 ) -> ProjectPaths:
     """Create ``{projects_root}/{folder_name}/`` with the standard layout.
 
     ``folder_name`` must follow 'YYYY-MM-DD <Token> Project - <Hook>'. Returns
     the resolved ProjectPaths. ``source/`` and ``render/`` are created empty.
+
+    If ``source_video`` is given, it is ingested via :func:`ingest_asset`:
+    archived in ``source/`` and seeded as the ``base`` channel at
+    ``work/base.mp4`` so the first processing step has its input.
     """
     parse_folder_name(folder_name)  # validate the convention up front
 
@@ -99,4 +138,8 @@ def create_project(
 
     manifest = Manifest(identity=identity, profile=profile, trim_filler=trim_filler)
     paths.manifest.write_text(_manifest_yaml(manifest, folder_name), encoding="utf-8")
+
+    if source_video is not None:
+        ingest_asset(paths, source_video, Path("work") / BASE_FILENAME)
+
     return paths

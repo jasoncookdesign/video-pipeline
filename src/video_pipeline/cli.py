@@ -86,6 +86,7 @@ def _cmd_project_init(args: argparse.Namespace) -> int:
         identity=args.identity,
         profile=args.profile,
         trim_filler=not args.no_trim_filler,
+        source_video=args.source,
     )
     print(f"created project: {paths.root}")
     return 0
@@ -418,6 +419,9 @@ def build_parser() -> argparse.ArgumentParser:
     i.add_argument("--identity", required=True)
     i.add_argument("--profile", required=True)
     i.add_argument("--root", default=str(Path.home() / "Video" / "Projects"))
+    i.add_argument("--source", default=None,
+                   help="source video to ingest: archived in source/ and seeded as "
+                        "the base channel (work/base.mp4) so downstream steps have input")
     i.add_argument("--no-trim-filler", action="store_true",
                    help="disable speech/filler trimming (e.g. live-off-the-mixer DJ sets)")
     i.set_defaults(func=_cmd_project_init)
