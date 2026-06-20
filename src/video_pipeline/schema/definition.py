@@ -19,6 +19,8 @@ producer of an ``overlay`` channel + an ``overlay.occupancy`` descriptor that
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from .model import (
     Artifact,
     Engine,
@@ -41,6 +43,50 @@ _PROFILES = [
     "feed-square-1x1",
     "feed-landscape-16x9",
 ]
+
+# Known creator identities are config layers on disk (a caption-style layer and/or
+# a glossary layer). Discover them so the GUI's Identity control is a dropdown of
+# real choices instead of free text — kept zero-hardcoded: add an identity YAML and
+# it appears on next emit, no code change. config/ sits at the repo root (the CLI's
+# default --config-root); definition.py is at src/video_pipeline/schema/.
+_CONFIG_ROOT = Path(__file__).resolve().parents[3] / "config"
+
+
+def _known_identities() -> list[str]:
+    ids: set[str] = set()
+    for sub in ("caption-styles/identities", "glossary/identities"):
+        d = _CONFIG_ROOT / sub
+        if d.is_dir():
+            ids.update(p.stem for p in d.glob("*.yml"))
+    return sorted(ids)
+
+
+_IDENTITIES = _known_identities()
+
+
+def _identity_param(
+    *,
+    required: bool,
+    ui: UI,
+    hint: str,
+    help: str = "",
+    example: str | None = None,
+) -> Param:
+    """The Identity control. When identities are discoverable it's an ``enum``
+    (→ dropdown) of the known ones; otherwise a free-text ``string`` so emit never
+    breaks. Required instances default to the first known identity so the visible
+    selection always matches the resolved argv."""
+    if _IDENTITIES:
+        return Param(
+            "identity", "enum", flag="--identity", required=required,
+            options=_IDENTITIES,
+            default=_IDENTITIES[0] if required else None,
+            hint=hint, help=help, example=example, ui=ui,
+        )
+    return Param(
+        "identity", "string", flag="--identity", required=required,
+        hint=hint, help=help, example=example, ui=ui,
+    )
 
 
 def _profile_param(*, required: bool, default: str | None = "reels-9x16") -> Param:
@@ -112,7 +158,7 @@ def build_schema() -> Schema:
         help="Creates the project layout and project.yml. The folder name encodes "
              "date/token/hook; identity and profile seed the project defaults.",
         params=[
-            Param("identity", "string", flag="--identity", required=True,
+            _identity_param(required=True,
                   hint="Brand/identity id for styling defaults.",
                   help="Selects the caption style + glossary set for this creator "
                        "identity (e.g. a DH or SIGIL.ZERO identity).",
@@ -282,7 +328,7 @@ def build_schema() -> Schema:
              "--safezone lets it emit the styled props; you can hand-edit the caption "
              "file before rendering.",
         params=[
-            Param("identity", "string", flag="--identity", required=True,
+            _identity_param(required=True,
                   hint="Identity for glossary + caption style.",
                   example="--identity dyson-hope",
                   ui=UI(label="Identity", group="Setup")),
@@ -324,7 +370,7 @@ def build_schema() -> Schema:
              "zone config and renders the transparent caption overlay via Remotion "
              "(daily driver). This is the previewable caption layer the NLE stacks on top.",
         params=[
-            Param("identity", "string", flag="--identity",
+            _identity_param(required=False,
                   hint="Override the identity style.",
                   ui=UI(label="Identity", group="Style")),
             Param("karaoke", "bool", arity="switch", flag="--karaoke", default=False,
