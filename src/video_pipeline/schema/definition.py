@@ -149,6 +149,12 @@ def build_schema() -> Schema:
              hint="Check captions/faces against the danger zone.",
              help="Advisory check: flags protected elements intruding on the danger "
                   "polygon and captions over the speaker's face. Advises, never blocks."),
+        Step("composite", "Composite", order=70,
+             hint="Flatten the layers into one preview render.",
+             help="Stacks the base and the caption/overlay layers into a single "
+                  "previewable video — the in-app preview of the assembled result and "
+                  "the guide track the editor handoffs carry on top. A review/handoff "
+                  "intermediate, not the final cut (that is yours, from your NLE)."),
     ]
 
     # ---- Tasks (graph nodes) --------------------------------------------------
@@ -451,6 +457,36 @@ def build_schema() -> Schema:
         ],
     ))
 
+    # composite: flatten base + caption (+ future overlays) -> a preview render.
+    # Consumes the same layer set as QC; QC advises but does NOT gate it (SADD §4).
+    # Multiple layers bind via repeated --layer flags, declared low->high z-order.
+    tasks.append(Task(
+        id="composite", step="composite", label="Composite layers",
+        subcommand="composite", optional=True,
+        consumes=["base", "caption"], produces=["composite"],
+        io=[
+            IOBinding(artifact="base", role="input", via="positional", order=0),
+            IOBinding(artifact="caption", role="input", via="flag", flag="--layer"),
+            IOBinding(artifact="composite", role="output", via="flag", flag="-o"),
+        ],
+        hint="Flatten base + overlay layers into review/composite.mp4.",
+        help="Stacks the layers bottom-to-top by z-order (base, then the caption "
+             "overlay + any future overlays) into one previewable .mp4 — the in-app "
+             "preview of the assembled result and the guide track the editor handoffs "
+             "carry on top. QC advises but never blocks it. A review/handoff "
+             "intermediate, not your final cut.",
+        params=[
+            Param("crf", "number", flag="--crf", min=0, max=51, step=1, default=18,
+                  hint="x264 quality (lower = better).",
+                  help="Quality of the composite render; 18 is near-visually-lossless. "
+                       "This is a preview/handoff render, not your final master.",
+                  ui=UI(label="Quality (CRF)", control="slider", group="Render")),
+            Param("dry_run", "bool", arity="switch", flag="--dry-run", default=False,
+                  hint="Show the ffmpeg command without rendering.",
+                  ui=UI(label="Dry run", control="toggle", group="Render")),
+        ],
+    ))
+
     # ---- Artifacts (channels + descriptors) -----------------------------------
     artifacts = [
         Artifact("project", kind="descriptor", path="project.yml", previewable=False,
@@ -486,6 +522,14 @@ def build_schema() -> Schema:
                  hint="Safe-zone QC findings.",
                  help="JSON report of danger-zone intrusions and caption-over-face hits. "
                       "Advisory input to the export/composite warning."),
+        Artifact("composite", kind="media", path="review/composite.mp4",
+                 previewable=True, z_order=100, codec_hint="h264",
+                 hint="Flattened preview of all layers.",
+                 help="The base + caption/overlay layers composited into one .mp4 — the "
+                      "in-app 'assembled result' preview and the muted guide track the "
+                      "editor handoffs include on top (highest z-order). A preview/handoff "
+                      "intermediate in review/, not the final cut (that is render/, yours "
+                      "from the NLE)."),
     ]
 
     # ---- Export targets -------------------------------------------------------
