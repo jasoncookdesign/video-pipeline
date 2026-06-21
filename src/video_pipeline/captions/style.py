@@ -26,6 +26,45 @@ import yaml
 # Vertical anchors for the caption box inside the safe zone.
 POSITIONS = ("upper-third", "center", "lower-third")
 
+# Curated font allowlist (INI-088). The authoritative set of font families the
+# style layer accepts — enforced in :meth:`CaptionStyle.__post_init__` and reused
+# verbatim as the GUI font dropdown's options, so the UX guardrail can never offer
+# a font the Python boundary rejects (single source of truth). Includes the brand
+# fonts the identity configs reference (the CEO installs these on the Mac) plus
+# common system fonts. Matching is case-insensitive.
+#
+# Phase 1 caveat: Remotion registers no fonts yet, so every choice renders in the
+# Helvetica fallback regardless. INI-088 Phase 4 adds real Remotion font loading
+# and may curate this list to a cross-platform set proven to render.
+FONT_ALLOWLIST = (
+    # Brand fonts referenced by config/caption-styles/identities/*.yml.
+    "Archivo",
+    "Inter",
+    "IBM Plex Mono",
+    # Common system fonts.
+    "Helvetica",
+    "Helvetica Neue",
+    "Arial",
+    "Arial Black",
+    "Avenir Next",
+    "Futura",
+    "Gill Sans",
+    "Impact",
+    "Verdana",
+    "Georgia",
+    "Times New Roman",
+    "Courier New",
+    "Menlo",
+    "Trebuchet MS",
+)
+_FONT_ALLOWLIST_LC = {f.lower() for f in FONT_ALLOWLIST}
+
+# Value caps (INI-088). Enforced authoritatively here (the boundary); the GUI
+# slider bounds are only a UX guardrail. Sizes/widths are px at the profile's
+# native height (reels = 1920px tall). stroke_width 0 = no stroke (valid).
+FONT_SIZE_MIN, FONT_SIZE_MAX = 24, 240
+STROKE_WIDTH_MIN, STROKE_WIDTH_MAX = 0, 40
+
 
 @dataclass(frozen=True)
 class CaptionStyle:
@@ -67,6 +106,21 @@ class CaptionStyle:
         if self.position not in POSITIONS:
             raise ValueError(
                 f"position {self.position!r} not in {POSITIONS}"
+            )
+        if self.font_family.lower() not in _FONT_ALLOWLIST_LC:
+            raise ValueError(
+                f"font_family {self.font_family!r} not in the allowlist "
+                f"{FONT_ALLOWLIST}"
+            )
+        if not (FONT_SIZE_MIN <= self.font_size <= FONT_SIZE_MAX):
+            raise ValueError(
+                f"font_size {self.font_size} out of range "
+                f"[{FONT_SIZE_MIN}, {FONT_SIZE_MAX}]"
+            )
+        if not (STROKE_WIDTH_MIN <= self.stroke_width <= STROKE_WIDTH_MAX):
+            raise ValueError(
+                f"stroke_width {self.stroke_width} out of range "
+                f"[{STROKE_WIDTH_MIN}, {STROKE_WIDTH_MAX}]"
             )
         if self.min_words < 1 or self.max_words < self.min_words:
             raise ValueError(

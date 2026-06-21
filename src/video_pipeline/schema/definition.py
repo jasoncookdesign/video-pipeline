@@ -112,6 +112,54 @@ def _profile_param(*, required: bool, default: str | None = "reels-9x16") -> Par
     )
 
 
+def _caption_style_params() -> list[Param]:
+    """The five per-run caption-style controls (INI-088), shared by the caption
+    *define* and *render* tasks so the GUI surfaces an identical Style group on
+    both and the two argv paths cannot drift. Options/caps come straight from the
+    Python boundary (``CaptionStyle``) so the dropdown/slider bounds are exactly
+    what ``__post_init__`` enforces. Defaults match the built-in CaptionStyle —
+    these are per-run flags with sensible defaults (identity-encoded defaults are
+    deferred, INI-088 out of scope), so a GUI run emits them explicitly."""
+    from ..captions.style import (
+        FONT_ALLOWLIST,
+        FONT_SIZE_MAX,
+        FONT_SIZE_MIN,
+        STROKE_WIDTH_MAX,
+        STROKE_WIDTH_MIN,
+    )
+
+    return [
+        Param("font_family", "enum", flag="--font-family", options=list(FONT_ALLOWLIST),
+              default="Helvetica",
+              hint="Caption font family.",
+              help="The font the captions render in. Curated allowlist (the same set "
+                   "the pipeline accepts); Remotion falls back to Helvetica until font "
+                   "loading lands (INI-088 Phase 4).",
+              ui=UI(label="Font", control="dropdown", group="Style")),
+        Param("font_size", "number", flag="--font-size",
+              min=FONT_SIZE_MIN, max=FONT_SIZE_MAX, step=2, default=96,
+              hint="Caption font size (px at native height).",
+              help="Pixel size at the profile's native height (reels = 1920px tall). "
+                   "Capped to a legible range at the Python boundary.",
+              ui=UI(label="Font size (px)", control="slider", group="Style")),
+        Param("fill_color", "string", flag="--fill-color", default="#FFFFFF",
+              hint="Text fill color (hex).",
+              help="Hex color of the caption text fill, e.g. #FFFFFF. A color-picker "
+                   "widget is deferred; enter hex for v1.",
+              ui=UI(label="Fill color", control="field", group="Style")),
+        Param("stroke_color", "string", flag="--stroke-color", default="#000000",
+              hint="Text border/stroke color (hex).",
+              help="Hex color of the caption text outline, e.g. #000000.",
+              ui=UI(label="Stroke color", control="field", group="Style")),
+        Param("stroke_width", "number", flag="--stroke-width",
+              min=STROKE_WIDTH_MIN, max=STROKE_WIDTH_MAX, step=1, default=8,
+              hint="Text border/stroke thickness (px).",
+              help="Outline thickness in px; 0 disables the stroke. Capped at the "
+                   "Python boundary.",
+              ui=UI(label="Stroke width (px)", control="slider", group="Style")),
+    ]
+
+
 def build_schema() -> Schema:
     """Construct the conformant schema instance."""
 
@@ -391,6 +439,7 @@ def build_schema() -> Schema:
                   hint="Active-word highlight.",
                   help="Karaoke mode highlights the currently-spoken word within each cue.",
                   ui=UI(label="Karaoke highlight", control="toggle", group="Style")),
+            *_caption_style_params(),
             Param("min_words", "number", flag="--min-words", min=1, max=8, step=1,
                   hint="Minimum words per cue.",
                   help="Lower bound of the words-per-cue range. 1/1 gives single-word "
@@ -430,6 +479,7 @@ def build_schema() -> Schema:
             Param("karaoke", "bool", arity="switch", flag="--karaoke", default=False,
                   hint="Active-word highlight.",
                   ui=UI(label="Karaoke highlight", control="toggle", group="Style")),
+            *_caption_style_params(),
             Param("dry_run", "bool", arity="switch", flag="--dry-run", default=False,
                   hint="Build props without rendering.",
                   ui=UI(label="Dry run", control="toggle", group="Style")),

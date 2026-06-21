@@ -92,6 +92,47 @@ def _resolve_project_paths(args: argparse.Namespace, keys, *, output_name: str) 
         args.output = str(base / output_name)
 
 
+# Per-run caption-style override flags shared by `captions` and `captions-render`
+# (INI-088). One helper feeds both so the two style-resolution paths cannot
+# diverge — each command builds its overrides the same way, then both flow through
+# load_caption_style(..., overrides=...). The values are coerced/capped
+# authoritatively in CaptionStyle.__post_init__; these flags are just the surface.
+_CAPTION_STYLE_FLAG_DESTS = (
+    "font_family", "font_size", "fill_color", "stroke_color", "stroke_width",
+)
+
+
+def _add_caption_style_flags(parser: argparse.ArgumentParser) -> None:
+    """Add the five per-run caption-style override flags. Defaults are None so an
+    omitted flag falls through to the identity/global config (terminal users keep
+    the config defaults); the GUI passes explicit values from the schema."""
+    from .captions.style import FONT_ALLOWLIST
+
+    parser.add_argument(
+        "--font-family", default=None, metavar="NAME",
+        help="caption font family (allowlist: " + ", ".join(FONT_ALLOWLIST) + ")",
+    )
+    parser.add_argument("--font-size", type=int, default=None, metavar="PX",
+                        help="caption font size in px at the profile's native height")
+    parser.add_argument("--fill-color", default=None, metavar="HEX",
+                        help="caption text fill color (hex, e.g. #FFFFFF)")
+    parser.add_argument("--stroke-color", default=None, metavar="HEX",
+                        help="caption text border/stroke color (hex, e.g. #000000)")
+    parser.add_argument("--stroke-width", type=int, default=None, metavar="PX",
+                        help="caption text border/stroke thickness in px (0 = none)")
+
+
+def _style_overrides_from_args(args: argparse.Namespace) -> dict:
+    """Collect the per-run style overrides the user actually set (others fall
+    through to config). Shared by both caption commands."""
+    out = {}
+    for dest in _CAPTION_STYLE_FLAG_DESTS:
+        val = getattr(args, dest, None)
+        if val is not None:
+            out[dest] = val
+    return out
+
+
 def _cmd_safezone_gen(args: argparse.Namespace) -> int:
     from .safezone import generate_spec
 
@@ -222,7 +263,9 @@ def _cmd_captions(args: argparse.Namespace) -> int:
         transcriber = MLXWhisperTranscriber(model=args.model, offline=not args.online)
 
     # Per-run style overrides (highest precedence over identity/global config).
-    overrides = {}
+    # The five visual knobs come from the shared helper (same path as
+    # captions-render); the timing/karaoke knobs are define-time only.
+    overrides = _style_overrides_from_args(args)
     if args.min_words is not None:
         overrides["min_words"] = args.min_words
     if args.max_words is not None:
@@ -279,7 +322,10 @@ def _cmd_captions_render(args: argparse.Namespace) -> int:
     if not identity:
         print("error: --identity required (caption file has no identity)", file=sys.stderr)
         return 2
-    style = load_caption_style(args.config_root, identity)
+    # Per-run style overrides — the same seam as `captions`, so a hand-edited
+    # caption file re-rendered here honors the same --font-*/-color/-size flags.
+    overrides = _style_overrides_from_args(args)
+    style = load_caption_style(args.config_root, identity, overrides=overrides or None)
     spec = SafeZoneSpec.from_json(_P(args.safezone).read_text(encoding="utf-8"))
     # karaoke is on if the style/config, the caption file header, or --karaoke says so.
     karaoke = style.karaoke or track.karaoke or args.karaoke
@@ -293,6 +339,30 @@ def _cmd_captions_render(args: argparse.Namespace) -> int:
         print("  " + " ".join(cmd))
     else:
         print(f"wrote {args.output}")
+
+    # Verification seam (INI-088): grab representative stills off the rendered
+    # overlay, composited over a neutral plate, for Claude to read back.
+    if args.preview_frames:
+        from .captions.preview import (
+            DEFAULT_PREVIEW_BG,
+            extract_preview_frames,
+            preview_frame_times,
+        )
+
+        times = preview_frame_times(props, args.preview_frames)
+        out_dir = args.preview_dir or str(_P(args.output).with_suffix("")) + "-frames"
+        dims = props["dimensions"]
+        results = extract_preview_frames(
+            args.output, times, out_dir,
+            width=dims["width"], height=dims["height"],
+            background=args.preview_bg or DEFAULT_PREVIEW_BG, dry_run=args.dry_run,
+        )
+        verb = "would write" if args.dry_run else "wrote"
+        print(f"{verb} {len(results)} preview frame(s) -> {out_dir}")
+        for png, fcmd in results:
+            print(f"  {verb} {png}")
+            if args.dry_run:
+                print("    " + " ".join(fcmd))
     return 0
 
 
@@ -657,6 +727,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="words-per-cue the chunker aims for (0 = auto midpoint)")
     c.add_argument("--karaoke", action="store_true",
                    help="karaoke active-word highlight (each word lights up as spoken)")
+    # per-run caption-style overrides (font / size / colors / stroke)
+    _add_caption_style_flags(c)
     c.add_argument("--config-root", default=str(_DEFAULT_CONFIG_ROOT),
                    help="repo config/ dir (glossary + caption-styles)")
     c.add_argument("--model", default=None,
@@ -680,6 +752,17 @@ def build_parser() -> argparse.ArgumentParser:
     cr.add_argument("--karaoke", action="store_true",
                     help="force the karaoke active-word highlight on (also honored "
                          "from the caption file / style config)")
+    # per-run caption-style overrides (font / size / colors / stroke)
+    _add_caption_style_flags(cr)
+    # verification seam (INI-088): render then grab representative stills.
+    cr.add_argument("--preview-frames", type=int, default=0, metavar="N",
+                    help="after rendering, grab N representative still PNGs "
+                         "(composited over a neutral plate) for visual verification")
+    cr.add_argument("--preview-dir", default=None,
+                    help="directory for the preview frames (default: <output>-frames)")
+    cr.add_argument("--preview-bg", default=None,
+                    help="background color the transparent overlay is grabbed over "
+                         "(hex; default neutral mid-gray)")
     cr.add_argument("--config-root", default=str(_DEFAULT_CONFIG_ROOT))
     cr.add_argument("--dry-run", action="store_true",
                     help="print the Remotion command without rendering")
