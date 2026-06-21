@@ -62,15 +62,12 @@ _PROFILE_DIMS = {
 _DEFAULT_CONFIG_ROOT = Path(__file__).resolve().parents[2] / "config"
 
 # Standard project layout (mirrors the schema artifact paths). Lets `export
-# --project <root>` resolve every input + the bundle output by convention, so the
-# GUI drives an export with just --project + params (no per-arg path mapping).
-# NOTE (CEO decision pending): `reframed` resolves to work/base.mp4. The XML
-# handoff wants the reframed-but-UNCUT clip; if roughcut.render has rewritten
-# base.mp4 with the cut (for the composite preview), the two conflict. Surfaced
-# for the export input-model decision — see INI-087.
+# --project <root>` resolve every input + the bundle output by convention.
+# `reframed` is the persistent reframed-uncut clip (reframe --reframed-out), so the
+# handoff has it after roughcut.render rewrites base.mp4 with the cut.
 _PROJECT_LAYOUT = {
     "decision": "work/roughcut.decision.yml",
-    "reframed": "work/base.mp4",
+    "reframed": "work/reframed.mp4",
     "captions": "work/captions.yml",
     "overlay": "layers/captions.mov",
     "composite": "review/composite.mp4",
@@ -129,6 +126,8 @@ def _cmd_project_init(args: argparse.Namespace) -> int:
 
 
 def _cmd_reframe(args: argparse.Namespace) -> int:
+    import shutil
+
     from .reframe.probe import reframe
 
     out_w, out_h = _PROFILE_DIMS.get(args.profile, (1080, 1920))
@@ -142,6 +141,12 @@ def _cmd_reframe(args: argparse.Namespace) -> int:
         print("  " + " ".join(cmd))
     else:
         print(f"wrote {args.output}")
+        # Persist the reframed-but-uncut clip as a stable artifact so the editor
+        # handoff still has it after roughcut.render rewrites base.mp4 with the cut.
+        if getattr(args, "reframed_out", None):
+            Path(args.reframed_out).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(args.output, args.reframed_out)
+            print(f"wrote {args.reframed_out}  (reframed-uncut handoff source)")
     return 0
 
 
@@ -559,6 +564,9 @@ def build_parser() -> argparse.ArgumentParser:
     r = sub.add_parser("reframe", help="run the landscape->portrait reframe probe")
     r.add_argument("input")
     r.add_argument("-o", "--output", required=True)
+    r.add_argument("--reframed-out", default=None,
+                   help="also copy the reframed-uncut clip here (work/reframed.mp4) "
+                        "as the stable editor-handoff source")
     r.add_argument("--profile", default="reels-9x16")
     r.add_argument("--mode", default="static", choices=["static", "dynamic"])
     r.add_argument("--tracker", default="opencv", choices=["opencv", "mediapipe"],
