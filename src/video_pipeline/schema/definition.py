@@ -155,6 +155,13 @@ def build_schema() -> Schema:
                   "previewable video — the in-app preview of the assembled result and "
                   "the guide track the editor handoffs carry on top. A review/handoff "
                   "intermediate, not the final cut (that is yours, from your NLE)."),
+        Step("output", "Output / Packaging", order=80,
+             hint="Package the project for your editor.",
+             help="Editor handoffs: enable the target(s) you want and they run in the "
+                  "batch like any other step. Premiere (FCP7 XML) and Final Cut / "
+                  "Resolve (FCPXML) assemble the cut + caption + composite-guide tracks; "
+                  "CapCut gathers the rendered layers into a folder (it imports no "
+                  "project file)."),
     ]
 
     # ---- Tasks (graph nodes) --------------------------------------------------
@@ -257,10 +264,12 @@ def build_schema() -> Schema:
     tasks.append(Task(
         id="reframe", step="reframe", label="Reframe to portrait",
         subcommand="reframe", optional=True,
-        consumes=["base"], produces=["base"],
+        consumes=["base"], produces=["base", "reframed"],
         io=[
             IOBinding(artifact="base", role="input", via="positional", order=0),
             IOBinding(artifact="base", role="output", via="flag", flag="-o"),
+            IOBinding(artifact="reframed", role="output", via="flag",
+                      flag="--reframed-out"),
         ],
         hint="Crop landscape source to the portrait frame.",
         help="Subject-tracking crop. Static holds one crop; dynamic follows the subject. "
@@ -509,6 +518,75 @@ def build_schema() -> Schema:
         ],
     ))
 
+    # ---- Output / packaging tasks (editor handoffs) ---------------------------
+    # Modeled as ordinary schedulable tasks: enable the target(s) you want and they
+    # run in the batch after the layers exist. The XML targets reference the
+    # reframed-UNCUT clip + lay the decision's KEEP segments as trimmable clips.
+    _export_fps = Param("fps", "number", flag="--fps", min=24, max=60, step=1, default=30,
+                        hint="Sequence frame rate.",
+                        ui=UI(label="FPS", control="slider", group="Sequence"))
+
+    tasks.append(Task(
+        id="export.premiere", step="output", label="Export — Premiere Pro",
+        subcommand="export premiere", optional=True,
+        consumes=["roughcut.def", "reframed", "caption.def", "composite"],
+        produces=["export.premiere"],
+        io=[
+            IOBinding(artifact="roughcut.def", role="input", via="positional", order=0),
+            IOBinding(artifact="reframed", role="input", via="flag", flag="--reframed"),
+            IOBinding(artifact="caption.def", role="input", via="flag", flag="--captions"),
+            IOBinding(artifact="composite", role="input", via="flag", flag="--composite"),
+            IOBinding(artifact="export.premiere", role="output", via="flag", flag="-o"),
+        ],
+        hint="FCP7 XML (XMEML) — opens in Premiere Pro.",
+        help="Assembles the base cut (the decision's KEEP segments over the reframed-"
+             "uncut clip, as trimmable clips) + caption track + the composite as a "
+             "disabled top guide track, as FCP7/XMEML XML. Premiere does not import "
+             "FCPXML, so this is its dedicated target.",
+        params=[_export_fps],
+    ))
+
+    tasks.append(Task(
+        id="export.fcpx", step="output", label="Export — Final Cut / Resolve",
+        subcommand="export fcpxml", optional=True,
+        consumes=["roughcut.def", "reframed", "caption.def", "composite"],
+        produces=["export.fcpx"],
+        io=[
+            IOBinding(artifact="roughcut.def", role="input", via="positional", order=0),
+            IOBinding(artifact="reframed", role="input", via="flag", flag="--reframed"),
+            IOBinding(artifact="caption.def", role="input", via="flag", flag="--captions"),
+            IOBinding(artifact="composite", role="input", via="flag", flag="--composite"),
+            IOBinding(artifact="export.fcpx", role="output", via="flag", flag="-o"),
+        ],
+        hint="FCPXML 1.10 — Final Cut Pro / DaVinci Resolve.",
+        help="The same timeline (base cut + captions + composite guide) serialized as "
+             "FCPXML 1.10 for Final Cut Pro and DaVinci Resolve.",
+        params=[
+            _export_fps,
+            Param("event", "string", flag="--event", default="JasonOS",
+                  hint="FCPXML event name.",
+                  ui=UI(label="Event name", group="Sequence")),
+        ],
+    ))
+
+    tasks.append(Task(
+        id="export.capcut", step="output", label="Export — CapCut",
+        subcommand="export capcut", optional=True,
+        consumes=["base", "caption", "composite"],
+        produces=["export.capcut"],
+        io=[
+            IOBinding(artifact="base", role="input", via="flag", flag="--base"),
+            IOBinding(artifact="caption", role="input", via="flag", flag="--captions"),
+            IOBinding(artifact="composite", role="input", via="flag", flag="--composite"),
+            IOBinding(artifact="export.capcut", role="output", via="flag", flag="-o"),
+        ],
+        hint="Arranged-media folder (CapCut imports no project).",
+        help="Gathers the rendered layers (the cut base + caption overlay) and the "
+             "composite into a folder with a README listing the z-order, for hand "
+             "assembly in CapCut.",
+        params=[],
+    ))
+
     # ---- Artifacts (channels + descriptors) -----------------------------------
     artifacts = [
         Artifact("project", kind="descriptor", path="project.yml", previewable=False,
@@ -520,6 +598,12 @@ def build_schema() -> Schema:
                  hint="The working video (reframed/cut).",
                  help="The base video channel. project.init seeds it; reframe and "
                       "roughcut.render each rewrite it. The previewer's base layer."),
+        Artifact("reframed", kind="media", path="work/reframed.mp4", previewable=False,
+                 hint="Reframed-uncut clip (editor-handoff source).",
+                 help="A stable copy of the reframed-but-uncut video, written by reframe "
+                      "alongside base.mp4. The editor handoffs reference this (not base, "
+                      "which roughcut.render rewrites with the cut) so the decision file's "
+                      "KEEP segments lay over the full clip as separate, trimmable clips."),
         Artifact("safezone.def", kind="descriptor", path="work/safezone.json",
                  previewable=False,
                  hint="Safe-zone polygon spec.",
@@ -560,56 +644,29 @@ def build_schema() -> Schema:
                       "editor handoffs include on top (highest z-order). A preview/handoff "
                       "intermediate in review/, not the final cut (that is render/, yours "
                       "from the NLE)."),
+        Artifact("export.premiere", kind="manifest", path="exports/premiere/project.xml",
+                 previewable=False,
+                 hint="Premiere FCP7 XML project.",
+                 help="The assembled editor project (FCP7/XMEML XML) the Premiere export "
+                      "writes; open it in Premiere Pro."),
+        Artifact("export.fcpx", kind="manifest", path="exports/fcpx/project.fcpxml",
+                 previewable=False,
+                 hint="FCPXML 1.10 project.",
+                 help="The assembled editor project (FCPXML 1.10) for Final Cut Pro / "
+                      "DaVinci Resolve."),
+        Artifact("export.capcut", kind="manifest", path="exports/capcut",
+                 previewable=False,
+                 hint="CapCut arranged-media folder.",
+                 help="The folder of rendered layers + composite + README the CapCut "
+                      "export gathers for hand assembly."),
     ]
 
     # ---- Export targets -------------------------------------------------------
-    # The unified `export <target>` CLI: premiere (FCP7 XML / XMEML, opens in
-    # Premiere natively) and fcpxml (FCPXML 1.10 for Resolve / Final Cut) both
-    # assemble tracks referencing the media (the composite rides on top as a
-    # disabled guide clip); capcut writes an arranged-media folder because CapCut
-    # imports no project — the layers + composite are just gathered for hand
-    # assembly (shaping brief §3.2; SADD §3.5 "no manifest, arranged media only").
-    export_targets = [
-        ExportTarget(
-            id="premiere", label="Adobe Premiere Pro",
-            subcommand="export premiere", bundle="exports/premiere",
-            hint="FCP7 XML (XMEML) — opens in Premiere Pro.",
-            help="Assembles the base cut + caption overlay as tracks referencing the "
-                 "media files (never reconstructed), as FCP7/XMEML XML, with the "
-                 "composite as a disabled top-track guide clip. Premiere does not "
-                 "import FCPXML, so this is its dedicated target.",
-            params=[
-                Param("fps", "number", flag="--fps", default=30, min=24, max=60, step=1,
-                      hint="Sequence frame rate.",
-                      ui=UI(label="FPS", control="slider", group="Sequence")),
-            ],
-        ),
-        ExportTarget(
-            id="fcpx", label="Final Cut Pro / DaVinci Resolve",
-            subcommand="export fcpxml", bundle="exports/fcpx",
-            hint="FCPXML 1.10 — Final Cut / Resolve.",
-            help="Same timeline model serialized as FCPXML for Final Cut Pro and "
-                 "DaVinci Resolve, with the composite as a disabled top-track guide "
-                 "clip.",
-            params=[
-                Param("fps", "number", flag="--fps", default=30, min=24, max=60, step=1,
-                      hint="Sequence frame rate.",
-                      ui=UI(label="FPS", control="slider", group="Sequence")),
-                Param("event", "string", flag="--event", default="JasonOS",
-                      hint="FCPXML event name.",
-                      ui=UI(label="Event name", group="Sequence")),
-            ],
-        ),
-        ExportTarget(
-            id="capcut", label="CapCut",
-            subcommand="export capcut", bundle="exports/capcut",
-            hint="Arranged-media folder (no project file).",
-            help="CapCut imports no timeline/EDL, so this gathers the rendered layers "
-                 "(base cut + caption overlay) and the composite into a folder with a "
-                 "README listing the z-order, for hand assembly in CapCut.",
-            params=[],
-        ),
-    ]
+    # Editor handoffs are now modeled as ordinary tasks in the "output" step (above)
+    # so they get an enable checkbox + settings and run in the batch like every
+    # other step — the dedicated export_targets surface is retired (kept empty for
+    # schema-shape compatibility).
+    export_targets: list[ExportTarget] = []
 
     return Schema(
         engine=engine,

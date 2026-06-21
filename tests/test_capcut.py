@@ -82,7 +82,7 @@ class ProjectResolveTests(unittest.TestCase):
             output_name="exports/premiere/reel.xml",
         )
         self.assertEqual(ns.decision, "/p/work/roughcut.decision.yml")
-        self.assertEqual(ns.reframed, "/p/work/base.mp4")
+        self.assertEqual(ns.reframed, "/p/work/reframed.mp4")
         self.assertEqual(ns.composite, "/p/review/composite.mp4")
         self.assertEqual(ns.output, "/p/exports/premiere/reel.xml")
 
