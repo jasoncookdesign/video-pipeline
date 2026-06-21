@@ -15,6 +15,7 @@ from pathlib import Path
 from tests._util import REPO_ROOT  # noqa: F401  (ensures src/ on path)
 
 from video_pipeline.captions import (
+    BG_RADIUS_MAX,
     FONT_ALLOWLIST,
     FONT_SIZE_MAX,
     FONT_SIZE_MIN,
@@ -134,6 +135,34 @@ class StyleLayeringTests(unittest.TestCase):
             CaptionStyle(stroke_width=STROKE_WIDTH_MAX + 1)
         with self.assertRaises(ValueError):
             CaptionStyle(stroke_width=-1)
+
+    # ── INI-088 Phase 2: background plate ──
+    def test_bg_defaults_off(self):
+        s = CaptionStyle()
+        self.assertFalse(s.bg_enabled)
+        self.assertEqual(s.bg_color, "#000000")
+        self.assertEqual(s.bg_radius, 0)
+
+    def test_bg_to_dict_carries_plate(self):
+        d = CaptionStyle(bg_enabled=True, bg_color="#112233", bg_radius=24).to_dict()
+        self.assertEqual(
+            (d["bg_enabled"], d["bg_color"], d["bg_radius"]), (True, "#112233", 24)
+        )
+
+    def test_bg_overrides_apply_and_carry_to_props(self):
+        s = load_caption_style(
+            CONFIG_ROOT, identity="dyson-hope",
+            overrides={"bg_enabled": True, "bg_color": "#0A0A0A", "bg_radius": 30},
+        )
+        self.assertTrue(s.bg_enabled)
+        self.assertEqual(s.bg_radius, 30)
+
+    def test_bg_radius_caps_enforced(self):
+        CaptionStyle(bg_radius=0)
+        with self.assertRaises(ValueError):
+            CaptionStyle(bg_radius=-1)
+        with self.assertRaises(ValueError):
+            CaptionStyle(bg_radius=BG_RADIUS_MAX + 1)
 
 
 # ── glossary correction (timing layer, applied to words) ──────────────────────
@@ -438,7 +467,7 @@ class RemotionPropsTests(unittest.TestCase):
     def test_props_only_kept_cues_with_frames(self):
         style = CaptionStyle(uppercase=False)
         props = build_props_from_safezone(self._track(), style, self.spec, fps=30)
-        self.assertEqual(props["schemaVersion"], 1)
+        self.assertEqual(props["schemaVersion"], 2)
         self.assertEqual(len(props["cues"]), 1)  # dropped cue excluded
         c = props["cues"][0]
         self.assertEqual(c["from"], 0)

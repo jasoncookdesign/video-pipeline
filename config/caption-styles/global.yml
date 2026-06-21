@@ -13,6 +13,13 @@ emphasis_color: "#FFE14D"
 uppercase: true
 position: lower-third
 
+# ── background plate (INI-088 Phase 2) ──
+# A whole-block rounded rectangle behind the caption text, padded to clear the
+# stroke. Off by default; per-run --bg/--bg-color/--bg-radius override these.
+bg_enabled: false
+bg_color: "#000000"
+bg_radius: 0
+
 # ── timing layer (chunker) ──
 # min_words/max_words is the words-per-cue RANGE — the primary control.
 #   1 / 1  -> single-word (word-by-word) captions

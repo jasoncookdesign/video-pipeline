@@ -123,7 +123,9 @@ def track_to_remotion_props(
         )
 
     return {
-        "schemaVersion": 1,
+        # v2 (INI-088 Phase 2): style adds the background-plate trio
+        # (bg_enabled / bg_color / bg_radius). v1 consumers ignore the new keys.
+        "schemaVersion": 2,
         "source": track.source,
         "identity": track.identity,
         "profile": track.profile,

@@ -31,6 +31,9 @@ layers to the built-in `CaptionStyle` defaults.
 | `emphasis_color` | Fill for emphasis words (glossary terms / ALL-CAPS). |
 | `uppercase` | Force-uppercase the rendered text (timing/text data unchanged). |
 | `position` | Vertical anchor inside the safe zone: `lower-third`, `center`, `upper-third`. |
+| `bg_enabled` | Draw a whole-block rounded rectangle behind the caption text (off by default). Per-run `--bg`. |
+| `bg_color` | Background-plate fill (hex). Per-run `--bg-color`. |
+| `bg_radius` | Background-plate corner radius in px (`0` = square). Per-run `--bg-radius`. |
 | `max_words` / `min_words` | Words-per-cue **range** — the primary chunking control (see below). |
 | `target_words` | Words-per-cue the chunker aims for (balance target). `0` = auto (midpoint of the range). |
 | `max_chars` | Hard character cap per cue. |

@@ -64,6 +64,8 @@ _FONT_ALLOWLIST_LC = {f.lower() for f in FONT_ALLOWLIST}
 # native height (reels = 1920px tall). stroke_width 0 = no stroke (valid).
 FONT_SIZE_MIN, FONT_SIZE_MAX = 24, 240
 STROKE_WIDTH_MIN, STROKE_WIDTH_MAX = 0, 40
+# Background plate corner radius (INI-088 Phase 2). 0 = square corners.
+BG_RADIUS_MIN, BG_RADIUS_MAX = 0, 400
 
 
 @dataclass(frozen=True)
@@ -84,6 +86,13 @@ class CaptionStyle:
     emphasis_color: str = "#FFE14D"
     uppercase: bool = True
     position: str = "lower-third"
+
+    # ── background plate (INI-088 Phase 2) ──
+    # A whole-block rounded rectangle behind the text block. Off by default; when
+    # on, the renderer pads it to clear the stroke so the outline is not clipped.
+    bg_enabled: bool = False
+    bg_color: str = "#000000"
+    bg_radius: int = 0
 
     # ── timing layer (chunker) ──
     # min_words / max_words are the words-per-cue RANGE — the primary control.
@@ -122,6 +131,11 @@ class CaptionStyle:
                 f"stroke_width {self.stroke_width} out of range "
                 f"[{STROKE_WIDTH_MIN}, {STROKE_WIDTH_MAX}]"
             )
+        if not (BG_RADIUS_MIN <= self.bg_radius <= BG_RADIUS_MAX):
+            raise ValueError(
+                f"bg_radius {self.bg_radius} out of range "
+                f"[{BG_RADIUS_MIN}, {BG_RADIUS_MAX}]"
+            )
         if self.min_words < 1 or self.max_words < self.min_words:
             raise ValueError(
                 f"need 1 <= min_words <= max_words "
@@ -146,6 +160,9 @@ class CaptionStyle:
             "emphasis_color": self.emphasis_color,
             "uppercase": self.uppercase,
             "position": self.position,
+            "bg_enabled": self.bg_enabled,
+            "bg_color": self.bg_color,
+            "bg_radius": self.bg_radius,
             "max_words": self.max_words,
             "min_words": self.min_words,
             "max_chars": self.max_chars,
@@ -168,6 +185,9 @@ _COERCE = {
     "emphasis_color": str,
     "uppercase": bool,
     "position": str,
+    "bg_enabled": bool,
+    "bg_color": str,
+    "bg_radius": int,
     "max_words": int,
     "min_words": int,
     "max_chars": int,

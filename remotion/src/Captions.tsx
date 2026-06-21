@@ -49,6 +49,20 @@ const CueBlock: React.FC<{
 
   const windows = karaoke ? wordWindows(cue) : [];
 
+  // Background plate (v2): a whole-block rounded rectangle behind the text,
+  // padded to clear the stroke (so the outline is never clipped) plus a little
+  // breathing room scaled to the type size. Off unless bg_enabled.
+  const bgStyle: React.CSSProperties = style.bg_enabled
+    ? {
+        backgroundColor: style.bg_color ?? "#000000",
+        borderRadius: style.bg_radius ?? 0,
+        paddingTop: style.stroke_width + Math.round(style.font_size * 0.10),
+        paddingBottom: style.stroke_width + Math.round(style.font_size * 0.10),
+        paddingLeft: style.stroke_width + Math.round(style.font_size * 0.28),
+        paddingRight: style.stroke_width + Math.round(style.font_size * 0.28),
+      }
+    : {};
+
   return (
     <AbsoluteFill
       style={{
@@ -80,6 +94,7 @@ const CueBlock: React.FC<{
           // greedy wrapping — avoids a single word stranded on the last line.
           maxWidth: "100%",
           textWrap: "balance",
+          ...bgStyle,
         }}
       >
         {cue.words.map((w, i) => {
