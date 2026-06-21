@@ -39,15 +39,16 @@ H_OFFSETS = ("clear-notch", "center")
 # fonts the identity configs reference (the CEO installs these on the Mac) plus
 # common system fonts. Matching is case-insensitive.
 #
-# Phase 1 caveat: Remotion registers no fonts yet, so every choice renders in the
-# Helvetica fallback regardless. INI-088 Phase 4 adds real Remotion font loading
-# and may curate this list to a cross-platform set proven to render.
+# Two tiers (INI-088 Phase 4): the brand fonts are loaded by the Remotion renderer
+# via @remotion/google-fonts (remotion/src/fonts.ts), so they render in their real
+# typeface — keep these keys in sync with that registry's LOADERS. The remaining
+# entries are common system fonts resolved by name against the (macOS) render host.
 FONT_ALLOWLIST = (
-    # Brand fonts referenced by config/caption-styles/identities/*.yml.
+    # Brand fonts — loaded by @remotion/google-fonts (render in real typeface).
     "Archivo",
     "Inter",
     "IBM Plex Mono",
-    # Common system fonts.
+    # Common system fonts (resolved by name on the render host).
     "Helvetica",
     "Helvetica Neue",
     "Arial",

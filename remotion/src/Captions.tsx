@@ -6,6 +6,9 @@ import {
   interpolate,
 } from "remotion";
 import type { CaptionProps, CaptionCue, CaptionStyle, SafeBox, WordTiming } from "./types";
+// Side-effect import: registers the loadable brand fonts (@fontsource @font-face)
+// under their real family names so style.font_family renders in that typeface.
+import "./fonts";
 
 // Even-split fallback when a cue carries no (or mismatched) per-word timings.
 const wordWindows = (cue: CaptionCue): WordTiming[] => {
@@ -79,6 +82,8 @@ const CueBlock: React.FC<{
     >
       <div
         style={{
+          // Brand fonts are registered via @fontsource (see ./fonts) under their
+          // real family names, so style.font_family renders in that typeface.
           // Sans-serif fallback chain: a missing named font degrades to
           // Helvetica/Arial/sans, never to the browser's serif default.
           fontFamily: `${style.font_family}, Helvetica, Arial, sans-serif`,
