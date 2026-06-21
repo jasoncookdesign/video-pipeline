@@ -385,6 +385,22 @@ def _add_handoff_args(parser: argparse.ArgumentParser) -> None:
                         help="project/sequence name (default: the decision file's source)")
 
 
+def _cmd_proxy(args: argparse.Namespace) -> int:
+    from .proxy import render_proxy
+
+    w, h = _PROFILE_DIMS.get(args.profile, (1080, 1920))
+    cmd = render_proxy(
+        args.layer, args.output, width=w, height=h, fps=args.fps,
+        square=args.square, dry_run=args.dry_run,
+    )
+    if args.dry_run:
+        print("proxy command (dry run):")
+        print("  " + " ".join(cmd))
+    else:
+        print(f"wrote {args.output}  ({w}x{h} checkerboard preview)")
+    return 0
+
+
 def _cmd_export_capcut(args: argparse.Namespace) -> int:
     from .capcut import export_capcut
 
@@ -635,6 +651,23 @@ def build_parser() -> argparse.ArgumentParser:
     co.add_argument("--dry-run", action="store_true",
                     help="print the ffmpeg command without rendering")
     co.set_defaults(func=_cmd_composite)
+
+    # proxy — bake a transparent layer over a checkerboard into h264 for preview.
+    px = sub.add_parser(
+        "proxy",
+        help="bake a transparent layer over a checkerboard into an h264 preview proxy",
+    )
+    px.add_argument("layer", help="the transparent layer (.mov) to preview")
+    px.add_argument("-o", "--output", required=True,
+                    help="proxy output path (layers/<name>.preview.mp4)")
+    px.add_argument("--profile", default="reels-9x16",
+                    help="output profile -> proxy dimensions (default reels-9x16)")
+    px.add_argument("--fps", type=int, default=30, help="frame rate (default 30)")
+    px.add_argument("--square", type=int, default=16,
+                    help="checkerboard cell size in px (default 16)")
+    px.add_argument("--dry-run", action="store_true",
+                    help="print the ffmpeg command without rendering")
+    px.set_defaults(func=_cmd_proxy)
 
     # handoff — the editor project. Default format is Premiere-compatible FCP7
     # XML (Premiere does not import FCPXML); --format fcpxml targets Resolve / FCP.
