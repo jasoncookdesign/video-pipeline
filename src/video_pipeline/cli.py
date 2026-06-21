@@ -311,6 +311,22 @@ def _cmd_qc(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_composite(args: argparse.Namespace) -> int:
+    from .composite.runner import render_composite
+
+    overlays = list(args.layer or [])
+    cmd = render_composite(
+        args.base, overlays, args.output,
+        crf=args.crf, preset=args.preset, dry_run=args.dry_run,
+    )
+    if args.dry_run:
+        print("composite command (dry run):")
+        print("  " + " ".join(cmd))
+    else:
+        print(f"wrote {args.output}  layers={1 + len(overlays)}")
+    return 0
+
+
 def _cmd_handoff(args: argparse.Namespace) -> int:
     from .fcpxml.runner import assemble_project
 
@@ -577,6 +593,24 @@ def build_parser() -> argparse.ArgumentParser:
     q.add_argument("--dry-run", action="store_true",
                    help="compute + write the report but do not run FFmpeg renders")
     q.set_defaults(func=_cmd_qc)
+
+    # composite — flatten the base + overlay layers into a preview render.
+    co = sub.add_parser(
+        "composite",
+        help="flatten base + overlay layers into review/composite.mp4 (preview)",
+    )
+    co.add_argument("base", help="base video (work/base.mp4)")
+    co.add_argument("-o", "--output", required=True,
+                    help="composite output path (review/composite.mp4)")
+    co.add_argument("--layer", action="append", default=[],
+                    help="an overlay layer to stack over the base; repeatable in "
+                         "low->high z-order (e.g. the caption .mov)")
+    co.add_argument("--crf", type=int, default=18,
+                    help="x264 quality, lower = better (default 18)")
+    co.add_argument("--preset", default="medium", help="x264 preset (default medium)")
+    co.add_argument("--dry-run", action="store_true",
+                    help="print the ffmpeg command without rendering")
+    co.set_defaults(func=_cmd_composite)
 
     # handoff — the editor project. Default format is Premiere-compatible FCP7
     # XML (Premiere does not import FCPXML); --format fcpxml targets Resolve / FCP.
