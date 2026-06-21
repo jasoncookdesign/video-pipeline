@@ -30,14 +30,33 @@ from .export import (
     write_remotion_props,
 )
 from .placement import CaptionBox, caption_box
+from .preview import (
+    DEFAULT_PREVIEW_BG,
+    extract_preview_frames,
+    frame_extract_command,
+    preview_frame_times,
+)
 from .remotion import remotion_render_command, render_overlay
-from .style import CaptionStyle, load_caption_style
+from .style import (
+    FONT_ALLOWLIST,
+    FONT_SIZE_MAX,
+    FONT_SIZE_MIN,
+    STROKE_WIDTH_MAX,
+    STROKE_WIDTH_MIN,
+    CaptionStyle,
+    load_caption_style,
+)
 
 __all__ = [
     "Cue",
     "CaptionTrack",
     "CaptionStyle",
     "load_caption_style",
+    "FONT_ALLOWLIST",
+    "FONT_SIZE_MIN",
+    "FONT_SIZE_MAX",
+    "STROKE_WIDTH_MIN",
+    "STROKE_WIDTH_MAX",
     "chunk_transcript",
     "apply_glossary_to_words",
     "CaptionBox",
@@ -49,4 +68,8 @@ __all__ = [
     "seconds_to_frame",
     "remotion_render_command",
     "render_overlay",
+    "preview_frame_times",
+    "frame_extract_command",
+    "extract_preview_frames",
+    "DEFAULT_PREVIEW_BG",
 ]

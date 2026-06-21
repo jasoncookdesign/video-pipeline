@@ -91,6 +91,21 @@ video-pipeline captions source/clip.mp4 -o review/captions.yml --identity <ident
 video-pipeline captions-render review/captions.yml -o out/captions.mov \
     --identity <identity> --safezone config/safezone/reels-9x16.safezone.json
 
+# 6a. Per-run caption styling (font / size / colors / stroke). The same flags work
+#     on both `captions` and `captions-render`; omitted flags fall through to the
+#     identity/global caption-style config. Sizes/widths are capped and fonts are
+#     allowlisted at the Python boundary (config/caption-styles/README.md).
+video-pipeline captions-render review/captions.yml -o out/captions.mov \
+    --identity <identity> --safezone config/safezone/reels-9x16.safezone.json \
+    --font-family Helvetica --font-size 96 \
+    --fill-color "#FFFFFF" --stroke-color "#000000" --stroke-width 8
+
+# 6b. Render then grab N representative still frames (composited over a neutral
+#     plate) for visual verification — written to <output>-frames/ by default.
+video-pipeline captions-render review/captions.yml -o out/captions.mov \
+    --identity <identity> --safezone config/safezone/reels-9x16.safezone.json \
+    --preview-frames 4
+
 # 7. Safe-zone QC: report + danger-zone preview + clean render
 #    (--no-face-check --dry-run is a fast, native-free geometry check)
 video-pipeline qc out/clip-9x16.mp4 \

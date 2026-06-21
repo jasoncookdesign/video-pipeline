@@ -15,6 +15,10 @@ from pathlib import Path
 from tests._util import REPO_ROOT  # noqa: F401  (ensures src/ on path)
 
 from video_pipeline.captions import (
+    FONT_ALLOWLIST,
+    FONT_SIZE_MAX,
+    FONT_SIZE_MIN,
+    STROKE_WIDTH_MAX,
     CaptionStyle,
     CaptionTrack,
     Cue,
@@ -23,7 +27,9 @@ from video_pipeline.captions import (
     caption_box,
     chunk_transcript,
     cues_to_srt,
+    frame_extract_command,
     load_caption_style,
+    preview_frame_times,
     remotion_render_command,
     track_to_remotion_props,
 )
@@ -89,6 +95,45 @@ class StyleLayeringTests(unittest.TestCase):
     def test_bad_word_bounds_rejected(self):
         with self.assertRaises(ValueError):
             CaptionStyle(min_words=5, max_words=2)
+
+    # ── INI-088: per-run style knobs, caps + font allowlist ──
+    def test_style_overrides_apply_visual_knobs(self):
+        s = load_caption_style(
+            CONFIG_ROOT, identity="dyson-hope",
+            overrides={"font_size": 120, "fill_color": "#FF0000",
+                       "stroke_color": "#101010", "stroke_width": 12},
+        )
+        self.assertEqual(s.font_size, 120)
+        self.assertEqual(s.fill_color, "#FF0000")
+        self.assertEqual(s.stroke_color, "#101010")
+        self.assertEqual(s.stroke_width, 12)
+
+    def test_brand_and_system_fonts_in_allowlist(self):
+        # the identity configs reference these; loading must not raise
+        for ident in ("dyson-hope", "jason-cook-design", "sigil-zero"):
+            self.assertIsInstance(load_caption_style(CONFIG_ROOT, ident), CaptionStyle)
+        self.assertIn("Helvetica", FONT_ALLOWLIST)
+        self.assertIn("Archivo", FONT_ALLOWLIST)
+
+    def test_bad_font_rejected(self):
+        with self.assertRaises(ValueError):
+            CaptionStyle(font_family="Comic Sans MS")
+
+    def test_font_family_match_is_case_insensitive(self):
+        self.assertEqual(CaptionStyle(font_family="helvetica").font_family, "helvetica")
+
+    def test_font_size_caps_enforced(self):
+        with self.assertRaises(ValueError):
+            CaptionStyle(font_size=FONT_SIZE_MIN - 1)
+        with self.assertRaises(ValueError):
+            CaptionStyle(font_size=FONT_SIZE_MAX + 1)
+
+    def test_stroke_width_caps_enforced(self):
+        CaptionStyle(stroke_width=0)  # 0 = no stroke, valid
+        with self.assertRaises(ValueError):
+            CaptionStyle(stroke_width=STROKE_WIDTH_MAX + 1)
+        with self.assertRaises(ValueError):
+            CaptionStyle(stroke_width=-1)
 
 
 # ── glossary correction (timing layer, applied to words) ──────────────────────
@@ -497,6 +542,57 @@ class RemotionCommandTests(unittest.TestCase):
         self.assertTrue(any(a.startswith("--props=") for a in cmd))
         self.assertTrue(any("captions.mov" in a for a in cmd))
         self.assertIn("--codec=prores", cmd)
+
+
+# ── INI-088: preview-frame verification seam (pure parts) ─────────────────────
+
+class PreviewFrameTests(unittest.TestCase):
+    @staticmethod
+    def _props(n_cues):
+        return {
+            "dimensions": {"width": 1080, "height": 1920},
+            "cues": [
+                {"index": i, "startSeconds": float(i), "endSeconds": i + 1.0}
+                for i in range(n_cues)
+            ],
+        }
+
+    def test_empty_or_nonpositive_yields_none(self):
+        self.assertEqual(preview_frame_times(self._props(0), 3), [])
+        self.assertEqual(preview_frame_times(self._props(5), 0), [])
+
+    def test_single_frame_is_a_midpoint(self):
+        times = preview_frame_times(self._props(5), 1)
+        self.assertEqual(len(times), 1)
+        # midpoint of some cue -> ends in .5
+        self.assertAlmostEqual(times[0] % 1.0, 0.5, places=3)
+
+    def test_clamped_to_cue_count_and_spans_range(self):
+        times = preview_frame_times(self._props(3), 10)
+        self.assertEqual(len(times), 3)             # clamped to 3 cues
+        self.assertEqual(times[0], 0.5)             # first cue midpoint
+        self.assertEqual(times[-1], 2.5)            # last cue midpoint
+
+    def test_evenly_spaced_across_cues(self):
+        times = preview_frame_times(self._props(9), 3)
+        self.assertEqual(times, [0.5, 4.5, 8.5])    # first / middle / last
+
+    def test_sorted_and_deduplicated(self):
+        times = preview_frame_times(self._props(6), 4)
+        self.assertEqual(times, sorted(times))
+        self.assertEqual(len(times), len(set(times)))
+
+    def test_frame_extract_command_shape(self):
+        cmd = frame_extract_command("layers/c.mov", 1.25, "out/p.png", 1080, 1920,
+                                    background="#808080")
+        self.assertEqual(cmd[0], "ffmpeg")
+        self.assertIn("-ss", cmd)
+        self.assertIn("1.250", cmd)                 # seeked timestamp
+        self.assertIn("layers/c.mov", cmd)
+        self.assertTrue(any("color=c=#808080:s=1080x1920" in a for a in cmd))
+        self.assertEqual(cmd[-1], "out/p.png")
+        # color (bg, input 1) under overlay (input 0)
+        self.assertTrue(any("[1:v][0:v]overlay" in a for a in cmd))
 
 
 if __name__ == "__main__":
