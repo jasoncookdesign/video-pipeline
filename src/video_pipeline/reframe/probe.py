@@ -33,8 +33,11 @@ def resolve_output_dims(src_w, src_h, aspect, resolution, scale=1.0):
 
     p = aspect_preset(aspect)
     base_cw, base_ch = crop_dims(src_w, src_h, p.w, p.h)
-    scw = min(src_w, max(2, int(round(base_cw * scale / 2)) * 2))
-    sch = min(src_h, max(2, int(round(base_ch * scale / 2)) * 2))
+    if scale > 1.0:  # punch-in shrinks the crop -> fewer native pixels for Auto
+        scw = min(src_w, max(2, int(round(base_cw / scale / 2)) * 2))
+        sch = min(src_h, max(2, int(round(base_ch / scale / 2)) * 2))
+    else:
+        scw, sch = base_cw, base_ch
     return resolve(aspect, resolution, scw, sch)
 
 
@@ -106,20 +109,53 @@ def reframe(
     return cmd
 
 
+def _rotation_deg(stream: dict) -> int:
+    """Display rotation in degrees (0/90/180/270) from a probed video stream.
+
+    Reads the legacy ``tags.rotate`` and the modern display-matrix ``side_data_list``
+    rotation (often reported as a negative angle). Normalised to [0, 360)."""
+    tags = stream.get("tags") or {}
+    if "rotate" in tags:
+        try:
+            return int(round(float(tags["rotate"]))) % 360
+        except (TypeError, ValueError):
+            pass
+    for sd in stream.get("side_data_list") or []:
+        if "rotation" in sd:
+            try:
+                return int(round(float(sd["rotation"]))) % 360
+            except (TypeError, ValueError):
+                pass
+    return 0
+
+
+def _dims_from_probe(data: dict):
+    """Pure: (display_w, display_h, duration) from parsed ffprobe JSON.
+
+    A ±90° display rotation means the stored (coded) width/height are swapped
+    relative to how the video is shown — so a portrait phone clip stored 1920x1080
+    with a 90° flag is really 1080x1920. We reframe in *display* space (ffmpeg and
+    the orientation-aware tracker both auto-rotate), so swap here."""
+    stream = data["streams"][0]
+    w, h = int(stream["width"]), int(stream["height"])
+    if _rotation_deg(stream) % 180 == 90:
+        w, h = h, w
+    duration = float(data.get("format", {}).get("duration", 0.0) or 0.0)
+    return w, h, duration
+
+
 def _probe_dimensions(input_path: str):  # pragma: no cover - needs ffprobe + a file
-    """Return (width, height, duration_seconds) via ffprobe."""
+    """Return (display_width, display_height, duration_seconds) via ffprobe."""
     import json
 
     out = subprocess.run(
         [
             "ffprobe", "-v", "error",
             "-select_streams", "v:0",
-            "-show_entries", "stream=width,height:format=duration",
+            "-show_entries",
+            "stream=width,height:stream_tags=rotate:stream_side_data=rotation:format=duration",
             "-of", "json", input_path,
         ],
         capture_output=True, text=True, check=True,
     ).stdout
-    data = json.loads(out)
-    stream = data["streams"][0]
-    duration = float(data.get("format", {}).get("duration", 0.0) or 0.0)
-    return int(stream["width"]), int(stream["height"]), duration
+    return _dims_from_probe(json.loads(out))

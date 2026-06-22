@@ -56,6 +56,11 @@ def _open_capture(video_path: str):
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         raise RuntimeError(f"could not open video: {video_path}")
+    # Decode in display orientation so subject coords match the display-space crop
+    # (a rotated phone clip is otherwise read in its coded orientation). Available
+    # on OpenCV >= 4.5; harmless if the flag is absent.
+    if hasattr(cv2, "CAP_PROP_ORIENTATION_AUTO"):
+        cap.set(cv2.CAP_PROP_ORIENTATION_AUTO, 1.0)
     src_fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
     return cap, src_fps
 

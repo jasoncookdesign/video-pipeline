@@ -234,17 +234,20 @@ def build_crop_plan(
                             (caps how fast the crop can travel -> eased moves).
         simplify_tol_px:    keyframe simplification tolerance (Douglas-Peucker).
         duration:           clip duration (for the final keyframe's end time).
-        scale:              crop tightness (INI-090 framing). 1.0 = widest native
-                            crop; < 1.0 zooms in (smaller crop -> subject larger).
-                            > 1.0 clamps to native (pull-back-with-fill is Phase 3b).
+        scale:              punch-in factor (INI-090 framing). 1.0 = widest native
+                            crop; > 1.0 punches in (crop = native / scale -> subject
+                            larger). < 1.0 clamps to native — no pull-back past the
+                            source bounds (no fill), so native is the widest framing.
         subject_y_frac:     where the subject's vertical centre sits in the crop
                             (0=top, 1=bottom). Only bites when crop_h < src_h.
                             None keeps the legacy centred crop.
     """
     crop_w, crop_h = crop_dims(src_w, src_h, out_w, out_h)
-    if scale != 1.0:
-        crop_w = min(src_w, max(2, int(round(crop_w * scale / 2)) * 2))
-        crop_h = min(src_h, max(2, int(round(crop_h * scale / 2)) * 2))
+    if scale > 1.0:
+        # Punch in: a smaller crop of the same aspect, scaled up to the output.
+        crop_w = min(src_w, max(2, int(round(crop_w / scale / 2)) * 2))
+        crop_h = min(src_h, max(2, int(round(crop_h / scale / 2)) * 2))
+    # scale <= 1.0 keeps the native (widest no-fill) crop.
     y = _crop_y(subjects, src_h, crop_h, subject_y_frac)
 
     confident = [s for s in subjects if s.confidence > 0]

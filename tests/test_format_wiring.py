@@ -20,10 +20,10 @@ class TestResolveOutputDims(unittest.TestCase):
         t = resolve_output_dims(3840, 2160, "square", "auto")
         self.assertEqual((t.width, t.height), (2160, 2160))
 
-    def test_scale_shrinks_crop_and_can_drop_a_tier(self):
-        # Zooming in shrinks the crop, so Auto may pick a lower tier than at scale 1.
+    def test_punch_in_shrinks_crop_and_can_drop_a_tier(self):
+        # Punching in (scale>1) shrinks the crop, so Auto may pick a lower tier.
         full = resolve_output_dims(3840, 2160, "full-portrait", "auto", scale=1.0)
-        zoom = resolve_output_dims(3840, 2160, "full-portrait", "auto", scale=0.5)
+        zoom = resolve_output_dims(3840, 2160, "full-portrait", "auto", scale=2.0)
         self.assertGreaterEqual(full.width * full.height, zoom.width * zoom.height)
 
 

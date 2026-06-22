@@ -200,7 +200,8 @@ def _cmd_reframe(args: argparse.Namespace) -> int:
     if getattr(args, "scale", None) is not None:
         scale = args.scale
     if getattr(args, "subject_y", None) is not None:
-        subject_y_frac = args.subject_y
+        # Bipolar override: -1 = subject at top, 0 = centred, +1 = bottom.
+        subject_y_frac = max(0.0, min(1.0, (args.subject_y + 1.0) / 2.0))
 
     # Target dims: aspect + resolution (INI-090) when --aspect is set; else legacy --profile.
     aspect = getattr(args, "aspect", None)
@@ -800,9 +801,9 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--framing", default=None, choices=sorted(_FI),
                    help="composition intent: talking-head | performer | wide-context")
     r.add_argument("--scale", type=float, default=None,
-                   help="crop tightness override (1.0=widest native; <1 zooms in)")
+                   help="punch-in override (1.0=widest native full frame; >1 punches in)")
     r.add_argument("--subject-y", type=float, default=None, dest="subject_y",
-                   help="subject vertical anchor override (0=top..1=bottom)")
+                   help="vertical anchor override, bipolar (-1=top, 0=centre, +1=bottom)")
     r.add_argument("--occupancy-out", default=None, dest="occupancy_out",
                    help="write subject occupancy here for the caption layer to dodge")
     r.add_argument("--mode", default="static", choices=["static", "dynamic"])
