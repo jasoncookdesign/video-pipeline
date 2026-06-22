@@ -91,6 +91,11 @@ class Rect:
 # checks rather than danger-intrusion.
 PROTECTED_KINDS = ("caption", "logo", "cta", "text", "graphic")
 FACE_KIND = "face"
+# Overlay footprints (INI-089). Like FACE, an overlay is not "protected" — it is a
+# region a caption should not sit on; checked via caption-over-overlay, never
+# flagged for danger-intrusion (a full-bleed overlay covers the danger zone by
+# design).
+OVERLAY_KIND = "overlay"
 
 
 @dataclass(frozen=True)
@@ -170,6 +175,10 @@ class Violation:
             frac = self.detail.get("overlap_frac")
             if frac is not None:
                 extra = f" — {frac:.0%} of caption over a face"
+        elif self.kind == "caption-over-overlay":
+            frac = self.detail.get("overlap_frac")
+            if frac is not None:
+                extra = f" — {frac:.0%} of caption over an overlay"
         elif self.kind == "face-in-danger":
             frac = self.detail.get("danger_frac")
             notch = " (NOTCH)" if self.detail.get("hits_notch") else ""
@@ -189,6 +198,7 @@ class QCReport:
     violations: List[Violation] = field(default_factory=list)
     elements_checked: int = 0
     faces_checked: int = 0
+    overlays_checked: int = 0
     generator_version: str = "qc-1"
 
     @property
@@ -216,6 +226,7 @@ class QCReport:
             "clean": self.clean,
             "elements_checked": self.elements_checked,
             "faces_checked": self.faces_checked,
+            "overlays_checked": self.overlays_checked,
             "counts_by_kind": self.counts_by_kind(),
             "violations": [v.to_dict() for v in self.violations],
             "generator_version": self.generator_version,
@@ -235,7 +246,8 @@ class QCReport:
             f"Safe-zone QC: {status}  profile={self.profile}  "
             f"{self.width}x{self.height}  spec={self.safezone_spec}\n"
             f"  checked: {self.elements_checked} element(s), "
-            f"{self.faces_checked} face sample(s)\n"
+            f"{self.faces_checked} face sample(s), "
+            f"{self.overlays_checked} overlay(s)\n"
             f"  violations: {len(self.violations)} "
             f"({self.counts_by_kind() or 'none'})"
         )

@@ -33,15 +33,17 @@ from .validate import validate
 def caption_elements_from_props(props: dict) -> List[QCElement]:
     """Caption boxes from a Remotion props object.
 
-    The props' ``safeBox`` is the shared caption box; each kept cue's on-screen
-    span gives the time window. One QC element per cue so the report timestamps
-    line up with the cues the CEO sees.
+    The props' ``safeBox`` is the default caption box; a cue that dodged an overlay
+    (INI-089) carries its own ``box`` which takes precedence — QC checks where each
+    cue actually renders. Each kept cue's on-screen span gives the time window, so
+    the report timestamps line up with the cues the CEO sees.
     """
-    box = props["safeBox"]
-    rect = Rect.from_xywh(box["x"], box["y"], box["width"], box["height"])
+    default = props["safeBox"]
     fps = props.get("fps", 30)
     out: List[QCElement] = []
     for cue in props.get("cues", []):
+        box = cue.get("box") or default
+        rect = Rect.from_xywh(box["x"], box["y"], box["width"], box["height"])
         start = cue.get("startSeconds")
         if start is None:
             start = cue["from"] / fps
@@ -58,6 +60,22 @@ def caption_elements_from_props(props: dict) -> List[QCElement]:
             )
         )
     return out
+
+
+def overlay_elements_from_occupancy(occupancy: dict) -> List[QCElement]:
+    """Overlay QC elements from an ``overlay.occupancy`` descriptor object.
+
+    Reads the descriptor's ``items`` (rect + window) into the plain-tuple form the
+    validator consumes. A caption sitting on one of these is flagged
+    ``caption-over-overlay``.
+    """
+    from .validate import overlay_elements
+
+    windows = []
+    for it in occupancy.get("items", []):
+        r = it["rect"]
+        windows.append((r["x"], r["y"], r["w"], r["h"], it["start"], it["end"]))
+    return overlay_elements(windows)
 
 
 def faces_from_subjects(subjects, frame_w: int, frame_h: int,
@@ -93,6 +111,7 @@ def run_qc(  # pragma: no cover - daily-driver orchestration (native deps + foot
     safezone_spec_path: str,
     *,
     props_path: Optional[str] = None,
+    occupancy_path: Optional[str] = None,
     extra_elements: Sequence[QCElement] = (),
     report_out: Optional[str] = None,
     preview_out: Optional[str] = None,
@@ -103,8 +122,10 @@ def run_qc(  # pragma: no cover - daily-driver orchestration (native deps + foot
     occlusion_frac: float = 0.1,
     face_danger_frac: float = 0.2,
     intrusion_frac: float = 0.0,
+    overlay_occlusion_frac: float = 0.1,
     check_caption_over_face: bool = True,
     check_face_in_danger: bool = True,
+    check_caption_over_overlay: bool = True,
     dry_run: bool = False,
 ) -> QCReport:
     """Run the full QC pass; write report + preview + clean render.
@@ -119,6 +140,11 @@ def run_qc(  # pragma: no cover - daily-driver orchestration (native deps + foot
         props = json.loads(Path(props_path).read_text(encoding="utf-8"))
         elements += caption_elements_from_props(props)
 
+    overlays: List[QCElement] = []
+    if occupancy_path:
+        occ = json.loads(Path(occupancy_path).read_text(encoding="utf-8"))
+        overlays = overlay_elements_from_occupancy(occ)
+
     faces: List[QCElement] = []
     if detect_faces and (check_caption_over_face or check_face_in_danger):
         faces = _detect_faces(input_video, spec, tracker_name)
@@ -127,11 +153,14 @@ def run_qc(  # pragma: no cover - daily-driver orchestration (native deps + foot
         spec,
         [e for e in elements if e.kind != "face"],
         faces=faces,
+        overlays=overlays,
         occlusion_frac=occlusion_frac,
         face_danger_frac=face_danger_frac,
         intrusion_frac=intrusion_frac,
+        overlay_occlusion_frac=overlay_occlusion_frac,
         check_caption_over_face=check_caption_over_face,
         check_face_in_danger=check_face_in_danger,
+        check_caption_over_overlay=check_caption_over_overlay,
         spec_name=Path(safezone_spec_path).name,
     )
 
