@@ -1,8 +1,9 @@
 # INI-089 — Overlay Subsystem (timed/placed overlays + producers)
 
-Status: **Phase A in progress.** This doc is the engineering plan and the
-build-state record for the overlay subsystem. It is architecture-first: one
-primitive, thin producers on top — not three features.
+Status: **Phase A primitive built + merged; Phase B (source card) core built.**
+This doc is the engineering plan and the build-state record for the overlay
+subsystem. It is architecture-first: one primitive, thin producers on top — not
+three features.
 
 ## The shape (why a primitive, not three features)
 
@@ -42,12 +43,18 @@ and thin **producers** that emit overlays into it:
 overlay/
   decision.py    # OverlayItem + OverlayList + overlay.def round-trip   [BUILT]
   occupancy.py   # placement→rect + overlay.occupancy descriptor        [BUILT]
-  propose.py     # transcript→window proposer (writes overlay.def)      [TODO]
+  propose.py     # transcript→window proposer (phrase + keyword)        [BUILT]
   runner.py      # resolve overlay.def + occupancy → PlacedOverlay,     [TODO]
                  # run the composite, emit occupancy json
+  card/          # Phase B source-card producer
+    content.py   # CardContent + JSON round-trip (the product)          [BUILT]
+    capture.py   # PageFetcher seam + card_from_page structuring        [BUILT]
+    props.py     # CardStyle + props + kind=card overlay.def item       [BUILT]
+                 # + card render argv
 composite/render.py
   PlacedOverlay + timed_overlay_filtergraph
   + ffmpeg_timed_composite_command                                       [BUILT]
+remotion/src/Card.tsx (+ CardProps, Root registration)                   [BUILT, Mac-render]
 ```
 
 ## Data contracts
@@ -113,10 +120,63 @@ base audio through. Per-overlay audio duck/mute is layered by the runner.
    and the matching `overlay` / `overlay-render` CLI subcommands. The SADD already
    reserved the slot; this is the GUI-zero-recompile surfacing.
 
+## Phase B — generated source card
+
+The highest-value producer: an article/news card timed to the spoken span. It is a
+**producer on the Phase-A primitive**, not a parallel feature — the card renders to
+an alpha layer that becomes a `kind=card` entry in `overlay.def`, placed and
+windowed by the primitive. Built to the same content-vs-look split as captions.
+
+**Content (the reviewable product) — `overlay/card/content.py`.** `CardContent`
+(`heading`, `body`, `footer`, `image`, `citation`, `source_url`) is a small JSON
+the CEO edits before render — fix a clumsy summary, trim the body, swap the image.
+Lossless round-trip, heading required.
+
+**Capture → content — `overlay/card/capture.py`.** Split like the transcriber seam:
+the **fetch is a seam** (`PageFetcher` Protocol — a Chrome-MCP fetcher and a
+Jina-reader fetcher run where the network is, `FixedFetcher` for tests), the
+**structuring is pure** (`card_from_page`: heading from title, body from the lead
+paragraphs up to a char budget, footer from byline→site-name, citation from the
+domain, lead image). No LLM in the path — deterministic, reviewable.
+
+**Look — `overlay/card/props.py` + `remotion/src/Card.tsx`.** `CardStyle` (neutral
+defaults; identity/brand overrides layer on) drives a deterministic Remotion `Card`
+composition. The card is a **static tile** rendered at its placement-rect size; the
+on-screen window and fade are applied by the ffmpeg overlay primitive, so the
+component has no per-frame animation (cheap, predictable). `card_to_remotion_props`
+is the JSON contract; `card_render_command` is the `npx remotion render` argv
+(ProRes 4444 — alpha preserved), mirroring the caption seam.
+
+**Wiring — `build_card_overlay_item`** produces the `kind=card` `overlay.def` entry
+(default bottom-half, fade, muted) from a rendered card layer + a proposed window.
+
+**Transcript→window proposer — `overlay/propose.py`** (shared with Phase A's
+image/video producers). `propose_window(transcript, query)` returns the source-time
+span where a thing is discussed: an exact phrase match first, a keyword-cluster
+fallback second (stopword-aware, sentence-gap-bounded), padded and clamped, or
+`None` to leave it to manual placement. This is the AI-leverage spine for every
+producer's timing — deterministic, model out of the render path.
+
+### Remaining for Phase B
+
+1. **`overlay/card/render` integration in the runner** — capture (Chrome MCP/Jina,
+   Mac-side) → `CardContent` JSON → (CEO edit) → `card_to_remotion_props` → Remotion
+   render → alpha tile → `kind=card` `overlay.def` item with the proposed window.
+2. **CLI + schema** — an `overlay-card` subcommand (URL → content JSON) and the
+   `Card` look surfaced through `schema/definition.py` (shared with Phase A's schema
+   work).
+3. **Brand pass on `Card.tsx`** — the v1 look is neutral; identity-driven styling
+   (per-creator colors/type, like caption identities) and layout polish iterate
+   Mac-side on real renders.
+4. **Render acceptance on real footage (Mac)** — a captured article renders as a
+   branded card at the discussed span, content editable via the JSON, captions clear
+   of it (Phase-A occupancy/caption-dodge).
+
 ## Verification model
 
-Pure logic (overlay geometry, decision-file round-trip, occupancy, proposer, argv
-assembly, cut-time remap) is unit-tested in-sandbox under the standing TDD
+Pure logic (overlay geometry, decision-file round-trip, occupancy, proposer, card
+content/structuring/props, argv assembly, cut-time remap) is unit-tested in-sandbox
+under the standing TDD
 discipline (`python3 -m unittest`, no native deps). Render, fade, and matte seams
 are **Mac-side acceptance on real footage** — the sandbox cannot run ffmpeg/Remotion
 or the matte. Each phase closes only on observed real-footage DoD (an image overlay

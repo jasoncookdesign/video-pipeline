@@ -56,3 +56,39 @@ export type CaptionProps = {
   style: CaptionStyle;
   cues: CaptionCue[];
 };
+
+// ── Source card (INI-089 Phase B) ────────────────────────────────────────────
+// Mirrors video_pipeline.overlay.card.props.card_to_remotion_props. The card is a
+// static tile rendered at `dimensions` (its placement rect); the on-screen window
+// and fade are applied by the ffmpeg overlay primitive, not here.
+
+export type CardStyle = {
+  bg_color: string;
+  text_color: string;
+  accent_color: string;
+  heading_size: number;
+  body_size: number;
+  footer_size: number;
+  corner_radius: number;
+  padding: number;
+  font_family: string;
+};
+
+export type CardContent = {
+  heading: string;
+  body: string;
+  footer: string;
+  image: string | null;
+  citation: string;
+};
+
+export type CardProps = {
+  schemaVersion: number;
+  kind: "card";
+  identity: string | null;
+  profile: string | null;
+  fps: number;
+  dimensions: { width: number; height: number };
+  style: CardStyle;
+  content: CardContent;
+};
