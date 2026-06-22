@@ -4,10 +4,11 @@ A framing intent is the *human composition decision* the bare subject-tracker la
 It is expressed relative to the target frame (fractions, not pixels), so the same
 intent resolves against any aspect preset:
 
-  - ``subject_scale`` — crop tightness. 1.0 = the widest native crop (most of the
-    subject + surroundings in frame); < 1.0 zooms in (subject larger, less context).
-    (Pulling back *wider* than native — ``scale > 1`` with a blurred-fill pad — is
-    Phase 3b; values > 1 currently clamp to the native crop.)
+  - ``subject_scale`` — punch-in factor. 1.0 = the widest native crop (the largest
+    target-aspect rectangle that fits the source — the most you can show without
+    letterbox fill); > 1.0 punches in (crop = native / scale, subject larger). Values
+    < 1.0 clamp to native — there is deliberately no pull-back past the source bounds
+    (no fill), so native is the widest framing.
   - ``subject_y_frac`` — where the subject's vertical centre sits inside the crop
     (0.0 = top, 1.0 = bottom). Only bites when the crop is shorter than the source
     (i.e. when zoomed, or a source taller than the target); a full-height crop has no
@@ -38,17 +39,19 @@ class FramingIntent:
 
 FRAMING_INTENTS: Dict[str, FramingIntent] = {
     "talking-head": FramingIntent(
-        "talking-head", "Talking head", 0.80, 0.33, "lower-third",
-        "Tight on the face (upper third), captions low. For pieces-to-camera where "
-        "the speaker is the whole shot."),
+        "talking-head", "Talking head", 1.30, 0.33, "lower-third",
+        "Punched in on the face (upper third), captions low. For pieces-to-camera "
+        "where the speaker is the whole shot."),
     "performer": FramingIntent(
-        "performer", "Performer", 1.00, 0.30, "lower-third",
+        "performer", "Performer", 1.00, 0.35, "lower-third",
         "Widest native crop with the face high, reserving the lower band for the "
-        "torso / instrument / props and the captions. The DJ-at-the-decks framing."),
+        "torso / instrument / props and the captions. The DJ-at-the-decks framing. "
+        "(Vertical bias only bites when there is slack — i.e. when punched in or the "
+        "source is taller than the target.)"),
     "wide-context": FramingIntent(
         "wide-context", "Wide context", 1.00, 0.50, "lower-third",
-        "Widest native crop, subject centred — keep the scene/setting visible. "
-        "Captions low."),
+        "Widest native crop, subject centred — show as much of the source as the "
+        "target aspect allows (no fill). Captions low."),
 }
 
 DEFAULT_FRAMING = "performer"   # recommended; CLI leaves framing opt-in (None = legacy)

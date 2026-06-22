@@ -410,17 +410,18 @@ def build_schema() -> Schema:
                   help="opencv is dependency-light; mediapipe is the higher-quality "
                        "daily-driver face/pose tracker.",
                   ui=UI(label="Tracker", control="dropdown", group="Crop")),
-            Param("scale", "number", flag="--scale", min=0.3, max=1.0, step=0.05,
-                  hint="Crop tightness override (optional).",
-                  help="Overrides the framing intent's crop tightness. 1.0 = widest "
-                       "native crop; lower zooms in. Leave unset to let Framing decide. "
-                       "(Pulling back wider than native is not yet supported.)",
-                  ui=UI(label="Scale (override)", control="slider", group="Framing")),
-            Param("subject_y", "number", flag="--subject-y", min=0.0, max=1.0, step=0.05,
-                  hint="Vertical anchor override (optional).",
-                  help="Overrides where the subject sits vertically (0=top, 1=bottom). "
-                       "Only bites when the crop is shorter than the source. Leave unset "
-                       "to let Framing decide.",
+            Param("scale", "number", flag="--scale", min=1.0, max=2.5, step=0.05,
+                  hint="Punch-in override (optional).",
+                  help="Overrides the framing intent's zoom. 1.0 = widest native crop "
+                       "(the most of the source the aspect allows, no fill); higher "
+                       "punches in. There is no pull-back past 1.0 by design — native "
+                       "is the widest. Leave unset to let Framing decide.",
+                  ui=UI(label="Punch-in (override)", control="slider", group="Framing")),
+            Param("subject_y", "number", flag="--subject-y", min=-1.0, max=1.0, step=0.05,
+                  hint="Vertical anchor override (optional, bipolar).",
+                  help="Where the subject sits vertically: -1 = top, 0 = centred, "
+                       "+1 = bottom. Only bites when there is vertical slack (punched "
+                       "in, or a source taller than the target). Unset = let Framing decide.",
                   ui=UI(label="Subject Y (override)", control="slider", group="Framing")),
             Param("dry_run", "bool", arity="switch", flag="--dry-run", default=False,
                   hint="Plan the crop without rendering.",

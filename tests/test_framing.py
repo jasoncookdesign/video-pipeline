@@ -25,10 +25,14 @@ class TestFramingIntents(unittest.TestCase):
         self.assertEqual(f.caption_position, "lower-third")
         self.assertIsNotNone(f.subject_y_frac)
 
-    def test_talking_head_is_zoomed_and_high(self):
+    def test_talking_head_is_punched_in_and_high(self):
         f = framing_intent("talking-head")
-        self.assertLess(f.subject_scale, 1.0)
-        self.assertLess(f.subject_y_frac, 0.5)  # face above centre
+        self.assertGreater(f.subject_scale, 1.0)  # punch in
+        self.assertLess(f.subject_y_frac, 0.5)     # face above centre
+
+    def test_performer_and_wide_are_native(self):
+        self.assertEqual(framing_intent("performer").subject_scale, 1.0)
+        self.assertEqual(framing_intent("wide-context").subject_scale, 1.0)
 
     def test_default_is_performer(self):
         self.assertEqual(DEFAULT_FRAMING, "performer")
@@ -54,41 +58,41 @@ class TestCropScaleAndAnchor(unittest.TestCase):
         self.assertEqual(w.h, self.SRC_H)
         self.assertEqual(w.y, 0)
 
-    def test_scale_below_one_shrinks_crop(self):
+    def test_punch_in_shrinks_crop(self):
         full = self._win()
-        zoom = self._win(scale=0.5)
+        zoom = self._win(scale=2.0)
         self.assertLess(zoom.w, full.w)
         self.assertLess(zoom.h, full.h)
         # aspect preserved (~9:16) within even-rounding
         self.assertAlmostEqual(zoom.w / zoom.h, full.w / full.h, places=1)
 
-    def test_vertical_anchor_uses_cy_when_there_is_slack(self):
-        # Zoomed crop (crop_h < src_h) -> anchor bites. cy=400, frac=0.33.
-        w = self._win(scale=0.5, subject_y_frac=0.33)
+    def test_scale_below_one_clamps_to_native(self):
+        # No pull-back past native (no fill): scale < 1 == scale 1.
+        self.assertEqual(self._win(scale=0.5).h, self._win().h)
+        self.assertEqual(self._win(scale=0.5).w, self._win().w)
+
+    def test_vertical_anchor_uses_cy_when_punched_in(self):
+        # Punched-in crop (crop_h < src_h) -> anchor bites. cy=400, frac=0.33.
+        w = self._win(scale=2.0, subject_y_frac=0.33)
         crop_h = w.h
         expected = min(max(round(400 - 0.33 * crop_h), 0), self.SRC_H - crop_h)
         self.assertEqual(w.y, expected)
 
-    def test_anchor_none_centres_the_zoomed_crop(self):
-        w = self._win(scale=0.5)
+    def test_anchor_none_centres_the_punched_crop(self):
+        w = self._win(scale=2.0)
         self.assertEqual(w.y, (self.SRC_H - w.h) // 2)
 
     def test_full_height_crop_has_no_vertical_freedom(self):
-        # Even with an anchor, a full-height crop clamps to y == 0.
+        # Even with an anchor, a full-height (native) crop clamps to y == 0.
         w = self._win(subject_y_frac=0.1)
         self.assertEqual(w.h, self.SRC_H)
         self.assertEqual(w.y, 0)
 
-    def test_scale_above_one_clamps_to_source(self):
-        w = self._win(scale=2.0)
-        self.assertLessEqual(w.w, self.SRC_W)
-        self.assertLessEqual(w.h, self.SRC_H)
-        self.assertEqual(w.h, self.SRC_H)  # height clamped at source
-
-    def test_crop_stays_inside_source(self):
-        w = self._win(scale=0.5, subject_y_frac=0.9)
+    def test_punch_in_stays_inside_source(self):
+        w = self._win(scale=2.0, subject_y_frac=0.9)
         self.assertGreaterEqual(w.y, 0)
         self.assertLessEqual(w.y + w.h, self.SRC_H)
+        self.assertLessEqual(w.w, self.SRC_W)
 
 
 if __name__ == "__main__":
