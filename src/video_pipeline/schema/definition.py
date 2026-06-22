@@ -113,6 +113,42 @@ def _profile_param(*, required: bool, default: str | None = "reels-9x16") -> Par
     )
 
 
+def _format_params() -> list[Param]:
+    """Target-format selectors for the reframe step (INI-090): aspect shape +
+    resolution tier + optional framing intent. Options come straight from the Python
+    boundary (``target_format`` / ``framing``) so the dropdowns match exactly what the
+    resolver accepts. Aspect + resolution always emit (format is mandatory); framing is
+    opt-in (unset = the legacy centred crop)."""
+    from ..reframe.framing import FRAMING_INTENTS
+    from ..target_format import ASPECT_PRESETS, DEFAULT_ASPECT, TIERS
+
+    return [
+        Param("aspect", "enum", flag="--aspect", options=sorted(ASPECT_PRESETS),
+              default=DEFAULT_ASPECT, required=False,
+              hint="Target shape (aspect preset).",
+              help="The output shape. full-portrait (9:16) is the short-form default; "
+                   "also portrait (2:3), wide-portrait (4:5), square (1:1), widescreen "
+                   "(16:9), cinematic (21:9), classic-tv (4:3). Drives the crop geometry.",
+              example="--aspect full-portrait",
+              ui=UI(label="Aspect", control="dropdown", group="Format")),
+        Param("resolution", "enum", flag="--resolution", options=["auto", *TIERS],
+              default="auto", required=False,
+              hint="Resolution tier, or Auto.",
+              help="Auto picks the highest tier that fits the crop without upscaling "
+                   "beyond 5%; or force 4k / 1440p / 1080p / 720p. Separate from aspect.",
+              example="--resolution auto",
+              ui=UI(label="Resolution", control="dropdown", group="Format")),
+        Param("framing", "enum", flag="--framing", options=sorted(FRAMING_INTENTS),
+              default=None, required=False,
+              hint="Composition intent (optional).",
+              help="performer = widest crop, face high, lower band kept for torso/props "
+                   "and captions; talking-head = zoomed on the face; wide-context = scene "
+                   "kept, subject centred. Leave unset for the legacy centred crop.",
+              example="--framing performer",
+              ui=UI(label="Framing", control="dropdown", group="Format")),
+    ]
+
+
 def _caption_style_params() -> list[Param]:
     """The five per-run caption-style controls (INI-088), shared by the caption
     *define* and *render* tasks so the GUI surfaces an identical Style group on
@@ -359,7 +395,7 @@ def build_schema() -> Schema:
         help="Subject-tracking crop. Static holds one crop; dynamic follows the subject. "
              "Daily-driver path needs MediaPipe; --dry-run plans without rendering.",
         params=[
-            _profile_param(required=False),
+            *_format_params(),
             Param("mode", "enum", flag="--mode", options=["static", "dynamic"],
                   default="static",
                   hint="Static hold vs subject-following crop.",
