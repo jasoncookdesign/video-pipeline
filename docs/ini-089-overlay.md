@@ -112,8 +112,14 @@ base audio through. Per-overlay audio duck/mute is layered by the runner.
    schemaVersion 3; `Captions.tsx` uses `cue.box ?? safeBox`). Full-bleed overlay =
    best-effort (advisory QC warns). Per-cue, so captions move only where an overlay
    actually sits. Render acceptance Mac-side.
-5. **QC consumption** — `qc` reads `overlay.occupancy` and flags overlays intruding
-   on the danger polygon (`SafeZoneSpec.rect_clear`).
+5. ~~QC consumption~~ — **BUILT.** `qc/validate.py` gains an `overlays=` channel
+   (kind `overlay`, from `overlay.occupancy` via `overlay_elements`) and a
+   **caption-over-overlay** warning — the residual a full-bleed overlay leaves that
+   caption-dodge could not relocate (mirrors caption-over-face, time-window aware).
+   Overlays are deliberately **not** danger-intrusion-checked (a full-bleed overlay
+   covers the danger zone by design). `QCReport` gains `overlays_checked`; the runner
+   loads `occupancy_path` and `caption_elements_from_props` now honours each cue's
+   dodged `box`. Render acceptance Mac-side.
 6. **Cut-time remap at handoff** — overlay cues run through `fcpxml/timeline.py`
    like caption cues; the editor handoff opens with each overlay on its own labeled
    track at the correct cut-time offset.

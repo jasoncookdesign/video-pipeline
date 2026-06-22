@@ -24,6 +24,7 @@ from typing import Iterable, List, Optional, Sequence, Tuple
 from ..safezone.spec import SafeZoneSpec
 from .report import (
     FACE_KIND,
+    OVERLAY_KIND,
     PROTECTED_KINDS,
     QCElement,
     QCReport,
@@ -32,6 +33,28 @@ from .report import (
 )
 
 _EPS = 1e-9
+
+
+def overlay_elements(windows) -> List[QCElement]:
+    """Build overlay QC elements from ``(x, y, w, h, start, end)`` footprints.
+
+    ``windows`` is the plain-tuple form of ``overlay.occupancy`` (see
+    ``overlay.occupancy.avoid_windows``) — kept plain so QC does not import the
+    overlay package. Each becomes a ``kind="overlay"`` element carrying its
+    on-screen window, checked against captions (never for danger-intrusion).
+    """
+    out: List[QCElement] = []
+    for w in windows:
+        x, y, ww, hh, start, end = w
+        out.append(
+            QCElement(
+                kind=OVERLAY_KIND,
+                rect=Rect.from_xywh(x, y, ww, hh),
+                t=start,
+                t_end=end,
+            )
+        )
+    return out
 
 
 def _safe_intervals_at_row(spec: SafeZoneSpec, y: int) -> List[Tuple[int, int]]:
@@ -112,22 +135,30 @@ def validate(
     spec: SafeZoneSpec,
     elements: Sequence[QCElement],
     faces: Sequence[QCElement] = (),
+    overlays: Sequence[QCElement] = (),
     *,
     occlusion_frac: float = 0.10,
     face_danger_frac: float = 0.20,
     intrusion_frac: float = 0.0,
+    overlay_occlusion_frac: float = 0.10,
     check_caption_over_face: bool = True,
     check_face_in_danger: bool = True,
+    check_caption_over_overlay: bool = True,
     profile: Optional[str] = None,
     spec_name: str = "",
 ) -> QCReport:
     """Validate a frame layout against the safe-zone spec.
 
     ``elements`` are protected items (must stay inside the safe zone). ``faces``
-    are detected subject boxes (kind ``"face"``). ``intrusion_frac`` is the
-    danger fraction above which a protected element is flagged (default 0 = any
-    intrusion). ``occlusion_frac`` is the caption-over-face overlap threshold;
-    ``face_danger_frac`` the face-in-danger threshold.
+    are detected subject boxes (kind ``"face"``). ``overlays`` are overlay
+    footprints (kind ``"overlay"``, from ``overlay.occupancy``) — they are *not*
+    checked for danger-intrusion (a full-bleed overlay covers the danger zone by
+    design) but a caption sitting on one is flagged ``caption-over-overlay`` (the
+    residual caption-dodge could not relocate, e.g. under a full-bleed overlay).
+    ``intrusion_frac`` is the danger fraction above which a protected element is
+    flagged (default 0 = any intrusion). ``occlusion_frac`` /
+    ``overlay_occlusion_frac`` are the caption-over-face / caption-over-overlay
+    overlap thresholds; ``face_danger_frac`` the face-in-danger threshold.
     """
     violations: List[Violation] = []
 
@@ -188,6 +219,38 @@ def validate(
                     )
                 )
 
+    if check_caption_over_overlay and overlays:
+        captions = [e for e in elements if e.kind == "caption"]
+        for cap in captions:
+            best_frac = 0.0
+            best_ov: Optional[QCElement] = None
+            for ov in overlays:
+                if not _time_overlaps(cap.t, cap.t_end, ov.t, ov.t_end):
+                    continue
+                if cap.rect.area <= 0:
+                    continue
+                frac = cap.rect.intersection_area(ov.rect) / cap.rect.area
+                if frac > best_frac:
+                    best_frac, best_ov = frac, ov
+            if best_ov is not None and best_frac >= overlay_occlusion_frac:
+                violations.append(
+                    Violation(
+                        kind="caption-over-overlay",
+                        element_kind="caption",
+                        rect=cap.rect,
+                        severity="warning",
+                        label=cap.label,
+                        t=cap.t,
+                        t_end=cap.t_end,
+                        detail={
+                            "overlap_frac": round(best_frac, 4),
+                            "overlay_rect": best_ov.rect.to_dict(),
+                            "overlay_t": best_ov.t,
+                            "overlay_t_end": best_ov.t_end,
+                        },
+                    )
+                )
+
     if check_face_in_danger:
         for face in faces:
             danger_frac, hits_notch = danger_overlap(spec, face.rect)
@@ -216,4 +279,5 @@ def validate(
         violations=violations,
         elements_checked=len(elements),
         faces_checked=len(faces),
+        overlays_checked=len(overlays),
     )
