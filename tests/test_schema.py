@@ -139,19 +139,21 @@ def test_new_task_surfaces_in_emit_without_code_change():
     """Adding a step/task/artifact to the schema instance surfaces in the emitted
     document and stays conformant — the observable proof of tenet 4 (no GUI
     recompile needed to gain a step)."""
+    # Uses a still-hypothetical "watermark" step (the once-hypothetical "overlay"
+    # is now a real part of the schema — INI-089 — so it would collide here).
     base = S.build_schema()
-    new_step = Step("overlay", "Overlay", order=45)
-    new_art = Artifact("overlay", kind="layer", path="layers/overlay.mov",
+    new_step = Step("watermark", "Watermark", order=45)
+    new_art = Artifact("watermark", kind="layer", path="layers/watermark.mov",
                        previewable=True, z_order=20)
-    occ = Artifact("overlay.occupancy", kind="descriptor",
-                   path="layers/overlay.occupancy.json")
+    occ = Artifact("watermark.occupancy", kind="descriptor",
+                   path="layers/watermark.occupancy.json")
     new_task = Task(
-        id="overlay.render", step="overlay", label="Render overlay",
-        subcommand="overlay render",
-        consumes=["base"], produces=["overlay", "overlay.occupancy"],
+        id="watermark.render", step="watermark", label="Render watermark",
+        subcommand="watermark render",
+        consumes=["base"], produces=["watermark", "watermark.occupancy"],
         io=[
             IOBinding("base", "input", "positional", order=0),
-            IOBinding("overlay", "output", "flag", flag="-o"),
+            IOBinding("watermark", "output", "flag", flag="-o"),
         ],
         params=[Param("opacity", "number", flag="--opacity", min=0.0, max=1.0,
                       step=0.05, default=1.0, ui=UI(label="Opacity"))],
@@ -166,9 +168,9 @@ def test_new_task_surfaces_in_emit_without_code_change():
     assert extended.validate() == []
     emitted = json.loads(S.to_json(extended.to_dict()))
     ids = [t["id"] for t in emitted["tasks"]]
-    assert "overlay.render" in ids
+    assert "watermark.render" in ids
     # and the new previewable layer is discoverable to the previewer
-    assert any(a["id"] == "overlay" and a["previewable"] for a in emitted["artifacts"])
+    assert any(a["id"] == "watermark" and a["previewable"] for a in emitted["artifacts"])
 
 
 def test_validate_catches_orphan_consume():
