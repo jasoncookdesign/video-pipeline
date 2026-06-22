@@ -225,6 +225,12 @@ def build_schema() -> Schema:
              hint="Check captions/faces against the danger zone.",
              help="Advisory check: flags protected elements intruding on the danger "
                   "polygon and captions over the speaker's face. Advises, never blocks."),
+        Step("overlay", "Overlays", order=65,
+             hint="Timed/placed content overlays (image / video / source card).",
+             help="Places content overlays — a still, a video asset, or a generated "
+                  "article card — on a source-time window proposed from the transcript, "
+                  "as an editable overlay.def. Renders the placed/timed composite and "
+                  "emits overlay.occupancy so captions dodge overlays and QC stays aware."),
         Step("composite", "Composite", order=70,
              hint="Flatten the layers into one preview render.",
              help="Stacks the base and the caption/overlay layers into a single "
@@ -566,6 +572,90 @@ def build_schema() -> Schema:
         ],
     ))
 
+    # overlay.define: author the editable overlay decision file (overlay.def).
+    # The product the CEO edits; windows can be proposed from the transcript.
+    tasks.append(Task(
+        id="overlay.define", step="overlay", label="Build overlay file",
+        subcommand="overlay", optional=True,
+        consumes=[], produces=["overlay.def"],
+        io=[
+            IOBinding(artifact="overlay.def", role="output", via="flag", flag="-o"),
+        ],
+        hint="Scaffold / author the editable overlay decision file.",
+        help="Writes overlay.def — one scannable line per overlay (kind, src, window, "
+             "placement, transition). Hand-edit it (or pass --transcript to propose "
+             "each window from the spoken span), then render.",
+        params=[
+            _profile_param(required=False),
+            Param("source", "string", flag="--source",
+                  hint="Base clip name recorded in the file (advisory).",
+                  ui=UI(label="Source name", group="Setup")),
+            Param("transcript", "path", flag="--transcript",
+                  hint="Word-level transcript JSON for window proposing.",
+                  help="When given, an overlay's window can be proposed from the span "
+                       "where its subject is discussed (the AI-leverage step).",
+                  path=PathSpec(kind="file", extensions=["json"]),
+                  ui=UI(label="Transcript", group="Timing")),
+        ],
+    ))
+
+    # overlay.card: capture a URL into an editable card-content JSON (Phase B).
+    tasks.append(Task(
+        id="overlay.card", step="overlay", label="Capture source card",
+        subcommand="overlay-card", optional=True,
+        consumes=[], produces=["card.content"],
+        io=[
+            IOBinding(artifact="card.content", role="output", via="flag", flag="-o"),
+        ],
+        hint="Capture an article/page into editable card content.",
+        help="Fetches a URL (Chrome / Jina, daily-driver) and structures it into a "
+             "reviewable card.content JSON (heading/body/footer/image/citation) you "
+             "edit before rendering the card overlay.",
+        params=[
+            Param("url", "string", arity="positional", order=0, required=True,
+                  hint="Article / page URL to capture.",
+                  example="https://example.com/article",
+                  ui=UI(label="URL", group="Input")),
+            Param("max_body", "number", flag="--max-body", min=80, max=600, step=10,
+                  default=280,
+                  hint="Body character budget.",
+                  ui=UI(label="Max body chars", control="slider", group="Content")),
+            Param("max_heading", "number", flag="--max-heading", min=40, max=200, step=10,
+                  default=120,
+                  hint="Heading character budget.",
+                  ui=UI(label="Max heading chars", control="slider", group="Content")),
+        ],
+    ))
+
+    # overlay.render: overlay.def + base + safezone -> placed/timed composite +
+    # the overlay.occupancy descriptor (captions/QC consume it).
+    tasks.append(Task(
+        id="overlay.render", step="overlay", label="Render overlays",
+        subcommand="overlay-render", optional=True,
+        consumes=["overlay.def", "base", "safezone.def"],
+        produces=["overlay.composite", "overlay.occupancy"],
+        io=[
+            IOBinding(artifact="overlay.def", role="input", via="positional", order=0),
+            IOBinding(artifact="base", role="input", via="flag", flag="-i"),
+            IOBinding(artifact="overlay.composite", role="output", via="flag", flag="-o"),
+            IOBinding(artifact="safezone.def", role="input", via="flag", flag="--safezone"),
+            IOBinding(artifact="overlay.occupancy", role="output", via="flag",
+                      flag="--occupancy"),
+        ],
+        hint="Composite the placed/timed overlays + emit occupancy.",
+        help="Reads the (edited) overlay.def, places/scales/times each overlay over the "
+             "base, and writes the preview composite + the overlay.occupancy descriptor "
+             "(frame size from the safe-zone spec). Re-runnable after editing overlay.def.",
+        params=[
+            Param("crf", "number", flag="--crf", min=0, max=51, step=1, default=18,
+                  hint="x264 quality (lower = better).",
+                  ui=UI(label="Quality (CRF)", control="slider", group="Render")),
+            Param("dry_run", "bool", arity="switch", flag="--dry-run", default=False,
+                  hint="Show the ffmpeg command without rendering.",
+                  ui=UI(label="Dry run", control="toggle", group="Render")),
+        ],
+    ))
+
     # composite: flatten base + caption (+ future overlays) -> a preview render.
     # Consumes the same layer set as QC; QC advises but does NOT gate it (SADD §4).
     # Multiple layers bind via repeated --layer flags, declared low->high z-order.
@@ -709,6 +799,28 @@ def build_schema() -> Schema:
                  help="The caption overlay baked over a neutral checkerboard into plain "
                       "h264 so the previewer can play it in isolation. A GUI-only proxy — "
                       "never bundled into an editor export."),
+        Artifact("overlay.def", kind="manifest", path="work/overlay.def.yml",
+                 previewable=False,
+                 hint="Editable overlay decision file.",
+                 help="One line per overlay (kind, src, source-time window, placement, "
+                      "transition). The product — hand-edit before rendering, mirrors "
+                      "roughcut.def / caption.def."),
+        Artifact("card.content", kind="manifest", path="work/card.content.json",
+                 previewable=False,
+                 hint="Editable source-card content.",
+                 help="heading / body / footer / image / citation captured from a URL. "
+                      "Reviewable JSON the card overlay renders from."),
+        Artifact("overlay.occupancy", kind="descriptor", path="work/overlay.occupancy.json",
+                 previewable=False,
+                 hint="Overlay footprints + windows.",
+                 help="The rect + time window each overlay occupies. A descriptor: caption "
+                      "placement dodges it and QC flags intrusions; no branch reads "
+                      "another's pixels."),
+        Artifact("overlay.composite", kind="media", path="review/overlay-composite.mp4",
+                 previewable=True, z_order=90, codec_hint="h264",
+                 hint="Base + placed/timed overlays (preview).",
+                 help="The base with the overlay layers placed/timed/faded into one "
+                      "previewable .mp4. A review intermediate, not the final cut."),
         Artifact("qc.report", kind="manifest", path="review/qc-report.json",
                  previewable=False,
                  hint="Safe-zone QC findings.",

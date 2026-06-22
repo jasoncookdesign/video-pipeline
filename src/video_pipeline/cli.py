@@ -453,6 +453,98 @@ def _cmd_composite(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_overlay_define(args: argparse.Namespace) -> int:
+    from .overlay.decision import OverlayItem, OverlayList
+
+    transcript = None
+    if getattr(args, "transcript", None):
+        import json as _json
+        from .roughcut.transcript import transcript_from_whisper_dict
+
+        transcript = transcript_from_whisper_dict(
+            _json.loads(Path(args.transcript).read_text(encoding="utf-8"))
+        )
+
+    items = []
+    for i, spec in enumerate(args.add or []):
+        d = {}
+        for kv in spec.split(";"):
+            kv = kv.strip()
+            if not kv:
+                continue
+            k, _, v = kv.partition("=")
+            d[k.strip()] = v.strip()
+        start, end = d.get("start"), d.get("end")
+        if (start is None or end is None) and d.get("at") and transcript is not None:
+            from .overlay.propose import propose_window
+
+            pad = float(d.get("pad", "0") or 0)
+            win = propose_window(transcript, d["at"], pad_lead=pad, pad_tail=pad)
+            if win:
+                start, end = win
+        if start is None or end is None:
+            print(f"error: overlay #{i} needs start=/end= (or at= with --transcript)",
+                  file=sys.stderr)
+            return 2
+        rect = tuple(int(x) for x in d["rect"].split(",")) if d.get("rect") else None
+        items.append(OverlayItem(
+            index=i, kind=d.get("kind", "image"), src=d.get("src", ""),
+            start=float(start), end=float(end),
+            placement=d.get("placement", "full-bleed"), rect=rect,
+            transition=d.get("transition", "cut"), fade=float(d.get("fade", "0") or 0),
+            audio=d.get("audio", "keep"), scale=d.get("scale", "fit"),
+            matte=d.get("matte", "none"), text=d.get("text", ""),
+        ))
+
+    ov = OverlayList(source=args.source or "", segments=items, profile=args.profile).reindex()
+    if args.dry_run:
+        print(ov.to_yaml())
+        return 0
+    ov.write(args.output)
+    print(f"wrote {args.output}  overlays={len(items)}")
+    return 0
+
+
+def _cmd_overlay_card(args: argparse.Namespace) -> int:
+    import json as _json
+    from .overlay.card.capture import CapturedPage, card_from_page
+
+    if getattr(args, "from_json", None):
+        page = CapturedPage(**_json.loads(Path(args.from_json).read_text(encoding="utf-8")))
+    else:  # pragma: no cover - live capture is a daily-driver seam (Chrome MCP / Jina)
+        print("error: live URL capture runs on the daily driver; pass --from-json "
+              "<captured-page.json> to structure a card without a live fetch",
+              file=sys.stderr)
+        return 2
+    content = card_from_page(
+        page, max_body_chars=args.max_body, max_heading_chars=args.max_heading
+    )
+    content.write(args.output)
+    print(f"wrote {args.output}  heading={content.heading[:40]!r}")
+    return 0
+
+
+def _cmd_overlay_render(args: argparse.Namespace) -> int:
+    from .overlay.decision import OverlayList
+    from .overlay.runner import render_overlays
+    from .safezone.spec import SafeZoneSpec
+
+    spec = SafeZoneSpec.from_json(Path(args.safezone).read_text(encoding="utf-8"))
+    ov = OverlayList.read(args.overlays)
+    cmd = render_overlays(
+        args.input, ov, args.output, spec.image_width, spec.image_height,
+        crf=args.crf, preset=args.preset,
+        occupancy_path=args.occupancy, dry_run=args.dry_run,
+    )
+    if args.dry_run:
+        print("overlay-render command (dry run):")
+        print("  " + " ".join(cmd))
+    else:
+        tail = f"  occupancy={args.occupancy}" if args.occupancy else ""
+        print(f"wrote {args.output}  overlays={len(ov.segments)}{tail}")
+    return 0
+
+
 def _cmd_handoff(args: argparse.Namespace) -> int:
     from .fcpxml.runner import assemble_project
 
@@ -831,6 +923,57 @@ def build_parser() -> argparse.ArgumentParser:
     co.add_argument("--dry-run", action="store_true",
                     help="print the ffmpeg command without rendering")
     co.set_defaults(func=_cmd_composite)
+
+    # overlay — author the editable overlay decision file (overlay.def).
+    ov = sub.add_parser(
+        "overlay", help="author the editable overlay decision file (overlay.def)")
+    ov.add_argument("-o", "--output", required=True, help="overlay.def output path")
+    ov.add_argument("--source", default=None,
+                    help="base clip name recorded in the file (advisory)")
+    ov.add_argument("--profile", default=None, help="output profile recorded in the file")
+    ov.add_argument("--transcript", default=None,
+                    help="word-level transcript JSON; lets an overlay's window be "
+                         "proposed from the spoken span (at=...)")
+    ov.add_argument("--add", action="append", default=[],
+                    help="an overlay spec, e.g. "
+                         "'kind=image;src=a.png;start=3.2;end=7.8;placement=bottom-half' "
+                         "(or at=\"the chart\" with --transcript); repeatable, low->high z")
+    ov.add_argument("--dry-run", action="store_true",
+                    help="print the overlay file without writing it")
+    ov.set_defaults(func=_cmd_overlay_define)
+
+    # overlay-card — capture a URL into editable card content.
+    ocd = sub.add_parser(
+        "overlay-card", help="capture a URL into editable source-card content (JSON)")
+    ocd.add_argument("url", help="article / page URL to capture")
+    ocd.add_argument("-o", "--output", required=True, help="card.content output path")
+    ocd.add_argument("--max-body", type=int, default=280, dest="max_body",
+                     help="body character budget (default 280)")
+    ocd.add_argument("--max-heading", type=int, default=120, dest="max_heading",
+                     help="heading character budget (default 120)")
+    ocd.add_argument("--from-json", default=None, dest="from_json",
+                     help="a captured-page JSON (CapturedPage fields) — structure a card "
+                          "without a live fetch (the live fetch runs on the daily driver)")
+    ocd.set_defaults(func=_cmd_overlay_card)
+
+    # overlay-render — composite the placed/timed overlays + emit occupancy.
+    orr = sub.add_parser(
+        "overlay-render",
+        help="composite the placed/timed overlays from overlay.def + emit occupancy")
+    orr.add_argument("overlays", help="overlay decision file (overlay.def .yml)")
+    orr.add_argument("-i", "--input", required=True, help="base video (work/base.mp4)")
+    orr.add_argument("-o", "--output", required=True,
+                     help="overlay composite output (review/overlay-composite.mp4)")
+    orr.add_argument("--safezone", required=True,
+                     help="safe-zone spec JSON (supplies the frame dimensions)")
+    orr.add_argument("--occupancy", default=None,
+                     help="overlay.occupancy descriptor output path (captions/QC consume it)")
+    orr.add_argument("--crf", type=int, default=18,
+                     help="x264 quality, lower = better (default 18)")
+    orr.add_argument("--preset", default="medium", help="x264 preset (default medium)")
+    orr.add_argument("--dry-run", action="store_true",
+                     help="print the ffmpeg command without rendering")
+    orr.set_defaults(func=_cmd_overlay_render)
 
     # proxy — bake a transparent layer over a checkerboard into h264 for preview.
     px = sub.add_parser(

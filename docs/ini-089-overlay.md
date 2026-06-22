@@ -128,10 +128,15 @@ base audio through. Per-overlay audio duck/mute is layered by the runner.
    the cut-time caption file. **Remaining:** the FCPXML/XMEML per-overlay *track*
    clip (each overlay on its own labeled lane) — needs per-overlay rendered assets
    (the runner's per-layer render), so it follows the schema/CLI work.
-7. **Schema + CLI** — add the `overlay` step + `overlay.define` / `overlay.render`
-   tasks + `overlay.def` / `overlay.occupancy` artifacts to `schema/definition.py`,
-   and the matching `overlay` / `overlay-render` CLI subcommands. The SADD already
-   reserved the slot; this is the GUI-zero-recompile surfacing.
+7. ~~Schema + CLI~~ — **BUILT.** `schema/definition.py` gains an `overlay` step with
+   three tasks — `overlay.define` (`overlay`), `overlay.card` (`overlay-card`),
+   `overlay.render` (`overlay-render`) — and artifacts `overlay.def`, `card.content`,
+   `overlay.occupancy`, `overlay.composite` (previewable). The matching CLI
+   subcommands are in `cli.py`; `resolve_argv` for each parses back through
+   `build_parser` (schema↔CLI consistency test). `overlay` authors the def from
+   `--add` specs (windows proposable via `--transcript`); `overlay-card` structures a
+   captured page (`--from-json`; live fetch is the daily-driver seam); `overlay-render`
+   composites + emits occupancy. GUI surfaces it on next emit — zero recompile.
 
 ## Phase B — generated source card
 
