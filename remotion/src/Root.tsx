@@ -1,7 +1,8 @@
 import React from "react";
 import { Composition } from "remotion";
 import { Captions } from "./Captions";
-import type { CaptionProps } from "./types";
+import { Card } from "./Card";
+import type { CaptionProps, CardProps } from "./types";
 
 // Fallback props so the studio opens without a --props file. The real render is
 // driven by the props JSON from video_pipeline.captions.export; calculateMetadata
@@ -70,26 +71,78 @@ const defaultProps: CaptionProps = {
   ],
 };
 
+// Fallback props so the Card composition opens in the studio without a --props
+// file. The real render is driven by the JSON from
+// video_pipeline.overlay.card.props.card_to_remotion_props.
+const defaultCardProps: CardProps = {
+  schemaVersion: 1,
+  kind: "card",
+  identity: "dyson-hope",
+  profile: "reels-9x16",
+  fps: 30,
+  // a bottom-half tile (1080x960) is the common card placement
+  dimensions: { width: 1080, height: 960 },
+  style: {
+    bg_color: "#101014",
+    text_color: "#FFFFFF",
+    accent_color: "#9C97F4",
+    heading_size: 64,
+    body_size: 40,
+    footer_size: 28,
+    corner_radius: 24,
+    padding: 56,
+    font_family: "Helvetica",
+  },
+  content: {
+    heading: "Markets rally on the surprise rate cut",
+    body: "Stocks jumped after the central bank trimmed rates, citing cooling inflation.",
+    footer: "By A. Reporter",
+    image: null,
+    citation: "example.com",
+  },
+};
+
 export const RemotionRoot: React.FC = () => {
   return (
-    <Composition
-      id="Captions"
-      component={Captions}
-      durationInFrames={300}
-      fps={30}
-      width={1080}
-      height={1920}
-      defaultProps={defaultProps}
-      calculateMetadata={({ props }) => {
-        const last = props.cues[props.cues.length - 1];
-        const total = last ? last.from + last.durationInFrames : 300;
-        return {
-          durationInFrames: Math.max(1, total),
-          fps: props.fps,
-          width: props.dimensions.width,
-          height: props.dimensions.height,
-        };
-      }}
-    />
+    <>
+      <Composition
+        id="Captions"
+        component={Captions}
+        durationInFrames={300}
+        fps={30}
+        width={1080}
+        height={1920}
+        defaultProps={defaultProps}
+        calculateMetadata={({ props }) => {
+          const last = props.cues[props.cues.length - 1];
+          const total = last ? last.from + last.durationInFrames : 300;
+          return {
+            durationInFrames: Math.max(1, total),
+            fps: props.fps,
+            width: props.dimensions.width,
+            height: props.dimensions.height,
+          };
+        }}
+      />
+      <Composition
+        id="Card"
+        component={Card}
+        durationInFrames={1}
+        fps={30}
+        width={1080}
+        height={960}
+        defaultProps={defaultCardProps}
+        calculateMetadata={({ props }) => {
+          // The card is static; a single frame is enough — the ffmpeg overlay
+          // primitive holds it across its window. Size to the placement rect.
+          return {
+            durationInFrames: 1,
+            fps: props.fps,
+            width: props.dimensions.width,
+            height: props.dimensions.height,
+          };
+        }}
+      />
+    </>
   );
 };
