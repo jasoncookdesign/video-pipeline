@@ -25,6 +25,13 @@ def _task(schema: Schema, task_id: str) -> Task:
     raise KeyError(f"no task {task_id!r}")
 
 
+def _row_scalar(v: Any) -> str:
+    """Render a row field value into its ``key=value`` token (bool lowercased)."""
+    if isinstance(v, bool):
+        return "true" if v else "false"
+    return str(v)
+
+
 def resolve_argv(
     schema: Schema,
     task_id: str,
@@ -62,7 +69,7 @@ def resolve_argv(
     for _, val in sorted(positionals, key=lambda x: x[0]):
         argv.append(val)
 
-    # 2) value + switch params
+    # 2) value + switch + rows params
     for p in task.params:
         if p.arity == "positional":
             continue
@@ -70,6 +77,21 @@ def resolve_argv(
         if p.arity == "switch":
             if val:
                 argv.append(p.flag)  # presence-only
+        elif p.arity == "rows":
+            # Repeatable structured rows: one `flag spec` pair per non-empty row,
+            # spec = the row's `key=value;…` over the fields it carries. Identical
+            # encoding in command.rs / ipc.ts (the golden-argv contract pins them).
+            for row in (val or []):
+                if not isinstance(row, dict):
+                    continue
+                parts = []
+                for rf in (p.row or []):
+                    v = row.get(rf.key)
+                    if v is None or v == "":
+                        continue
+                    parts.append(f"{rf.key}={_row_scalar(v)}")
+                if parts and p.flag:
+                    argv.extend([p.flag, ";".join(parts)])
         elif p.arity == "value":
             if val is None:
                 if p.required:

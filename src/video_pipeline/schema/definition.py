@@ -30,6 +30,7 @@ from .model import (
     IOBinding,
     Param,
     PathSpec,
+    RowField,
     Schema,
     Step,
     Task,
@@ -581,21 +582,70 @@ def build_schema() -> Schema:
         io=[
             IOBinding(artifact="overlay.def", role="output", via="flag", flag="-o"),
         ],
-        hint="Scaffold / author the editable overlay decision file.",
-        help="Writes overlay.def — one scannable line per overlay (kind, src, window, "
-             "placement, transition). Hand-edit it (or pass --transcript to propose "
-             "each window from the spoken span), then render.",
+        hint="Add one or more overlays — image, video, or source card.",
+        help="Writes overlay.def — one line per overlay (kind, src, window, placement, "
+             "transition). Add overlays in the Overlays table below; each row becomes "
+             "a --add entry. Set a window explicitly (start/end) or let it be proposed "
+             "from the spoken span (a phrase in 'at' + a Transcript). You can also "
+             "hand-edit the file afterward, then render.",
         params=[
             _profile_param(required=False),
-            Param("source", "string", flag="--source",
-                  hint="Base clip name recorded in the file (advisory).",
-                  ui=UI(label="Source name", group="Setup")),
             Param("transcript", "path", flag="--transcript",
                   hint="Word-level transcript JSON for window proposing.",
-                  help="When given, an overlay's window can be proposed from the span "
-                       "where its subject is discussed (the AI-leverage step).",
+                  help="When given, an overlay row's window can be proposed from the "
+                       "span where its subject is discussed (fill the row's 'at' field "
+                       "with a phrase). The AI-leverage step; the LLM never touches the "
+                       "render path.",
                   path=PathSpec(kind="file", extensions=["json"]),
                   ui=UI(label="Transcript", group="Timing")),
+            Param("source", "string", flag="--source",
+                  hint="Base clip name recorded in the file header (advisory).",
+                  help="A label written into the file's `source:` header for reference. "
+                       "Not the asset and not the base video — the base is supplied at "
+                       "render time (Render overlays → base video).",
+                  ui=UI(label="Source label", group="Advanced")),
+            Param(
+                "overlays", "string", arity="rows", flag="--add",
+                hint="The overlays to place — one row each.",
+                help="Each row is one overlay. Pick a Kind, point it at an asset path "
+                     "(Src), set its on-screen window (Start/End seconds, or a Discussed "
+                     "phrase with a Transcript loaded), and choose a Placement "
+                     "(full-bleed / bottom-half / a PiP rect). A video can duck or mute "
+                     "its own audio. Each row emits one --add entry.",
+                ui=UI(label="Overlays", group="Overlays"),
+                row=[
+                    RowField("kind", "Kind", "dropdown",
+                             options=["image", "video", "card"], default="image",
+                             hint="image = still; video = clip; card = generated source card."),
+                    RowField("src", "Src (asset path)", "field",
+                             placeholder="assets/chart.png",
+                             hint="Path to the image/video asset (or the rendered card)."),
+                    RowField("at", "Discussed phrase", "field",
+                             placeholder="the Q3 chart  (needs a Transcript)",
+                             hint="Propose the window from where this is discussed."),
+                    RowField("start", "Start (s)", "field", placeholder="3.2",
+                             hint="Explicit window start, source-time seconds."),
+                    RowField("end", "End (s)", "field", placeholder="7.8",
+                             hint="Explicit window end, source-time seconds."),
+                    RowField("placement", "Placement", "dropdown",
+                             options=["full-bleed", "bottom-half", "pip-rect"],
+                             default="full-bleed",
+                             hint="Where it sits; pip-rect needs a Rect."),
+                    RowField("rect", "PiP rect (x,y,w,h)", "field",
+                             placeholder="60,1180,420,560",
+                             hint="Pixel rect for placement = pip-rect."),
+                    RowField("transition", "Transition", "dropdown",
+                             options=["cut", "fade"], default="cut",
+                             hint="Hard cut or a fade in/out."),
+                    RowField("fade", "Fade (s)", "field", placeholder="0.3",
+                             hint="Fade duration when Transition = fade."),
+                    RowField("audio", "Audio (video)", "dropdown",
+                             options=["keep", "duck", "mute"], default="keep",
+                             hint="A video overlay's own audio."),
+                    RowField("text", "Label", "field", placeholder="what it shows",
+                             hint="A human label recorded with the overlay."),
+                ],
+            ),
         ],
     ))
 
