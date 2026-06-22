@@ -45,7 +45,7 @@ DEFAULT_CONTROL = {
 #   positional : bare value, order-significant, no flag
 #   value      : ``<flag> <value>``
 #   switch     : ``<flag>`` emitted only when the bool value is true (store_true)
-ARITY = {"positional", "value", "switch"}
+ARITY = {"positional", "value", "switch", "rows"}
 
 
 @dataclass(frozen=True)
@@ -139,18 +139,50 @@ class Compose:
 
 
 @dataclass(frozen=True)
+class RowField:
+    """One column of a repeatable ``rows`` param (e.g. an overlay's kind/src/window).
+
+    A lightweight cousin of :class:`ComposePart`: it describes a single editable
+    field within a row. The row assembles to a ``key=value;…`` spec (one ``--add``
+    token), so these keys are the spec keys the CLI parses.
+    """
+
+    key: str
+    label: str
+    control: str = "field"          # field | dropdown
+    options: list[str] | None = None
+    default: Any = None
+    hint: str = ""
+    placeholder: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {"key": self.key, "label": self.label, "control": self.control}
+        if self.options is not None:
+            d["options"] = list(self.options)
+        if self.default is not None:
+            d["default"] = self.default
+        if self.hint:
+            d["hint"] = self.hint
+        if self.placeholder is not None:
+            d["placeholder"] = self.placeholder
+        return d
+
+
+@dataclass(frozen=True)
 class Param:
     """A single controllable input to a task.
 
     ``arity`` governs argv assembly. ``type`` governs the control. A bounded
     number (both ``min`` and ``max`` set) defaults to a slider; otherwise a
-    stepper field.
+    stepper field. ``arity="rows"`` is a repeatable, structured control: the value
+    is a list of row objects, each emitted as one ``flag value`` pair where the
+    value is the row's ``key=value;…`` spec (the ``row`` schema names the columns).
     """
 
     key: str
     type: str                       # bool|number|enum|string|path
     ui: UI
-    arity: str = "value"            # positional|value|switch
+    arity: str = "value"            # positional|value|switch|rows
     order: int = 0                  # positional placement on argv (with io positionals)
     flag: str | None = None         # e.g. "--wpc-max"; None for positional
     default: Any = None
@@ -164,8 +196,11 @@ class Param:
     example: str | None = None      # example invocation fragment
     compose: "Compose | None" = None  # build this value from labelled sub-fields
     path: PathSpec | None = None    # type="path" only: picker/drag-drop metadata
+    row: "list[RowField] | None" = None  # arity="rows": the per-row column schema
 
     def resolved_control(self) -> str:
+        if self.arity == "rows":
+            return "rows"
         if self.ui.control:
             return self.ui.control
         if self.type == "number" and self.min is not None and self.max is not None:
@@ -204,6 +239,8 @@ class Param:
             d["compose"] = self.compose.to_dict()
         if self.path is not None:
             d["path"] = self.path.to_dict()
+        if self.row is not None:
+            d["row"] = [rf.to_dict() for rf in self.row]
         return d
 
 
@@ -426,8 +463,10 @@ class Schema:
             for p in t.params:
                 if p.arity not in ARITY:
                     problems.append(f"task {t.id!r} param {p.key!r} has bad arity {p.arity!r}")
-                if p.arity in ("value", "switch") and not p.flag:
+                if p.arity in ("value", "switch", "rows") and not p.flag:
                     problems.append(f"task {t.id!r} param {p.key!r} ({p.arity}) needs a flag")
+                if p.arity == "rows" and not p.row:
+                    problems.append(f"task {t.id!r} param {p.key!r} (rows) needs a row schema")
                 if p.arity == "positional" and p.flag:
                     problems.append(f"task {t.id!r} param {p.key!r} is positional but has a flag")
                 if p.type == "enum" and not p.options:

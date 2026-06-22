@@ -23,7 +23,7 @@ from video_pipeline.schema.model import (
     UI,
 )
 
-KNOWN_CONTROLS = {"toggle", "slider", "stepper", "dropdown", "field", "picker"}
+KNOWN_CONTROLS = {"toggle", "slider", "stepper", "dropdown", "field", "picker", "rows"}
 
 
 def test_schema_is_structurally_conformant():
