@@ -19,7 +19,7 @@ transitions, and music placement stay with the editor.
 | 3 — Captions | Glossary-corrected 2–4-word chunker (timing layer); **editable caption file** (the product); safe-zone-aware placement; SRT export; **Remotion** styled-overlay renderer (style layer) driven by a props contract; layered caption-style config | ✅ accepted on real footage |
 | 4 — Safe-zone QC | Validate a frame layout against the derived safe polygon (notch included): flag captions/logos/CTAs intruding on the danger region, captions over the speaker's face, and faces in the danger region; **QC report** (JSON + printable) + **danger-zone preview** + **clean render** | ✅ built (pure logic tested; face detection + FFmpeg burn-in are the local acceptance gate) |
 | 5 — Editor handoff | Assemble the editor project: the decision file's KEEP segments over the reframed clip on a **Base Cut** track + the caption overlay on a **Captions** track; cues **remapped to cut time** so they line up with the compressed timeline. Two formats — **Premiere-compatible FCP7 XML (default)** and FCPXML 1.10 — so it opens natively in Premiere Pro (which does not read FCPXML), Resolve, or Final Cut | ✅ built (both serializers + remap tested; opening the project + overlay render are the local acceptance gate) |
-| 6 | Source-card overlays | designed; not yet built |
+| 6 — Overlays | Timed/placed overlay layer — a still image, a video asset, or a generated **source card** — on a transcript-proposed window, as an editable **`overlay.def`**; emits an **`overlay.occupancy`** descriptor so captions **dodge** overlays and QC flags intrusions; overlay windows **remap to cut time** at handoff. See [Overlays](#overlays). | ✅ built (pure logic tested in-sandbox; ffmpeg / Remotion render acceptance on real footage is the local gate) |
 
 Captions are **two layers, kept separate**: the pipeline owns *timing* (transcript
 → cues, glossary-corrected) and *placement* (a safe-zone-derived box); **Remotion**
@@ -133,12 +133,56 @@ Whisper-JSON transcript via `--transcript` (e.g. the one the rough-cut phase wro
 to `work/`). The Remotion overlay needs the bundled project installed once:
 `cd remotion && npm install`.
 
+## Overlays
+
+Place timed content overlays — a still image, a video asset, or a generated
+article/news **source card** — on a window proposed from the transcript, as an
+editable `overlay.def` (one line per overlay, the same decision-file model as the
+rough cut and captions). The pipeline emits an `overlay.occupancy` descriptor so
+caption placement **dodges** overlays for the span they are on screen and QC flags
+any that intrude on the danger zone; overlay windows are **remapped to cut time**
+at editor handoff like caption cues. The window proposer matches an overlay to the
+span where it is discussed — the LLM never touches the render path.
+
+```bash
+# 1. Author the overlay decision file — one --add per overlay. Set the window
+#    explicitly (start/end) or propose it from a spoken phrase (at=…) with
+#    --transcript. Hand-edit overlay.def afterward, then render.
+video-pipeline overlay -o work/overlay.def.yml --profile reels-9x16 \
+    --transcript work/transcript.json \
+    --add "kind=image;src=assets/chart.png;start=3.2;end=7.8;placement=bottom-half;transition=fade;fade=0.3" \
+    --add "kind=video;src=assets/clip.mov;at=the demo;placement=pip-rect;rect=60,1180,420,560;audio=duck"
+
+# 2. (Source card) Capture a URL into an editable card-content JSON. The live fetch
+#    (Chrome / Jina) runs on the daily driver; --from-json structures a saved
+#    capture without a fetch. Render the card to a layer, then point a kind=card
+#    overlay's src at it.
+video-pipeline overlay-card https://example.com/article -o work/card.content.json
+
+# 3. Composite the placed/timed overlays over the base + emit the occupancy
+#    descriptor captions/QC consume (frame size from the safe-zone spec; ffmpeg).
+video-pipeline overlay-render work/overlay.def.yml -i work/base.mp4 \
+    -o review/overlay-composite.mp4 \
+    --safezone config/safezone/reels-9x16.safezone.json \
+    --occupancy work/overlay.occupancy.json
+```
+
+Placements are `full-bleed`, `bottom-half`, or a `pip-rect` (with an explicit
+`x,y,w,h`); transitions are a hard `cut` or a `fade`; a video overlay's own audio
+can `keep` / `duck` / `mute`. Complex masks, keyframed/stylized motion, and
+razor-frame timing stay in the NLE by design — the overlay layer does cut or
+simple fade only.
+
 ## Control-tower schema (GUI)
 
 The pipeline is the single source of truth for an optional desktop control-tower
-GUI: it emits the steps, tasks, artifacts, parameters, and export targets the GUI
-reads at launch to build its forms and previewer. Adding a step on this side
-surfaces in the GUI with no recompile. See `docs/gui-schema.md`.
+GUI — [`video-pipeline-gui`](../video-pipeline-gui), a Tauri app that runs these
+steps, streams their output, and previews the layers each produces. The pipeline
+emits the steps, tasks, artifacts, parameters, and export targets the GUI reads at
+launch to build its forms and previewer; adding a step on this side surfaces in the
+GUI with no recompile (the overlay step above, including its repeatable per-overlay
+table, is surfaced this way). See [`docs/gui-schema.md`](docs/gui-schema.md) for the
+pipeline side of the contract.
 
 ```bash
 video-pipeline schema --format yaml|json [-o file]   # emit the schema
@@ -183,6 +227,9 @@ captions:
   karaoke: false         # true = active-word highlight (each word lights up as spoken)
   uppercase: true        # render text uppercase
   position: lower-third  # caption box anchor: upper-third | center | lower-third
+  h_offset: clear-notch  # horizontal placement: clear-notch (widest notch-free
+                         #   span, may bias off-center) | center (symmetric, still
+                         #   clears the notch). Per-run flag: --h-offset.
   # font_family, font_size, fill_color, stroke_color, emphasis_color, …
   #   — full style keys are in config/caption-styles/README.md
 ```
@@ -229,6 +276,7 @@ src/video_pipeline/
   reframe/                        tracker (seam) -> crop plan -> ffmpeg command
   roughcut/                       transcript seam -> propose -> decision file -> render
   captions/                       chunk (timing) -> caption file -> placement/export -> Remotion (style)
+  overlay/                        timed/placed overlay layer + overlay.def + occupancy; window proposer; card producer (capture -> content -> Remotion card)
   qc/                             validate frame layout vs safe polygon -> report + danger preview + clean
   fcpxml/                         base cut + cue cut-time remap -> FCP7 XML (Premiere) / FCPXML (Resolve, FCP)
   manifest.py  project.py         project.yml load/validate + scaffolding
