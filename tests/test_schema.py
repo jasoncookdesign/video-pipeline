@@ -66,9 +66,13 @@ def test_every_consumed_channel_has_a_producer():
 
 
 def test_base_channel_has_the_expected_writer_chain():
-    # project.init -> reframe -> roughcut.render all write `base` (SADD §3.2).
+    # project.init -> reframe.render -> roughcut.render all write `base` (SADD §3.2).
+    # The reframe step's base writer is now its *render* half (the propose half writes
+    # the reframe.def, not the clip) after the two-task split (INI-091).
     sch = S.build_schema()
-    assert sch.writers_of("base") == ["project.init", "reframe", "roughcut.render"]
+    assert sch.writers_of("base") == [
+        "project.init", "reframe.render", "roughcut.render",
+    ]
 
 
 def test_export_subcommands_are_real_cli_invocations():
@@ -80,25 +84,54 @@ def test_export_subcommands_are_real_cli_invocations():
 
 # --- argv assembly (the process contract) ---------------------------------
 
-def test_resolve_argv_reframe_is_runnable():
+def test_resolve_argv_reframe_propose_is_runnable():
+    # The reframe step is two tasks now (INI-091): propose writes the reframe.def +
+    # subject track, render consumes the def. Propose carries the framing controls.
     sch = S.build_schema()
     argv = S.resolve_argv(
-        sch, "reframe",
-        form_values={"mode": "dynamic", "tracker": "mediapipe", "profile": "reels-9x16"},
-        artifact_paths={"base": "work/base.mp4"},
+        sch, "reframe.propose",
+        form_values={"mode": "dynamic", "tracker": "mediapipe"},
+        artifact_paths={"base": "work/base.mp4",
+                        "reframe.def": "work/reframe.json",
+                        "subject.track": "work/reframe.track.json"},
     )
     assert argv[0] == "video-pipeline"
-    assert argv[1] == "reframe"
-    # input positional present, output flag wired from the produced artifact path
+    assert argv[1] == "reframe-propose"
+    # input positional present, def output wired from the produced artifact path
     assert "work/base.mp4" in argv
-    assert "-o" in argv and argv[argv.index("-o") + 1] == "work/base.mp4"
+    assert "-o" in argv and argv[argv.index("-o") + 1] == "work/reframe.json"
+    assert argv[argv.index("--track-out") + 1] == "work/reframe.track.json"
     assert "--mode" in argv and argv[argv.index("--mode") + 1] == "dynamic"
+
+
+def test_resolve_argv_reframe_render_consumes_the_def():
+    sch = S.build_schema()
+    argv = S.resolve_argv(
+        sch, "reframe.render", form_values={},
+        artifact_paths={"base": "work/base.mp4",
+                        "reframe.def": "work/reframe.json",
+                        "reframed": "work/reframed.mp4",
+                        "subject.occupancy": "work/reframe.occupancy.json"},
+    )
+    assert argv[1] == "reframe-render"
+    # base positional in; the def via --reframe-def; outputs via -o / --reframed-out /
+    # --occupancy-out (no tracking/framing knobs on render)
+    assert argv[2] == "work/base.mp4"
+    assert argv[argv.index("--reframe-def") + 1] == "work/reframe.json"
+    assert argv[argv.index("-o") + 1] == "work/base.mp4"
+    assert argv[argv.index("--reframed-out") + 1] == "work/reframed.mp4"
+    assert argv[argv.index("--occupancy-out") + 1] == "work/reframe.occupancy.json"
+    assert "--mode" not in argv and "--scale" not in argv
 
 
 def test_resolve_argv_switch_only_emitted_when_true():
     sch = S.build_schema()
-    on = S.resolve_argv(sch, "reframe", {"dry_run": True}, {"base": "b.mp4"})
-    off = S.resolve_argv(sch, "reframe", {"dry_run": False}, {"base": "b.mp4"})
+    on = S.resolve_argv(sch, "reframe.render", {"dry_run": True},
+                        {"base": "b.mp4", "reframe.def": "d.json",
+                         "reframed": "r.mp4", "subject.occupancy": "o.json"})
+    off = S.resolve_argv(sch, "reframe.render", {"dry_run": False},
+                         {"base": "b.mp4", "reframe.def": "d.json",
+                          "reframed": "r.mp4", "subject.occupancy": "o.json"})
     assert "--dry-run" in on
     assert "--dry-run" not in off
 

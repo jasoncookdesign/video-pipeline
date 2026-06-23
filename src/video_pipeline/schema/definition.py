@@ -405,22 +405,26 @@ def build_schema() -> Schema:
         ],
     ))
 
-    # reframe: base -> base.
+    # reframe.propose: base -> reframe.def + subject.track. The *define* half of the
+    # two-task reframe split (mirrors caption.define / roughcut). Runs the tracker once
+    # and writes the editable reframe.def (+ persisted subject track); NO video output.
+    # All the framing/bounding-box controls live here — render just consumes the def.
     tasks.append(Task(
-        id="reframe", step="reframe", label="Reframe to target format",
-        subcommand="reframe", optional=True,
-        consumes=["base"], produces=["base", "reframed", "subject.occupancy"],
+        id="reframe.propose", step="reframe", label="Propose reframe",
+        subcommand="reframe-propose", optional=True,
+        consumes=["base"], produces=["reframe.def", "subject.track"],
         io=[
             IOBinding(artifact="base", role="input", via="positional", order=0),
-            IOBinding(artifact="base", role="output", via="flag", flag="-o"),
-            IOBinding(artifact="reframed", role="output", via="flag",
-                      flag="--reframed-out"),
-            IOBinding(artifact="subject.occupancy", role="output", via="flag",
-                      flag="--occupancy-out"),
+            IOBinding(artifact="reframe.def", role="output", via="flag", flag="-o"),
+            IOBinding(artifact="subject.track", role="output", via="flag",
+                      flag="--track-out"),
         ],
-        hint="Crop the source to the target format (portrait, square, or landscape).",
-        help="Subject-tracking crop. Static holds one crop; dynamic follows the subject. "
-             "Daily-driver path needs MediaPipe; --dry-run plans without rendering.",
+        hint="Track the subject + propose the crop -> editable reframe.def.",
+        help="Subject-tracking crop *proposal*. Runs the tracker once, converts the "
+             "subject-derived centre + framing intent into the editable reframe.def "
+             "(scale / pan / aspect / resolution) and persists the subject track so "
+             "Render replays the geometry without re-tracking. Static holds one crop; "
+             "dynamic follows the subject. Daily-driver path needs MediaPipe.",
         params=[
             *_format_params(),
             Param("mode", "enum", flag="--mode", options=["static", "dynamic"],
@@ -471,11 +475,48 @@ def build_schema() -> Schema:
                        "vertical, both = a fully static composed crop.",
                   example="--lock both",
                   ui=UI(label="Composition lock", control="dropdown", group="Framing")),
+            Param("allow_upscale", "bool", arity="switch", flag="--allow-upscale",
+                  default=False,
+                  hint="Advanced: let the punch-in exceed the max-zoom.",
+                  help="By default the punch-in is hard-stopped at the resolution-driven "
+                       "max-zoom so the render never upscales past tolerance. This opt-in "
+                       "lets a deliberate over-punch through.",
+                  ui=UI(label="Allow upscale", control="toggle", group="Framing")),
+        ],
+    ))
+
+    # reframe.render: base + reframe.def -> base + reframed + subject.occupancy. The
+    # *render* half (mirrors caption.render / roughcut-render). Consumes the (possibly
+    # hand-edited) reframe.def + its persisted track, replays the exact geometry, and
+    # renders the clip. NO tracking/framing knobs — those live on Propose. Occupancy
+    # recomputes from the FINAL edited crop at render (per the INI-091 spec).
+    tasks.append(Task(
+        id="reframe.render", step="reframe", label="Render reframe",
+        subcommand="reframe-render", optional=True,
+        consumes=["base", "reframe.def"],
+        produces=["base", "reframed", "subject.occupancy"],
+        io=[
+            IOBinding(artifact="base", role="input", via="positional", order=0),
+            IOBinding(artifact="reframe.def", role="input", via="flag",
+                      flag="--reframe-def"),
+            IOBinding(artifact="base", role="output", via="flag", flag="-o"),
+            IOBinding(artifact="reframed", role="output", via="flag",
+                      flag="--reframed-out"),
+            IOBinding(artifact="subject.occupancy", role="output", via="flag",
+                      flag="--occupancy-out"),
+        ],
+        hint="Render the reframed clip from the (edited) reframe.def.",
+        help="Reads the reframe.def + its persisted subject track, resolves the framing "
+             "model to the exact pixel crop, and runs the ffmpeg crop — no re-tracking, "
+             "no re-derivation: the geometry the def carries is the geometry rendered. "
+             "Re-runnable after you hand-edit the def. Recomputes subject occupancy from "
+             "the final crop so captions dodge the subject.",
+        params=[
             Param("dry_run", "bool", arity="switch", flag="--dry-run", default=False,
                   hint="Plan the crop without rendering.",
-                  help="Computes and prints the crop plan but writes no video — fast way "
-                       "to sanity-check tracking before a full render.",
-                  ui=UI(label="Dry run", control="toggle", group="Crop")),
+                  help="Computes and prints the ffmpeg command but writes no video — fast "
+                       "way to sanity-check the def's geometry before a full render.",
+                  ui=UI(label="Dry run", control="toggle", group="Render")),
         ],
     ))
 
@@ -938,9 +979,25 @@ def build_schema() -> Schema:
         Artifact("subject.occupancy", kind="descriptor", path="work/reframe.occupancy.json",
                  previewable=False,
                  hint="The subject's footprint in the reframed frame.",
-                 help="Written by reframe (INI-090): the tracked subject's box projected "
-                      "into the target frame, as caption avoid-windows. The caption render "
+                 help="Written by reframe.render (INI-090): the tracked subject's box "
+                      "projected into the target frame, as caption avoid-windows, "
+                      "recomputed from the FINAL edited crop. The caption render "
                       "optionally consumes it so captions dodge the subject."),
+        Artifact("reframe.def", kind="descriptor", path="work/reframe.json",
+                 previewable=False,
+                 hint="Editable reframe decision file (the product).",
+                 help="The reframe-decision file (INI-091): aspect/resolution target + "
+                      "the framing model {scale, pan_x, pan_y} + mode/lock + the subject-"
+                      "track reference. Written by reframe.propose, hand-editable, and "
+                      "consumed by reframe.render — which resolves it to the EXACT pixel "
+                      "crop with no re-derivation. Mirrors roughcut.def / caption.def."),
+        Artifact("subject.track", kind="descriptor", path="work/reframe.track.json",
+                 previewable=False,
+                 hint="Persisted subject track (tracker output).",
+                 help="The per-frame subject track reframe.propose persists from the "
+                      "(native, Mac-side) tracker run. reframe.def references it so "
+                      "reframe.render replays the geometry without re-running the "
+                      "expensive native tracker — the native step runs once."),
         Artifact("safezone.def", kind="descriptor", path="work/safezone.json",
                  previewable=False,
                  hint="Safe-zone polygon spec.",
