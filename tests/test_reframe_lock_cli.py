@@ -42,7 +42,9 @@ class TestReframeLockParser(unittest.TestCase):
 class TestReframeLockSchema(unittest.TestCase):
     def setUp(self):
         self.sch = S.build_schema()
-        self.task = next(t for t in self.sch.tasks if t.id == "reframe")
+        # The framing/pan/lock controls live on the *propose* task after the
+        # two-task reframe split (INI-091); render just consumes the def.
+        self.task = next(t for t in self.sch.tasks if t.id == "reframe.propose")
 
     def _param(self, key):
         return next(p for p in self.task.params if p.key == key)
@@ -68,10 +70,11 @@ class TestReframeLockSchema(unittest.TestCase):
 
     def test_resolve_argv_threads_pan_lock(self):
         argv = S.resolve_argv(
-            self.sch, "reframe",
+            self.sch, "reframe.propose",
             form_values={"scale": 1.3, "pan_x": 0.25, "pan_y": 0.6, "lock": "both"},
-            artifact_paths={"base": "work/base.mp4", "reframed": "work/reframed.mp4",
-                            "subject.occupancy": "work/reframe.occupancy.json"},
+            artifact_paths={"base": "work/base.mp4",
+                            "reframe.def": "work/reframe.json",
+                            "subject.track": "work/reframe.track.json"},
         )
         self.assertEqual(argv[argv.index("--scale") + 1], "1.3")
         self.assertEqual(argv[argv.index("--pan-x") + 1], "0.25")
@@ -82,9 +85,9 @@ class TestReframeLockSchema(unittest.TestCase):
         # lock has a non-None default, so the GUI emits it explicitly; pan unset
         # stays absent (no default).
         argv = S.resolve_argv(
-            self.sch, "reframe", form_values={},
-            artifact_paths={"base": "b.mp4", "reframed": "r.mp4",
-                            "subject.occupancy": "o.json"},
+            self.sch, "reframe.propose", form_values={},
+            artifact_paths={"base": "b.mp4", "reframe.def": "d.json",
+                            "subject.track": "t.json"},
         )
         self.assertEqual(argv[argv.index("--lock") + 1], "none")
         self.assertNotIn("--pan-x", argv)

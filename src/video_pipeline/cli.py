@@ -325,6 +325,183 @@ def _cmd_reframe(args: argparse.Namespace) -> int:
     return 0
 
 
+def _resolve_reframe_target(args: argparse.Namespace):
+    """Resolve the (aspect, resolution) Target for a propose run.
+
+    Mirrors the single ``reframe`` command's target resolution: the project-level
+    Target is the source of truth (read from --project's project.yml); explicit
+    --aspect/--resolution still override (per-run nudge). Falls back to the default
+    aspect when no aspect is in play at all (the propose path is aspect-native — it
+    has no legacy fixed-dimension --profile).
+    """
+    from .target_format import DEFAULT_ASPECT, Target
+
+    aspect = getattr(args, "aspect", None)
+    resolution = getattr(args, "resolution", "auto")
+    project_root = getattr(args, "project", None)
+    if project_root and aspect is None:
+        from .manifest import load_manifest
+
+        tgt = load_manifest(project_root).target
+        aspect = tgt.aspect
+        if resolution == "auto":
+            resolution = tgt.resolution
+    if aspect is None:
+        aspect = DEFAULT_ASPECT
+    return Target(aspect=aspect, resolution=resolution)
+
+
+def _cmd_reframe_propose(args: argparse.Namespace) -> int:
+    """Propose reframe: track the subject, write reframe.def + the subject track.
+
+    The two-task split (mirrors caption.define / roughcut): this is the *define*
+    half — it runs the (native, Mac-side) tracker once, converts the subject-derived
+    centre + framing intent into the canonical framing model, clamps the punch-in to
+    the resolution-driven max-zoom, and writes the editable reframe.def + the
+    persisted subject track. It renders NO video; reframe-render consumes the def.
+    """
+    from .reframe.framing import framing_intent
+    from .reframe.pipeline import propose
+    from .reframe.probe import _probe_dimensions, resolve_output_dims
+    from .reframe.tracker import MediaPipeTracker, OpenCVFaceTracker
+
+    # Framing intent -> crop scale / vertical anchor (the FramingIntent the model
+    # seeds from). Explicit --scale / --subject-y override the intent.
+    framing = None
+    if getattr(args, "framing", None):
+        framing = framing_intent(args.framing)
+    scale = framing.subject_scale if framing else 1.0
+    subject_y_frac = framing.subject_y_frac if framing else None
+    if getattr(args, "scale", None) is not None:
+        scale = args.scale
+    if getattr(args, "subject_y", None) is not None:
+        subject_y_frac = max(0.0, min(1.0, (args.subject_y + 1.0) / 2.0))
+
+    # A FramingIntent carrying the resolved scale/anchor for propose_from_subjects;
+    # this lets a bare --scale/--subject-y (no --framing) still seed the model.
+    from .reframe.framing import FramingIntent
+
+    eff_framing = None
+    if framing is not None or scale != 1.0 or subject_y_frac is not None:
+        eff_framing = FramingIntent(
+            key=(framing.key if framing else "custom"),
+            label=(framing.label if framing else "Custom"),
+            subject_scale=scale,
+            subject_y_frac=subject_y_frac,
+            caption_position=(framing.caption_position if framing else "lower-third"),
+            description=(framing.description if framing else "per-run scale/anchor override"),
+        )
+
+    target = _resolve_reframe_target(args)
+
+    # Native seam: probe dims + run the tracker (Mac-side). _probe_dimensions /
+    # tracker.track are the only native calls; everything else is pure.
+    src_w, src_h, duration = _probe_dimensions(args.input)
+    tracker = (
+        MediaPipeTracker() if args.tracker == "mediapipe" else OpenCVFaceTracker()
+    )
+    subjects = tracker.track(args.input)
+
+    out = resolve_output_dims(
+        src_w, src_h, target.aspect, target.resolution, scale=scale
+    )
+
+    track_path = getattr(args, "track_out", None) or _default_track_path(args.output)
+    rdef = propose(
+        args.input, subjects, src_w, src_h, target,
+        out_w=out.width, out_h=out.height,
+        def_path=args.output, track_path=track_path,
+        framing=eff_framing, mode=args.mode, lock=args.lock,
+        allow_upscale=args.allow_upscale, duration=duration,
+        tracker_name=args.tracker,
+    )
+    print(
+        f"wrote {args.output}  aspect={rdef.target.aspect} "
+        f"resolution={rdef.target.resolution} mode={rdef.mode} lock={rdef.lock} "
+        f"framing={rdef.framing_intent} "
+        f"scale={rdef.framing.scale:.3f} pan=({rdef.framing.pan_x:.3f},"
+        f"{rdef.framing.pan_y:.3f})"
+    )
+    print(f"wrote {track_path}  (subject track — render replays it, no re-tracking)")
+    return 0
+
+
+def _default_track_path(def_path: str) -> str:
+    """The persisted-track path beside a reframe.def (``work/reframe.track.json``)."""
+    p = Path(def_path)
+    return str(p.with_name("reframe.track.json"))
+
+
+def _cmd_reframe_render(args: argparse.Namespace) -> int:
+    """Render reframe: read reframe.def, replay its geometry, render the clip.
+
+    The *render* half of the split (mirrors caption.render / roughcut-render): it
+    consumes the (possibly hand-edited) reframe.def + its persisted subject track,
+    resolves the framing model to the exact pixel crop, and runs the ffmpeg crop
+    (native seam). NO tracking, NO framing knobs — the geometry the def carries is the
+    geometry rendered. Occupancy is recomputed from the FINAL edited crop here.
+    """
+    import os
+    import subprocess
+
+    from .reframe.crop import ffmpeg_crop_command
+    from .reframe.decision import ReframeDef
+    from .reframe.pipeline import render_inputs_from_def
+    from .reframe.probe import _probe_dimensions, resolve_output_dims
+
+    # Resolve the output dims from the def's target against the source (the def is the
+    # source of truth for aspect/resolution; no per-run format knobs on render).
+    rdef = ReframeDef.read(args.reframe_def)
+    src_w, src_h, _ = _probe_dimensions(args.input)
+    out = resolve_output_dims(
+        src_w, src_h, rdef.target.aspect, rdef.target.resolution,
+        scale=rdef.framing.scale,
+    )
+    rdef, subjects, plan = render_inputs_from_def(
+        args.reframe_def, src_w, src_h, out.width, out.height
+    )
+
+    # Occupancy recomputes from the FINAL (edited) crop at render time (INI-091 spec).
+    occupancy_out = getattr(args, "occupancy_out", None)
+    if occupancy_out:
+        from .reframe.occupancy import subject_occupancy_windows, write_occupancy
+
+        wins = subject_occupancy_windows(plan, subjects)
+        caption_position = None
+        if rdef.framing_intent:
+            from .reframe.framing import FRAMING_INTENTS
+
+            fi = FRAMING_INTENTS.get(rdef.framing_intent)
+            caption_position = fi.caption_position if fi else None
+        write_occupancy(occupancy_out, wins, frame_w=out.width, frame_h=out.height,
+                        caption_position=caption_position)
+
+    cmd = ffmpeg_crop_command(args.input, args.output, plan)
+    if args.dry_run:
+        print("ffmpeg command (dry run):")
+        print("  " + " ".join(cmd))
+        return 0
+
+    outp = Path(args.output)
+    outp.parent.mkdir(parents=True, exist_ok=True)
+    if Path(args.input).resolve() == outp.resolve():
+        tmp = outp.with_name(f".{outp.stem}.tmp{outp.suffix}")
+        subprocess.run(ffmpeg_crop_command(args.input, str(tmp), plan), check=True)
+        os.replace(tmp, outp)
+    else:
+        subprocess.run(cmd, check=True)
+    print(f"wrote {args.output}")
+    if occupancy_out:
+        print(f"wrote {occupancy_out}  (subject occupancy -> caption dodge)")
+    if getattr(args, "reframed_out", None):
+        import shutil
+
+        Path(args.reframed_out).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(args.output, args.reframed_out)
+        print(f"wrote {args.reframed_out}  (reframed-uncut handoff source)")
+    return 0
+
+
 def _cmd_roughcut(args: argparse.Namespace) -> int:
     from .roughcut.propose import ProposeConfig
     from .roughcut.runner import make_rough_cut
@@ -939,6 +1116,66 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--dry-run", action="store_true",
                    help="print the FFmpeg command without tracking/rendering")
     r.set_defaults(func=_cmd_reframe)
+
+    # reframe-propose / reframe-render: the two-task split (INI-091) mirroring the
+    # caption define/render pattern. Propose runs the tracker + writes the editable
+    # reframe.def; Render consumes the (hand-editable) def and produces the clip. The
+    # single `reframe` command above stays as the one-shot back-compat path.
+    rp = sub.add_parser(
+        "reframe-propose",
+        help="propose reframe -> editable reframe.def + persisted subject track",
+    )
+    rp.add_argument("input")
+    rp.add_argument("-o", "--output", required=True,
+                    help="reframe.def path (work/reframe.json)")
+    rp.add_argument("--track-out", default=None, dest="track_out",
+                    help="persisted subject-track path (default: reframe.track.json "
+                         "beside the def); render replays it without re-tracking")
+    rp.add_argument("--project", default=None,
+                    help="project root (or project.yml): reads the project-level "
+                         "target (aspect + resolution); explicit --aspect/--resolution win")
+    rp.add_argument("--aspect", default=None, choices=sorted(_AP),
+                    help="target aspect preset (INI-090); overrides the project target")
+    rp.add_argument("--resolution", default="auto", choices=("auto", *_TIERS),
+                    help="resolution tier or 'auto' (highest non-upscaling tier)")
+    rp.add_argument("--framing", default=None, choices=sorted(_FI),
+                    help="composition intent: talking-head | performer | wide-context")
+    rp.add_argument("--scale", type=float, default=None,
+                    help="punch-in override (1.0=widest native full frame; >1 punches in)")
+    rp.add_argument("--subject-y", type=float, default=None, dest="subject_y",
+                    help="vertical anchor override, bipolar (-1=top, 0=centre, +1=bottom)")
+    rp.add_argument("--pan-x", type=float, default=None, dest="pan_x",
+                    help="set-box horizontal anchor 0..1 (carried; reserved)")
+    rp.add_argument("--pan-y", type=float, default=None, dest="pan_y",
+                    help="set-box vertical anchor 0..1 (carried; reserved)")
+    rp.add_argument("--lock", default="none", choices=["none", "x", "y", "both"],
+                    help="composition lock axis carried into the def (default none)")
+    rp.add_argument("--mode", default="static", choices=["static", "dynamic"])
+    rp.add_argument("--tracker", default="opencv", choices=["opencv", "mediapipe"],
+                    help="subject tracker: opencv (default, bundled, no download) "
+                         "or mediapipe (Tasks API; downloads a model on first use)")
+    rp.add_argument("--allow-upscale", action="store_true", dest="allow_upscale",
+                    help="advanced: let the punch-in exceed the resolution-driven "
+                         "max-zoom (otherwise hard-stopped)")
+    rp.set_defaults(func=_cmd_reframe_propose)
+
+    rr2 = sub.add_parser(
+        "reframe-render",
+        help="render the reframed clip from a reframe.def (no tracking/framing knobs)",
+    )
+    rr2.add_argument("input")
+    rr2.add_argument("--reframe-def", required=True, dest="reframe_def",
+                     help="the reframe.def to render (work/reframe.json)")
+    rr2.add_argument("-o", "--output", required=True, help="reframed clip output path")
+    rr2.add_argument("--reframed-out", default=None,
+                     help="also copy the reframed-uncut clip here (work/reframed.mp4) "
+                          "as the stable editor-handoff source")
+    rr2.add_argument("--occupancy-out", default=None, dest="occupancy_out",
+                     help="write subject occupancy here (recomputed from the FINAL "
+                          "edited crop) for the caption layer to dodge")
+    rr2.add_argument("--dry-run", action="store_true",
+                     help="print the FFmpeg command without rendering")
+    rr2.set_defaults(func=_cmd_reframe_render)
 
     rc = sub.add_parser("roughcut", help="propose a rough cut -> editable decision file")
     rc.add_argument("input")
