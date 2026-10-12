@@ -82,6 +82,9 @@ class FrameTimeTests(unittest.TestCase):
         self.assertTrue(file_uri("/tmp/a b.mp4").startswith("file:///"))
         self.assertIn("a%20b.mp4", file_uri("/tmp/a b.mp4"))
         self.assertEqual(file_uri("file:///x.mp4"), "file:///x.mp4")
+        # exactly three slashes, whatever pathname2url does on this Python (3.14
+        # returns '///abs', which produced 'file://///abs' and broke relinking)
+        self.assertEqual(file_uri("/Video/a b.mp4"), "file:///Video/a%20b.mp4")
 
 
 # ── base cut ─────────────────────────────────────────────────────────────────

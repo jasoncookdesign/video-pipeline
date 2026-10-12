@@ -31,7 +31,6 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Tuple
-from urllib.request import pathname2url
 
 from ..captions.cue import CaptionTrack
 from ..roughcut.decision import DecisionList
@@ -67,8 +66,25 @@ def file_uri(path: str) -> str:
     s = str(path)
     if "://" in s:
         return s
-    abspath = os.path.abspath(os.path.expanduser(s))
-    return "file://" + pathname2url(abspath)
+    # Path.as_uri() is stable across Pythons; pathname2url changed in 3.14 to
+    # return '///abs' (-> 'file://///abs', which editors fail to relink).
+    return Path(os.path.abspath(os.path.expanduser(s))).as_uri()
+
+
+def _num(v: float) -> str:
+    """Compact decimal (no float noise, no negative zero)."""
+    return f"{round(v, 4) + 0.0:g}"
+
+
+def fcpxml_position(x: int, y: int, w: int, h: int, width: int, height: int) -> tuple:
+    """``adjust-transform`` position for a clip whose top-left lands at ``(x, y)``.
+
+    FCPXML positions are offsets of the clip center from the frame center in
+    percent of the frame height, y up (Apple: "percentages based on the original
+    frame height").
+    """
+    cx, cy = x + w / 2.0, y + h / 2.0
+    return ((cx - width / 2.0) / height * 100.0, (height / 2.0 - cy) / height * 100.0)
 
 
 # ── assets ────────────────────────────────────────────────────────────────────
@@ -103,6 +119,7 @@ def build_document(
     fps: int,
     event_name: str,
     project_name: str,
+    visuals: Optional[list] = None,
 ) -> str:
     """Assemble the FCPXML string from pre-computed base clips + assets.
 
@@ -164,6 +181,28 @@ def build_document(
     if composite is not None:
         _asset_el(composite)
 
+    # Visual clips (#62): each needs its own format (its region's pixel size).
+    visuals = visuals or []
+    vis_fmt = {}
+    for vp in visuals:
+        key = (vp.w, vp.h)
+        if key == (width, height):
+            vis_fmt[key] = "r1"
+        elif key not in vis_fmt:
+            fid = f"rv-fmt-{vp.w}x{vp.h}"
+            vis_fmt[key] = fid
+            ET.SubElement(resources, "format", {
+                "id": fid, "frameDuration": fdur,
+                "width": str(vp.w), "height": str(vp.h), "colorSpace": "1-1-1 (Rec. 709)",
+            })
+    for k, vp in enumerate(visuals, start=1):
+        el = ET.SubElement(resources, "asset", {
+            "id": f"rv{k}", "name": vp.name, "start": "0s",
+            "duration": time_str(vp.media_duration, fps), "hasVideo": "1",
+            "format": vis_fmt[(vp.w, vp.h)], "videoSources": "1",
+        })
+        ET.SubElement(el, "media-rep", {"kind": "original-media", "src": file_uri(vp.src)})
+
     library = ET.SubElement(fcpxml, "library")
     event = ET.SubElement(library, "event", {"name": event_name})
     project = ET.SubElement(event, "project", {"name": project_name})
@@ -182,6 +221,7 @@ def build_document(
     spine = ET.SubElement(sequence, "spine")
 
     first_el = None
+    spine_els = []
     for n, clip in enumerate(base_clips, start=1):
         el = ET.SubElement(
             spine,
@@ -196,8 +236,29 @@ def build_document(
                 "audioRole": "dialogue",
             },
         )
+        spine_els.append(el)
         if first_el is None:
             first_el = el
+
+    # Visual clips: connected on lane 1 to the base clip whose cut span holds the
+    # beat start (offset is in that parent's local time), at native size
+    # (conform none) and moved into their region (position in % of frame height,
+    # y up, from the frame center).
+    for k, vp in enumerate(visuals, start=1):
+        idx = 0
+        for i, clip in enumerate(base_clips):
+            if clip.offset <= vp.start + 1e-9:
+                idx = i
+        parent = base_clips[idx]
+        local = parent.source_in + (vp.start - parent.offset)
+        vc = ET.SubElement(spine_els[idx], "asset-clip", {
+            "ref": f"rv{k}", "lane": "1", "offset": time_str(local, fps),
+            "name": vp.name, "start": "0s", "duration": time_str(vp.duration, fps),
+            "role": "Visuals",
+        })
+        ET.SubElement(vc, "adjust-conform", {"type": "none"})
+        px, py = fcpxml_position(vp.x, vp.y, vp.w, vp.h, width, height)
+        ET.SubElement(vc, "adjust-transform", {"position": f"{_num(px)} {_num(py)}"})
 
     # Captions: one connected clip on lane 1, anchored to the first base clip.
     # Its offset is in the parent clip's local time (origin = the parent's
@@ -209,7 +270,7 @@ def build_document(
             "asset-clip",
             {
                 "ref": overlay.id,
-                "lane": "1",
+                "lane": "2" if visuals else "1",
                 "offset": time_str(base_clips[0].source_in, fps),
                 "name": "Captions",
                 "start": "0s",
@@ -227,7 +288,7 @@ def build_document(
             "asset-clip",
             {
                 "ref": composite.id,
-                "lane": "2" if overlay is not None else "1",
+                "lane": str(1 + (1 if visuals else 0) + (1 if overlay is not None else 0)),
                 "offset": time_str(base_clips[0].source_in, fps),
                 "name": "Composite (guide)",
                 "start": "0s",
@@ -256,6 +317,7 @@ def assemble_fcpxml(
     event_name: str = "JasonOS",
     project_name: Optional[str] = None,
     reframed_name: Optional[str] = None,
+    visuals: Optional[list] = None,
 ) -> Tuple[str, Optional[CaptionTrack]]:
     """Build the FCPXML and the cut-time caption track in one pure call.
 
@@ -307,5 +369,6 @@ def assemble_fcpxml(
         fps=fps,
         event_name=event_name,
         project_name=project_name or (decision.source or "video-pipeline cut"),
+        visuals=visuals,
     )
     return xml, cut_track
