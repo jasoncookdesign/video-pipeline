@@ -108,3 +108,10 @@ The remaining unverified surface is the same as the other phases' daily-driver
 seams: the actual import into Premiere/Resolve and the overlay render. The
 document structure (both formats), timeline math, and remap are fully covered by
 the suite.
+
+## Visual track (#62)
+
+With `--visuals`, beat clips from `visuals-render` ride **V2** (FCP7 XML) / **lane
+1** (FCPXML), positioned into the graphic panel and timed per beat; captions move
+up to V3 / lane 2. Without `--visuals` the layout above is unchanged. See
+`docs/visuals.md`.

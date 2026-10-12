@@ -185,6 +185,25 @@ can `keep` / `duck` / `mute`. Complex masks, keyframed/stylized motion, and
 razor-frame timing stay in the NLE by design — the overlay layer does cut or
 simple fade only.
 
+## Visual track (comedy-forward Reels)
+
+A per-Reel `visuals.json` (contract: `schema/visuals.schema.json`) lists beats
+with a layout (`split` graphic-over-presenter, `full-graphic`, `full-presenter`)
+and what fills the graphic panel. Remotion beats render to DH-framed template
+clips sized to their safe-zone-derived region; the handoff places them on V2 and
+times them per beat. Full detail: [`docs/visuals.md`](docs/visuals.md).
+
+```bash
+# Render each remotion beat to layers/visuals/<reel_id>-<beat_id>.mov + 3 stills each
+video-pipeline visuals-render work/visuals.json --project . --frames 3
+
+# Hand off with the visual track on V2 (planned durations as cut time) ...
+video-pipeline handoff --project . --reframed work/reframed.mp4 --visuals work/visuals.json
+# ... or aligned to where each beat's line is spoken
+video-pipeline handoff --project . --reframed work/reframed.mp4 --visuals work/visuals.json \
+    --transcript work/transcript.json
+```
+
 ## Control-tower schema (GUI)
 
 The pipeline is the single source of truth for an optional desktop control-tower
@@ -282,10 +301,12 @@ python -m unittest discover -s tests   # stdlib-only fallback (no pytest needed)
 
 ```
 schema/project.schema.json        project.yml contract (rough_cut + captions + qc blocks)
+schema/visuals.schema.json        visuals.json contract (per-Reel visual track, #62)
 config/safezone/                  template PNG + generated spec
 config/glossary/                  layered caption vocabulary (global + per-identity)
 config/caption-styles/            layered caption style/chunk config (global + per-identity)
-remotion/                         Remotion caption renderer (style layer; Node)
+config/visual-styles/             layered visual-template style config (global + per-identity)
+remotion/                         Remotion renderer: captions, source card, visual templates (Node)
 src/video_pipeline/
   target_format.py                aspect presets + resolution tiers + Auto resolver
   safezone/                       template PNG -> SafeZoneSpec (polygon + bands)
@@ -293,6 +314,7 @@ src/video_pipeline/
   roughcut/                       transcript seam -> propose -> decision file -> render
   captions/                       chunk (timing) -> caption file -> placement/export -> Remotion (style)
   overlay/                        timed/placed overlay layer + overlay.def + occupancy; window proposer; card producer (capture -> content -> Remotion card)
+  visuals/                        visuals.json -> regions -> Remotion template clips -> V2 placement/timing
   qc/                             validate frame layout vs safe polygon -> report + danger preview + clean
   fcpxml/                         base cut + cue cut-time remap -> FCP7 XML (Premiere) / FCPXML (Resolve, FCP)
   manifest.py  project.py         project.yml load/validate + scaffolding
@@ -302,6 +324,7 @@ DOCS.md                           documentation index (which doc covers what)
 docs/phase1.md … phase5.md        what each phase delivers + acceptance steps
 docs/reframe.md                   multi-target + interactive reframe (INI-090/091)
 docs/ini-089-overlay.md           overlay subsystem; docs/gui-schema.md  GUI schema contract
+docs/visuals.md                   comedy-forward visual track (#62)
 ```
 
 Projects are **data**, not code: each lives in its own folder (with `source/` as

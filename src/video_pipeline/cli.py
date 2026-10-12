@@ -39,6 +39,11 @@ Subcommands:
       does not import FCPXML); --format fcpxml targets Resolve / Final Cut. Also
       writes a cut-time caption file to render the aligned overlay (captions-render).
 
+  visuals-render <visuals.json> --project DIR [--frames N] [--dry-run]
+      Render each remotion beat of a visuals.json (#62) to a region-sized
+      <reel_id>-<beat_id>.mov (ProRes 4444) + still previews. handoff --visuals
+      places those clips on V2, timed per beat (planned durations, or aligned
+      with --transcript).
   fcpxml <decision.yml> -o <out.fcpxml> --reframed <clip.mp4> [--captions cap.yml]
       Back-compat alias of `handoff --format fcpxml` (always emits FCPXML).
 """
