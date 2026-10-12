@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "reel_id": "DH-REEL-0227",
+  "identity": "dyson-hope",
+  "title": "No Tycoon Required",
+  "canvas": {"w": 1080, "h": 1920, "fps": 30},
+  "layout": "top-bottom",
+  "regions_version": "reels-9x16.top-bottom.v1",
+  "regions": {
+    "graphic":        {"x": 0,  "y": 0,   "w": 1080, "h": 960},
+    "graphic_safe":   {"x": 35, "y": 250, "w": 1010, "h": 710},
+    "presenter":      {"x": 0,  "y": 960, "w": 1080, "h": 960},
+    "presenter_safe": {"x": 35, "y": 960, "w": 880,  "h": 510},
+    "full_safe":      {"x": 35, "y": 250, "w": 880,  "h": 1220}
+  },
+  "beats": [
+    {
+      "id": "B01",
+      "spoken": "Live Nation helped make a festival game for Roblox. Guess which job they gave you.",
+      "duration_s": 4.5,
+      "layout": "split",
+      "generator": "real",
+      "asset": "assets/music-ally-headline.png",
+      "notes": "Real Music Ally headline screenshot (sourced)."
+    },
+    {
+      "id": "B02",
+      "spoken": "It's called Music Festival Tycoon. Made with a studio called Livewire. You build the festival. You manage the festival.",
+      "duration_s": 6.0,
+      "layout": "split",
+      "generator": "remotion",
+      "template": "text-card",
+      "parody": false,
+      "props": {
+        "eyebrow": "VIA MUSIC ALLY",
+        "title": "MUSIC FESTIVAL TYCOON",
+        "subtitle": "Live Nation × Livewire, on Roblox",
+        "source": "musically.com · 2026-07-24"
+      }
+    },
+    {
+      "id": "B03",
+      "spoken": "Tycoon. They named it Tycoon.",
+      "duration_s": 4.0,
+      "layout": "full-graphic",
+      "generator": "remotion",
+      "template": "text-card",
+      "parody": false,
+      "props": {"title": "TYCOON."},
+      "notes": "Punch-in; Dyson holds silent for a beat after the line."
+    },
+    {
+      "id": "B04",
+      "spoken": "I'm waiting for the expansion pack",
+      "duration_s": 2.5,
+      "layout": "split",
+      "generator": "remotion",
+      "template": "store-card",
+      "parody": true,
+      "props": {
+        "eyebrow": "EXPANSION PACK",
+        "title": "WRISTBAND TIERS DLC",
+        "price": "$29.99",
+        "price_note": "per tier, per weekend",
+        "features": ["Six wristband tiers", "Platinum+ fast lane", "Free party: locked"],
+        "cta": "BUY NOW",
+        "badge": "NEW"
+      }
+    },
+    {
+      "id": "B05",
+      "spoken": "where the wristband has six tiers and the free party is a locked achievement.",
+      "duration_s": 4.5,
+      "layout": "split",
+      "generator": "remotion",
+      "template": "game-hud",
+      "parody": true,
+      "props": {
+        "title": "MUSIC FESTIVAL TYCOON",
+        "currency": {"label": "COINS", "value": 1250000},
+        "stack": {"label": "WRISTBAND TIERS", "items": ["GA", "VIP", "VIP+", "PLATINUM", "PLATINUM+", "???"]},
+        "achievement": {"label": "FREE PARTY", "state": "locked"}
+      }
+    },
+    {
+      "id": "B06",
+      "spoken": "And look, building things is fun. Nobody playing it is doing anything wrong.",
+      "duration_s": 5.0,
+      "layout": "split",
+      "generator": "real",
+      "asset": "assets/tycoon-gameplay.mp4",
+      "notes": "Real gameplay or a neutral shot. No mockery of players."
+    },
+    {
+      "id": "B07",
+      "spoken": "But a festival game on Roblox is a strange thing. The whole platform is people gathering without being in the same room. And this one hands you the clipboard instead of the dancefloor.",
+      "duration_s": 11.0,
+      "layout": "full-presenter",
+      "generator": "none",
+      "notes": "Sincere pivot."
+    },
+    {
+      "id": "B08",
+      "spoken": "Every scene I love started with somebody who had a sound system, a borrowed room, and too many friends.",
+      "duration_s": 7.0,
+      "layout": "full-presenter",
+      "generator": "none"
+    },
+    {
+      "id": "B09",
+      "spoken": "Play it if you want. Then throw a party. No tycoon required.",
+      "duration_s": 5.0,
+      "layout": "full-presenter",
+      "generator": "none",
+      "notes": "Close."
+    }
+  ]
+}

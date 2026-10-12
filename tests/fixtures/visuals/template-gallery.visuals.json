@@ -1,0 +1,263 @@
+{
+  "schema_version": 1,
+  "reel_id": "TEMPLATE-GALLERY",
+  "identity": "dyson-hope",
+  "title": "One beat per template (acceptance renders)",
+  "canvas": {
+    "w": 1080,
+    "h": 1920,
+    "fps": 30
+  },
+  "layout": "top-bottom",
+  "regions_version": "reels-9x16.top-bottom.v1",
+  "regions": {
+    "graphic": {
+      "x": 0,
+      "y": 0,
+      "w": 1080,
+      "h": 960
+    },
+    "graphic_safe": {
+      "x": 35,
+      "y": 250,
+      "w": 1010,
+      "h": 710
+    },
+    "presenter": {
+      "x": 0,
+      "y": 960,
+      "w": 1080,
+      "h": 960
+    },
+    "presenter_safe": {
+      "x": 35,
+      "y": 960,
+      "w": 880,
+      "h": 510
+    },
+    "full_safe": {
+      "x": 35,
+      "y": 250,
+      "w": 880,
+      "h": 1220
+    }
+  },
+  "beats": [
+    {
+      "id": "G01",
+      "spoken": "",
+      "duration_s": 3.0,
+      "layout": "split",
+      "generator": "remotion",
+      "template": "text-card",
+      "parody": false,
+      "props": {
+        "eyebrow": "LABEL CARD",
+        "title": "MUSIC FESTIVAL TYCOON",
+        "subtitle": "Live Nation × Livewire, on Roblox",
+        "source": "musically.com · 2026-07-24"
+      }
+    },
+    {
+      "id": "G02",
+      "spoken": "",
+      "duration_s": 4.0,
+      "layout": "split",
+      "generator": "remotion",
+      "template": "game-hud",
+      "parody": true,
+      "props": {
+        "title": "MUSIC FESTIVAL TYCOON",
+        "currency": {
+          "label": "COINS",
+          "value": 1250000
+        },
+        "stack": {
+          "label": "WRISTBAND TIERS",
+          "items": [
+            "GA",
+            "VIP",
+            "VIP+",
+            "PLATINUM",
+            "PLATINUM+",
+            "???"
+          ]
+        },
+        "achievement": {
+          "label": "FREE PARTY",
+          "state": "locked"
+        },
+        "toast": "+1 VIP UPGRADE"
+      }
+    },
+    {
+      "id": "G03",
+      "spoken": "",
+      "duration_s": 3.0,
+      "layout": "split",
+      "generator": "remotion",
+      "template": "store-card",
+      "parody": true,
+      "props": {
+        "eyebrow": "EXPANSION PACK",
+        "title": "WRISTBAND TIERS DLC",
+        "price": "$29.99",
+        "price_note": "per tier, per weekend",
+        "features": [
+          "Six wristband tiers",
+          "Platinum+ fast lane",
+          "Free party: locked"
+        ],
+        "cta": "BUY NOW",
+        "badge": "NEW"
+      }
+    },
+    {
+      "id": "G04",
+      "spoken": "",
+      "duration_s": 3.0,
+      "layout": "split",
+      "generator": "remotion",
+      "template": "stat-dashboard",
+      "parody": true,
+      "props": {
+        "title": "FESTIVAL KPIs",
+        "stats": [
+          {
+            "label": "Tickets sold",
+            "value": 48210
+          },
+          {
+            "label": "Avg wristband",
+            "value": 412,
+            "prefix": "$"
+          },
+          {
+            "label": "Water, per bottle",
+            "value": 19.5,
+            "prefix": "$",
+            "decimals": 2
+          },
+          {
+            "label": "Dancefloor",
+            "value": 3,
+            "suffix": "%"
+          }
+        ],
+        "footnote": "Parody figures. Not real data."
+      }
+    },
+    {
+      "id": "G05",
+      "spoken": "",
+      "duration_s": 3.0,
+      "layout": "split",
+      "generator": "remotion",
+      "template": "progress-bar",
+      "parody": false,
+      "props": {
+        "label": "BUILDING YOUR SCENE",
+        "from_pct": 0,
+        "to_pct": 99,
+        "status": "Finding a borrowed room…",
+        "caption": "Time remaining: one too many friends"
+      }
+    },
+    {
+      "id": "G06",
+      "spoken": "",
+      "duration_s": 4.0,
+      "layout": "split",
+      "generator": "remotion",
+      "template": "timeline",
+      "parody": true,
+      "props": {
+        "title": "TICKET PRICE ESCALATION",
+        "items": [
+          {
+            "when": "08:00",
+            "label": "GA on sale"
+          },
+          {
+            "when": "08:01",
+            "label": "GA sold out"
+          },
+          {
+            "when": "08:02",
+            "label": "VIP+ now available"
+          },
+          {
+            "when": "08:05",
+            "label": "Platinum+ dynamic pricing"
+          }
+        ],
+        "emphasis_last": true
+      }
+    },
+    {
+      "id": "G07",
+      "spoken": "",
+      "duration_s": 4.0,
+      "layout": "split",
+      "generator": "remotion",
+      "template": "flowchart",
+      "parody": false,
+      "props": {
+        "title": "HOW A SCENE STARTS",
+        "steps": [
+          "Sound system",
+          "Borrowed room",
+          "Too many friends",
+          "A scene"
+        ]
+      }
+    },
+    {
+      "id": "G08",
+      "spoken": "",
+      "duration_s": 3.0,
+      "layout": "full-graphic",
+      "generator": "remotion",
+      "template": "stat-dashboard",
+      "parody": true,
+      "props": {
+        "title": "FESTIVAL KPIs",
+        "stats": [
+          {
+            "label": "Tickets sold",
+            "value": 48210
+          },
+          {
+            "label": "Avg wristband",
+            "value": 412,
+            "prefix": "$"
+          },
+          {
+            "label": "Dancefloor",
+            "value": 3,
+            "suffix": "%"
+          }
+        ],
+        "footnote": "Parody figures. Not real data."
+      }
+    },
+    {
+      "id": "G09",
+      "spoken": "",
+      "duration_s": 4.0,
+      "layout": "full-graphic",
+      "generator": "remotion",
+      "template": "flowchart",
+      "parody": false,
+      "props": {
+        "title": "HOW A SCENE STARTS",
+        "steps": [
+          "Sound system",
+          "Borrowed room",
+          "Too many friends",
+          "A scene"
+        ]
+      }
+    }
+  ]
+}
