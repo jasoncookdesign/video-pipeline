@@ -879,6 +879,14 @@ def _cmd_handoff(args: argparse.Namespace) -> int:
               f"--project <root>", file=sys.stderr)
         return 2
 
+    # Visual track (#62): visuals.json + its rendered clips. With --project the
+    # spec defaults to work/visuals.json when present, clips to layers/visuals/.
+    root = Path(args.project) if args.project else None
+    if args.visuals is None and root is not None and (root / _PROJECT_LAYOUT["visuals"]).exists():
+        args.visuals = str(root / _PROJECT_LAYOUT["visuals"])
+    if args.visuals_dir is None and root is not None:
+        args.visuals_dir = str(root / _PROJECT_LAYOUT["visuals_dir"])
+
     out_w, out_h = _PROFILE_DIMS.get(args.profile, (1080, 1920))
     result = assemble_project(
         args.decision,
@@ -893,12 +901,23 @@ def _cmd_handoff(args: argparse.Namespace) -> int:
         fps=args.fps,
         event_name=args.event,
         project_name=args.project_name,
+        visuals_path=args.visuals,
+        visuals_dir=args.visuals_dir,
+        transcript_path=args.transcript,
     )
     label = "Premiere FCP7 XML" if result["format"] == "premiere" else "FCPXML"
     print(
         f"wrote {result['project']}  [{label}]  base-cut clips={result['clips']}  "
         f"duration={result['kept_duration']:.2f}s"
     )
+    vis = result.get("visuals")
+    if vis:
+        track = "V2" if result["format"] == "premiere" else "lane 1"
+        print(f"placed {vis['placed']} visual clip(s) on {track} for {vis['reel_id']}  "
+              f"timing: {vis['timing']}")
+        print(f"  clips from {vis['clips_dir']} (render: video-pipeline visuals-render)")
+        for note in vis["notes"]:
+            print(f"  note: {note}")
     if result["cut_captions"]:
         print(f"wrote cut-time caption file -> {result['cut_captions']}")
         print(
@@ -934,6 +953,16 @@ def _add_handoff_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--profile", default="reels-9x16",
                         help="output profile -> sequence dimensions (default reels-9x16)")
     parser.add_argument("--fps", type=int, default=30, help="sequence frame rate (default 30)")
+    parser.add_argument("--visuals", default=None,
+                        help="visuals.json (#62); its rendered remotion clips go on V2, "
+                             "placed in their region and timed per beat "
+                             "(default with --project: work/visuals.json if present)")
+    parser.add_argument("--visuals-dir", default=None,
+                        help="where visuals-render wrote the clips (default with --project: "
+                             "layers/visuals/, else <output dir>/visuals/)")
+    parser.add_argument("--transcript", default=None,
+                        help="word-level transcript JSON; aligns visual beats to where their "
+                             "lines are spoken (else planned durations are used as cut time)")
     parser.add_argument("--event", default="JasonOS", help="FCPXML event name (fcpxml only)")
     parser.add_argument("--project-name", default=None,
                         help="project/sequence name (default: the decision file's source)")

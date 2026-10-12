@@ -54,6 +54,9 @@ def assemble_project(
     fps: int = 30,
     event_name: str = "JasonOS",
     project_name: Optional[str] = None,
+    visuals_path: Optional[str] = None,
+    visuals_dir: Optional[str] = None,
+    transcript_path: Optional[str] = None,
 ) -> dict:
     """Assemble the editor project (and the cut-time caption file) from disk.
 
@@ -78,6 +81,15 @@ def assemble_project(
     if track is not None and resolved_overlay is None:
         resolved_overlay = str(out.with_suffix("").with_suffix(".captions.mov"))
 
+    visuals_info = None
+    placements = None
+    if visuals_path:
+        placements, visuals_info = _visual_placements(
+            visuals_path, decision, fps=fps,
+            clips_dir=visuals_dir or str(out.parent / "visuals"),
+            transcript_path=transcript_path,
+        )
+
     assemble = assemble_xmeml if fmt == "premiere" else assemble_fcpxml
     kwargs = dict(
         reframed_src=reframed_clip,
@@ -86,6 +98,7 @@ def assemble_project(
         width=width,
         height=height,
         fps=fps,
+        visuals=placements,
     )
     # The two serializers name the project arg differently (sequence vs project).
     if fmt == "premiere":
@@ -107,6 +120,7 @@ def assemble_project(
         "overlay": resolved_overlay if cut_track and cut_track.kept() else None,
         "cut_captions": None,
         "cut_overlays": None,
+        "visuals": visuals_info,
     }
 
     # Write the cut-time caption file so the overlay can be rendered aligned.
@@ -135,3 +149,47 @@ def assemble_project(
             result["cut_overlays"] = str(cov_path)
 
     return result
+
+
+def _visual_placements(visuals_path, decision, *, fps, clips_dir, transcript_path=None):
+    """Load a visuals.json, time its beats on the cut, and build V2 placements (#62).
+
+    Timing: with a transcript, beats align to where their lines are spoken (source
+    time, remapped through the decision file like overlays); otherwise the planned
+    durations are laid end-to-end as cut time.
+    """
+    from ..visuals.placement import build_placements
+    from ..visuals.spec import load_visuals
+    from ..visuals.timing import (
+        quantize_windows,
+        remap_windows,
+        windows_from_durations,
+        windows_from_transcript,
+    )
+
+    spec = load_visuals(visuals_path)
+    if spec.fps != fps:
+        raise ValueError(f"visuals.json fps {spec.fps} != sequence fps {fps}")
+    if transcript_path:
+        from ..roughcut.runner import load_transcript_json
+
+        raw = windows_from_transcript(spec, load_transcript_json(transcript_path))
+        windows = remap_windows(raw, decision, fps)
+        matched = sum(1 for w in raw if w.basis == "transcript")
+        timing = f"transcript ({matched} matched, {len(raw) - matched} by planned duration)"
+    else:
+        windows = quantize_windows(windows_from_durations(spec), fps)
+        timing = "durations (planned, as cut time)"
+    placements, notes = build_placements(spec, windows, clips_dir, fps=fps)
+    total = decision.kept_duration()
+    late = [p.beat_id for p in placements if p.start >= total]
+    placements = [p for p in placements if p.start < total]
+    if late:
+        notes.append(f"beyond the end of the cut ({total:.2f}s), not placed: {', '.join(late)}")
+    return placements, {
+        "reel_id": spec.reel_id,
+        "placed": len(placements),
+        "timing": timing,
+        "clips_dir": clips_dir,
+        "notes": notes,
+    }
