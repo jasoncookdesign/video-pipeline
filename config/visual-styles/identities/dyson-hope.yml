@@ -1,0 +1,22 @@
+# Identity visual style — Dyson Hope. Tokens from the locked DH design system
+# (knowledge/dyson-hope-family/dyson-hope/dh-design-system.md; mirrored in the
+# dysonhope site CSS): off-black ground, 1.5px hairlines, periwinkle accent,
+# amber warm signal, Archivo display / Inter body / IBM Plex Mono labels (all
+# SIL OFL 1.1, bundled via @fontsource). Overrides global only.
+
+ground: "#191919"
+surface: "#202020"
+surface_2: "#262626"
+line: "#343434"
+line_2: "#454545"
+text: "#EDEDED"
+text_2: "#9C9CA0"
+accent: "#9C97F4"
+accent_ink: "#141318"
+warm: "#E8B27C"
+
+display_font: "Archivo"
+body_font: "Inter"
+mono_font: "IBM Plex Mono"
+
+brand_label: "DYSON HOPE"

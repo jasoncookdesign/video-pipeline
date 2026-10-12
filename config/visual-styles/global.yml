@@ -1,0 +1,29 @@
+# Global visual-template style layer — shared defaults across every identity.
+# Per-identity files in identities/<identity>.yml override these. See README.md.
+# Colors are hex; fonts must be in the caption font allowlist (one allowlist for
+# every Remotion layer); type sizes are px at the 1920-px canvas height and are
+# floored at the legibility minimums enforced in video_pipeline.visuals.style.
+
+ground: "#141414"
+surface: "#202020"
+surface_2: "#2A2A2A"
+line: "#3A3A3A"
+line_2: "#505050"
+text: "#F2F2F2"
+text_2: "#A0A0A0"
+accent: "#FFE14D"
+accent_ink: "#141414"
+warm: "#E8B27C"
+alert: "#FF6B5A"
+
+display_font: "Helvetica"
+body_font: "Helvetica"
+mono_font: "Menlo"
+
+label_px: 30     # mono tags / eyebrows / frame labels (floor 28)
+body_px: 44      # body copy, list items (floor 40)
+heading_px: 64   # panel headings, stat numbers base (floor 56)
+title_px: 112    # hero titles (floor 72; long titles fit down toward the floor)
+
+parody_label: "PARODY"
+brand_label: ""  # mono label in the frame header; empty = none

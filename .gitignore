@@ -26,3 +26,6 @@ package-lock.json
 *.mov
 # ...except tiny committed test fixtures, if any are added under tests/fixtures/
 !tests/fixtures/**
+
+# Local review renders (visuals acceptance stills/clips) — regenerable, never committed
+/review/

@@ -72,6 +72,8 @@ _PROJECT_LAYOUT = {
     "overlay": "layers/captions.mov",
     "composite": "review/composite.mp4",
     "base": "work/base.mp4",
+    "visuals": "work/visuals.json",
+    "visuals_dir": "layers/visuals",
 }
 
 
@@ -937,6 +939,50 @@ def _add_handoff_args(parser: argparse.ArgumentParser) -> None:
                         help="project/sequence name (default: the decision file's source)")
 
 
+def _cmd_visuals_render(args: argparse.Namespace) -> int:
+    """Render each ``generator: remotion`` beat of a visuals.json (#62)."""
+    from .visuals.render import render_visuals
+    from .visuals.spec import VisualsSpecError, load_visuals
+    from .visuals.style import load_visual_style
+
+    try:
+        spec = load_visuals(args.visuals)
+    except VisualsSpecError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+
+    root = Path(args.project) if args.project else None
+    out_dir = args.out_dir or (str(root / _PROJECT_LAYOUT["visuals_dir"]) if root else None)
+    if out_dir is None:
+        print("error: give --project <root> or --out-dir <dir>", file=sys.stderr)
+        return 2
+    frames_dir = args.frames_dir or (
+        str(root / "review" / "visuals") if root else str(Path(out_dir) / "frames"))
+
+    # Style identity: --identity, else the spec's, else the project's project.yml.
+    identity = args.identity or spec.identity
+    if identity is None and root is not None and (root / "project.yml").exists():
+        from .manifest import load_manifest
+        identity = load_manifest(root).identity
+    style = load_visual_style(args.config_root, identity)
+
+    results = render_visuals(
+        spec, out_dir, style, frames=args.frames, frames_dir=frames_dir,
+        only=args.beat or None, dry_run=args.dry_run,
+    )
+    skipped = len(spec.beats) - len(spec.remotion_beats())
+    verb = "would render" if args.dry_run else "rendered"
+    print(f"{verb} {len(results)} clip(s) for {spec.reel_id} "
+          f"(style: {identity or 'global'}); skipped {skipped} non-remotion beat(s)")
+    for r in results:
+        print(f"  {r['beat_id']}  {r['template']:<15} {r['width']}x{r['height']}  -> {r['output']}")
+        if args.dry_run:
+            print("    " + " ".join(r["argv"]))
+        for png in r["frames"]:
+            print(f"    still {png}")
+    return 0
+
+
 def _cmd_proxy(args: argparse.Namespace) -> int:
     from .proxy import render_proxy
 
@@ -1418,6 +1464,31 @@ def build_parser() -> argparse.ArgumentParser:
     px.add_argument("--dry-run", action="store_true",
                     help="print the ffmpeg command without rendering")
     px.set_defaults(func=_cmd_proxy)
+
+    # visuals-render — the comedy-forward visual track (#62): one named clip per
+    # remotion beat, sized to its region, plus optional still previews.
+    vr = sub.add_parser(
+        "visuals-render",
+        help="render each remotion beat of a visuals.json to <reel_id>-<beat_id>.mov "
+             "(ProRes 4444, sized to its region) + still previews",
+    )
+    vr.add_argument("visuals", help="visuals.json (validated against schema/visuals.schema.json)")
+    vr.add_argument("--project", default=None,
+                    help="project root; clips go to <project>/layers/visuals/, stills to "
+                         "<project>/review/visuals/")
+    vr.add_argument("--out-dir", default=None, help="clip directory (overrides --project)")
+    vr.add_argument("--frames", type=int, default=0, metavar="N",
+                    help="grab N still previews per clip (the last on the settled end frame)")
+    vr.add_argument("--frames-dir", default=None, help="still directory (overrides --project)")
+    vr.add_argument("--beat", action="append", default=[], metavar="ID",
+                    help="render only this beat id (repeatable)")
+    vr.add_argument("--identity", default=None,
+                    help="style identity (default: the spec's, else project.yml's)")
+    vr.add_argument("--config-root", default=str(_DEFAULT_CONFIG_ROOT),
+                    help="config dir holding visual-styles/ (default: repo config/)")
+    vr.add_argument("--dry-run", action="store_true",
+                    help="print the Remotion/FFmpeg plan without rendering or writing")
+    vr.set_defaults(func=_cmd_visuals_render)
 
     # handoff — the editor project. Default format is Premiere-compatible FCP7
     # XML (Premiere does not import FCPXML); --format fcpxml targets Resolve / FCP.
