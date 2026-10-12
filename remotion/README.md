@@ -46,3 +46,12 @@ the resolved `style`, and `cues` (frame-accurate `from` / `durationInFrames` +
 `font_family` must resolve on the render machine. Install the family (Archivo /
 IBM Plex Mono / Inter per identity) system-wide, or add `@remotion/google-fonts`
 loading in `Captions.tsx` if you prefer bundled web fonts.
+
+## Visual templates (#62)
+
+`src/visuals/` holds the comedy-forward template library — `TextCard`, `GameHud`,
+`StoreCard`, `StatDashboard`, `ProgressBar`, `Timeline`, `Flowchart` — each a
+composition sized by `calculateMetadata` from its props (`dimensions`,
+`durationInFrames`). Props mirror `video_pipeline.visuals.props.beat_to_remotion_props`
+(`src/visuals/types.ts`); `video-pipeline visuals-render` builds and renders them.
+See `docs/visuals.md`.

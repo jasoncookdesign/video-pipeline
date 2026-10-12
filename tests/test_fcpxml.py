@@ -82,6 +82,9 @@ class FrameTimeTests(unittest.TestCase):
         self.assertTrue(file_uri("/tmp/a b.mp4").startswith("file:///"))
         self.assertIn("a%20b.mp4", file_uri("/tmp/a b.mp4"))
         self.assertEqual(file_uri("file:///x.mp4"), "file:///x.mp4")
+        # exactly three slashes, whatever pathname2url does on this Python (3.14
+        # returns '///abs', which produced 'file://///abs' and broke relinking)
+        self.assertEqual(file_uri("/Video/a b.mp4"), "file:///Video/a%20b.mp4")
 
 
 # ── base cut ─────────────────────────────────────────────────────────────────
@@ -244,7 +247,7 @@ class DocumentTests(unittest.TestCase):
         cap = first.find("./asset-clip")
         self.assertIsNotNone(cap)
         self.assertEqual(cap.attrib["lane"], "1")
-        self.assertEqual(cap.attrib["role"], "Captions")
+        self.assertEqual(cap.attrib["videoRole"], "Captions")
         self.assertEqual(cap.attrib["ref"], "r3")
         # anchored at the first base clip's source in-point so it aligns to t=0
         self.assertEqual(cap.attrib["offset"], "12/30s")

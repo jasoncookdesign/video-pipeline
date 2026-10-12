@@ -1,0 +1,931 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://jasonos/video-pipeline/visuals.schema.json",
+  "title": "video-pipeline visuals.json (per-Reel visual track spec)",
+  "description": "The visual track of one Reel: the canvas, the top/bottom layout and its safe-zone-derived regions (versioned), and an ordered list of beats. Each beat says what is spoken, how long it runs, which layout it uses, and what fills the graphic region (a Remotion template + props, a real/Higgsfield asset, or nothing). Owned by video-pipeline; consumers pin a copy of this file. Breaking changes bump schema_version; region geometry changes bump regions_version. Text length caps are sized so every field fits on a phone at the legibility floors (verified by rendering tests/fixtures/visuals/max-length.visuals.json).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "reel_id",
+    "canvas",
+    "layout",
+    "regions_version",
+    "regions",
+    "beats"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "description": "Contract version. Bumped only on a breaking change."
+    },
+    "reel_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+      "description": "Filename-safe Reel id, e.g. 'DH-REEL-0227'. Clip names are '<reel_id>-<beat_id>.mov'."
+    },
+    "identity": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "Optional style identity (selects config/visual-styles/identities/<identity>.yml). Falls back to the project's project.yml identity, then the global layer."
+    },
+    "title": {
+      "type": "string",
+      "maxLength": 120,
+      "description": "Optional human-readable working title. Not rendered."
+    },
+    "canvas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "w",
+        "h",
+        "fps"
+      ],
+      "properties": {
+        "w": {
+          "const": 1080
+        },
+        "h": {
+          "const": 1920
+        },
+        "fps": {
+          "type": "integer",
+          "enum": [
+            24,
+            25,
+            30,
+            60
+          ]
+        }
+      }
+    },
+    "layout": {
+      "const": "top-bottom",
+      "description": "Graphic panel on top, presenter (head-and-shoulders) below."
+    },
+    "regions_version": {
+      "const": "reels-9x16.top-bottom.v1",
+      "description": "Names the region geometry below. Derived from config/safezone/reels-9x16.safezone.json; a safe-zone change bumps this."
+    },
+    "regions": {
+      "description": "Pixel rects on the 1080x1920 canvas (origin top-left, x right, y down, half-open). Fixed per regions_version; copy them verbatim. graphic = the panel a split-layout clip covers (full-width top half; its background may bleed into the danger zone). graphic_safe = where template content lives inside it. presenter = the bottom half. presenter_safe = the notch-free safe rect the presenter's face should land in. full_safe = where template content lives in a full-graphic clip.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "graphic",
+        "graphic_safe",
+        "presenter",
+        "presenter_safe",
+        "full_safe"
+      ],
+      "properties": {
+        "graphic": {
+          "const": {
+            "x": 0,
+            "y": 0,
+            "w": 1080,
+            "h": 960
+          }
+        },
+        "graphic_safe": {
+          "const": {
+            "x": 35,
+            "y": 250,
+            "w": 1010,
+            "h": 710
+          }
+        },
+        "presenter": {
+          "const": {
+            "x": 0,
+            "y": 960,
+            "w": 1080,
+            "h": 960
+          }
+        },
+        "presenter_safe": {
+          "const": {
+            "x": 35,
+            "y": 960,
+            "w": 880,
+            "h": 510
+          }
+        },
+        "full_safe": {
+          "const": {
+            "x": 35,
+            "y": 250,
+            "w": 880,
+            "h": 1220
+          }
+        }
+      }
+    },
+    "beats": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 60,
+      "items": {
+        "$ref": "#/definitions/beat"
+      },
+      "description": "Ordered beats. Beat ids must be unique (checked at the Python boundary)."
+    }
+  },
+  "definitions": {
+    "beat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "spoken",
+        "duration_s",
+        "layout",
+        "generator"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,15}$",
+          "description": "Filename-safe beat id, e.g. 'B01'. Unique within the Reel, ignoring case (ids name clip files)."
+        },
+        "spoken": {
+          "type": "string",
+          "maxLength": 600,
+          "description": "The line spoken during this beat ('' for a silent hold). Used to align the beat to the transcript at handoff."
+        },
+        "duration_s": {
+          "type": "number",
+          "minimum": 0.25,
+          "maximum": 60,
+          "description": "Planned beat length in seconds (0.25 to 60). The rendered clip runs this long plus a held tail."
+        },
+        "layout": {
+          "enum": [
+            "split",
+            "full-graphic",
+            "full-presenter"
+          ],
+          "description": "split = graphic panel over presenter (with generator 'none' the panel is left to V1: a plain split); full-graphic = the graphic fills the frame (punch-in; needs a graphic); full-presenter = no graphic on V2 (V1 shows unchanged; any presenter punch-in is the editor's)."
+        },
+        "generator": {
+          "enum": [
+            "remotion",
+            "higgsfield",
+            "real",
+            "none"
+          ],
+          "description": "What fills the graphic: a Remotion template (rendered by visuals-render), a Higgsfield or real asset (supplied, not rendered here), or nothing."
+        },
+        "template": {
+          "enum": [
+            "text-card",
+            "game-hud",
+            "store-card",
+            "stat-dashboard",
+            "progress-bar",
+            "timeline",
+            "flowchart"
+          ],
+          "description": "Remotion template id. Required when generator is 'remotion'; not allowed otherwise."
+        },
+        "props": {
+          "type": "object",
+          "description": "Template props; shape is fixed per template (see definitions/props-*)."
+        },
+        "asset": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Media path for 'real' / 'higgsfield' beats, relative to the project root or absolute."
+        },
+        "parody": {
+          "type": "boolean",
+          "description": "Show the PARODY tag in the frame. Required for remotion beats; set true wherever the graphic could pass for real documentation."
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 600,
+          "description": "Free text for the editor. Not rendered."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "generator": {
+                "const": "remotion"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "template",
+              "props",
+              "parody"
+            ],
+            "not": {
+              "required": [
+                "asset"
+              ]
+            }
+          },
+          "else": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "template"
+                  ]
+                },
+                {
+                  "required": [
+                    "props"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "generator": {
+                "enum": [
+                  "higgsfield",
+                  "real"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "asset"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "generator": {
+                "const": "none"
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "required": [
+                "asset"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "layout": {
+                "const": "full-presenter"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "generator": {
+                "const": "none"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "layout": {
+                "const": "full-graphic"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "generator": {
+                "not": {
+                  "const": "none"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "template": {
+                "const": "text-card"
+              }
+            },
+            "required": [
+              "template"
+            ]
+          },
+          "then": {
+            "properties": {
+              "props": {
+                "$ref": "#/definitions/props-text-card"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "template": {
+                "const": "game-hud"
+              }
+            },
+            "required": [
+              "template"
+            ]
+          },
+          "then": {
+            "properties": {
+              "props": {
+                "$ref": "#/definitions/props-game-hud"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "template": {
+                "const": "store-card"
+              }
+            },
+            "required": [
+              "template"
+            ]
+          },
+          "then": {
+            "properties": {
+              "props": {
+                "$ref": "#/definitions/props-store-card"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "template": {
+                "const": "stat-dashboard"
+              }
+            },
+            "required": [
+              "template"
+            ]
+          },
+          "then": {
+            "properties": {
+              "props": {
+                "$ref": "#/definitions/props-stat-dashboard"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "template": {
+                "const": "progress-bar"
+              }
+            },
+            "required": [
+              "template"
+            ]
+          },
+          "then": {
+            "properties": {
+              "props": {
+                "$ref": "#/definitions/props-progress-bar"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "template": {
+                "const": "timeline"
+              }
+            },
+            "required": [
+              "template"
+            ]
+          },
+          "then": {
+            "properties": {
+              "props": {
+                "$ref": "#/definitions/props-timeline"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "template": {
+                "const": "flowchart"
+              }
+            },
+            "required": [
+              "template"
+            ]
+          },
+          "then": {
+            "properties": {
+              "props": {
+                "$ref": "#/definitions/props-flowchart"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "label": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "props-text-card": {
+      "description": "Title card / label card: an optional mono eyebrow, a heavy title, an optional subtitle, and an optional source line.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title"
+      ],
+      "properties": {
+        "eyebrow": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/label"
+            },
+            {
+              "maxLength": 28
+            }
+          ]
+        },
+        "title": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/label"
+            },
+            {
+              "maxLength": 32
+            }
+          ]
+        },
+        "subtitle": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/label"
+            },
+            {
+              "maxLength": 60
+            }
+          ]
+        },
+        "source": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/label"
+            },
+            {
+              "maxLength": 40
+            }
+          ]
+        }
+      }
+    },
+    "props-game-hud": {
+      "description": "Game / tycoon UI panel: a game title bar, an optional currency counter, an optional stack of items that pile up one by one, an optional achievement tile, and an optional toast.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title"
+      ],
+      "properties": {
+        "title": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/label"
+            },
+            {
+              "maxLength": 24
+            }
+          ]
+        },
+        "currency": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "label",
+            "value"
+          ],
+          "properties": {
+            "label": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/label"
+                },
+                {
+                  "maxLength": 10
+                }
+              ]
+            },
+            "value": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 99999999
+            }
+          }
+        },
+        "stack": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "label",
+            "items"
+          ],
+          "properties": {
+            "label": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/label"
+                },
+                {
+                  "maxLength": 20
+                }
+              ]
+            },
+            "items": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 6,
+              "items": {
+                "allOf": [
+                  {
+                    "$ref": "#/definitions/label"
+                  },
+                  {
+                    "maxLength": 10
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "achievement": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "label",
+            "state"
+          ],
+          "properties": {
+            "label": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/label"
+                },
+                {
+                  "maxLength": 14
+                }
+              ]
+            },
+            "state": {
+              "enum": [
+                "locked",
+                "unlocked"
+              ]
+            }
+          }
+        },
+        "toast": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/label"
+            },
+            {
+              "maxLength": 14
+            }
+          ]
+        }
+      }
+    },
+    "props-store-card": {
+      "description": "Store / pricing card (DLC, expansion pack, subscription tier): eyebrow, title, price, optional price note, up to five feature bullets, a CTA button, and an optional badge.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "price",
+        "cta"
+      ],
+      "properties": {
+        "eyebrow": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/label"
+            },
+            {
+              "maxLength": 20
+            }
+          ]
+        },
+        "title": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/label"
+            },
+            {
+              "maxLength": 24
+            }
+          ]
+        },
+        "price": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/label"
+            },
+            {
+              "maxLength": 10
+            }
+          ]
+        },
+        "price_note": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/label"
+            },
+            {
+              "maxLength": 24
+            }
+          ]
+        },
+        "features": {
+          "type": "array",
+          "maxItems": 3,
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/definitions/label"
+              },
+              {
+                "maxLength": 28
+              }
+            ]
+          }
+        },
+        "cta": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/label"
+            },
+            {
+              "maxLength": 16
+            }
+          ]
+        },
+        "badge": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/label"
+            },
+            {
+              "maxLength": 10
+            }
+          ]
+        }
+      }
+    },
+    "props-stat-dashboard": {
+      "description": "Dashboard / KPI panel: a title and one to four stat tiles whose numbers count up from 'from' (default 0) to 'value'.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "stats"
+      ],
+      "properties": {
+        "title": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/label"
+            },
+            {
+              "maxLength": 24
+            }
+          ]
+        },
+        "stats": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "label",
+              "value"
+            ],
+            "properties": {
+              "label": {
+                "allOf": [
+                  {
+                    "$ref": "#/definitions/label"
+                  },
+                  {
+                    "maxLength": 16
+                  }
+                ]
+              },
+              "value": {
+                "type": "number",
+                "minimum": -999999,
+                "maximum": 999999
+              },
+              "from": {
+                "type": "number",
+                "minimum": -999999,
+                "maximum": 999999
+              },
+              "prefix": {
+                "type": "string",
+                "maxLength": 2
+              },
+              "suffix": {
+                "type": "string",
+                "maxLength": 3
+              },
+              "decimals": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 2
+              }
+            }
+          }
+        },
+        "footnote": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/label"
+            },
+            {
+              "maxLength": 48
+            }
+          ]
+        }
+      }
+    },
+    "props-progress-bar": {
+      "description": "Progress / loading bar: a label, a fill animating from from_pct to to_pct, an optional status line and an optional caption.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "label",
+        "to_pct"
+      ],
+      "properties": {
+        "label": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/label"
+            },
+            {
+              "maxLength": 28
+            }
+          ]
+        },
+        "from_pct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "to_pct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "status": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/label"
+            },
+            {
+              "maxLength": 32
+            }
+          ]
+        },
+        "caption": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/label"
+            },
+            {
+              "maxLength": 48
+            }
+          ]
+        }
+      }
+    },
+    "props-timeline": {
+      "description": "Timeline / escalation list: an optional title and two to six items revealed in order; emphasis_last highlights the final item.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "items"
+      ],
+      "properties": {
+        "title": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/label"
+            },
+            {
+              "maxLength": 24
+            }
+          ]
+        },
+        "items": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 5,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "label"
+            ],
+            "properties": {
+              "when": {
+                "allOf": [
+                  {
+                    "$ref": "#/definitions/label"
+                  },
+                  {
+                    "maxLength": 8
+                  }
+                ]
+              },
+              "label": {
+                "allOf": [
+                  {
+                    "$ref": "#/definitions/label"
+                  },
+                  {
+                    "maxLength": 24
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "emphasis_last": {
+          "type": "boolean"
+        }
+      }
+    },
+    "props-flowchart": {
+      "description": "Flowchart: an optional title and two to five steps in a top-to-bottom chain joined by arrows; the last step is the punchline and is highlighted.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "steps"
+      ],
+      "properties": {
+        "title": {
+          "allOf": [
+            {
+              "$ref": "#/definitions/label"
+            },
+            {
+              "maxLength": 24
+            }
+          ]
+        },
+        "steps": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 5,
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/definitions/label"
+              },
+              {
+                "maxLength": 18
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

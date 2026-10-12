@@ -19,7 +19,8 @@ reframed clip) and the cut-time caption track. Two differences from FCPXML:
     ``<alphatype>straight</alphatype>`` so Premiere keys its transparency.
 
 Layout: **V1** base cut, **V2** captions (higher track = on top); **A1/A2** the
-base cut's stereo audio. Music and the final mix stay with the editor.
+base cut's stereo audio. With a visual track (#62) the beat clips take **V2**
+(positioned with Basic Motion) and captions move up to **V3**. Music and the final mix stay with the editor.
 """
 
 from __future__ import annotations
@@ -103,6 +104,70 @@ def _link(parent: ET.Element, ref: str, mediatype: str, trackindex: int, clipind
     _text(lk, "groupindex", 1)
 
 
+def _num(v: float) -> str:
+    """Compact decimal for XML values (no float noise, no negative zero)."""
+    return f"{round(v, 6) + 0.0:g}"
+
+
+def basic_motion_center(x: int, y: int, w: int, h: int, width: int, height: int) -> tuple:
+    """Basic Motion ``center`` for a clip whose top-left lands at ``(x, y)``.
+
+    FCP7 XML expresses Center as the clip center's offset from the frame center,
+    normalized per axis by the sequence size (0,0 = centered, which is what
+    Premiere writes for an untouched clip; y grows downward). Scale stays 100%:
+    clips are rendered at their region's native pixel size.
+    """
+    return ((x + w / 2.0 - width / 2.0) / width, (y + h / 2.0 - height / 2.0) / height)
+
+
+def _basic_motion(parent: ET.Element, center: tuple) -> None:
+    flt = ET.SubElement(parent, "filter")
+    eff = ET.SubElement(flt, "effect")
+    _text(eff, "name", "Basic Motion")
+    _text(eff, "effectid", "basic")
+    _text(eff, "effectcategory", "motion")
+    _text(eff, "effecttype", "motion")
+    _text(eff, "mediatype", "video")
+    sc = ET.SubElement(eff, "parameter")
+    _text(sc, "parameterid", "scale")
+    _text(sc, "name", "Scale")
+    _text(sc, "valuemin", 0)
+    _text(sc, "valuemax", 1000)
+    _text(sc, "value", 100)
+    ce = ET.SubElement(eff, "parameter")
+    _text(ce, "parameterid", "center")
+    _text(ce, "name", "Center")
+    val = ET.SubElement(ce, "value")
+    _text(val, "horiz", _num(center[0]))
+    _text(val, "vert", _num(center[1]))
+
+
+def _visual_track(video: ET.Element, visuals: list, *, fps: int, width: int, height: int) -> None:
+    track = ET.SubElement(video, "track")
+    for k, vp in enumerate(visuals, start=1):
+        start_f, end_f = to_frames(vp.start, fps), to_frames(vp.end, fps)
+        media_f = to_frames(vp.media_duration, fps)
+        ci = ET.SubElement(track, "clipitem", {"id": f"clipitem-visual-{k}"})
+        _text(ci, "name", vp.name)
+        _text(ci, "enabled", "TRUE")
+        _text(ci, "duration", media_f)
+        _rate(ci, fps)
+        _text(ci, "start", start_f)
+        _text(ci, "end", end_f)
+        _text(ci, "in", 0)
+        _text(ci, "out", end_f - start_f)
+        _text(ci, "alphatype", "straight")
+        asset = Asset(id=f"file-v{k}", name=vp.name, src=vp.src,
+                      duration=vp.media_duration, has_audio=False)
+        _file_element(ci, file_id=f"file-v{k}", asset=asset, duration_frames=media_f,
+                      fps=fps, width=vp.w, height=vp.h, define=True)
+        st = ET.SubElement(ci, "sourcetrack")
+        _text(st, "mediatype", "video")
+        _basic_motion(ci, basic_motion_center(vp.x, vp.y, vp.w, vp.h, width, height))
+    _text(track, "enabled", "TRUE")
+    _text(track, "locked", "FALSE")
+
+
 # ── document ──────────────────────────────────────────────────────────────────
 
 def build_document(
@@ -115,6 +180,7 @@ def build_document(
     height: int,
     fps: int,
     sequence_name: str,
+    visuals: Optional[list] = None,
 ) -> str:
     """Assemble the XMEML string from base clips + assets (pure).
 
@@ -189,7 +255,14 @@ def build_document(
     _text(v1, "enabled", "TRUE")
     _text(v1, "locked", "FALSE")
 
-    # V2 — captions overlay (one connected clip spanning the cut, alpha keyed)
+    # V2 — visual track (#62): one clip per placed beat, sized to its region and
+    # moved into place with Basic Motion. Present only when visuals are given, so
+    # a captions-only handoff keeps captions on V2 exactly as before.
+    if visuals:
+        _visual_track(video, visuals, fps=fps, width=width, height=height)
+
+    # captions overlay (one connected clip spanning the cut, alpha keyed) —
+    # V2, or V3 when the visual track is present
     if overlay is not None:
         v2 = ET.SubElement(video, "track")
         ci = ET.SubElement(v2, "clipitem", {"id": "clipitem-captions"})
@@ -286,6 +359,7 @@ def assemble_xmeml(
     fps: int = 30,
     sequence_name: Optional[str] = None,
     reframed_name: Optional[str] = None,
+    visuals: Optional[list] = None,
 ) -> Tuple[str, Optional[CaptionTrack]]:
     """Build the Premiere-compatible XMEML and the cut-time caption track.
 
@@ -332,5 +406,6 @@ def assemble_xmeml(
         height=height,
         fps=fps,
         sequence_name=sequence_name or (decision.source or "video-pipeline cut"),
+        visuals=visuals,
     )
     return xml, cut_track

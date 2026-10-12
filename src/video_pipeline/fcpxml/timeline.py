@@ -152,6 +152,24 @@ def _overlaps_kept(spans: List[KeptSpan], start: float, end: float) -> bool:
     return False
 
 
+def remap_window(
+    spans: List[KeptSpan], start: float, end: float, fps: int = 30
+) -> Optional[tuple]:
+    """Map a source-time window onto the cut: ``(cut_start, cut_end)`` or ``None``.
+
+    The window is clipped to the kept content it overlaps and frame-quantized; a
+    window with no kept overlap, or one that collapses below a frame, is ``None``.
+    Shared by overlays and visual beats (captions keep their own word handling).
+    """
+    if not _overlaps_kept(spans, start, end):
+        return None
+    cut_start = quantize(source_to_cut(spans, start), fps)
+    cut_end = quantize(source_to_cut(spans, end), fps)
+    if cut_end - cut_start < 1.0 / fps:
+        return None
+    return (cut_start, cut_end)
+
+
 def remap_cue(
     spans: List[KeptSpan], cue: Cue, fps: int = 30
 ) -> Optional[Cue]:
@@ -243,13 +261,11 @@ def remap_overlay(
     cut if nothing is left for it. An overlay with no kept overlap, or one that
     collapses below a frame after clipping, returns ``None``.
     """
-    if not _overlaps_kept(spans, item.start, item.end):
+    window = remap_window(spans, item.start, item.end, fps)
+    if window is None:
         return None
-    cut_start = quantize(source_to_cut(spans, item.start), fps)
-    cut_end = quantize(source_to_cut(spans, item.end), fps)
+    cut_start, cut_end = window
     new_dur = cut_end - cut_start
-    if new_dur < 1.0 / fps:  # collapsed below one frame after clipping
-        return None
 
     transition = item.transition
     fade = item.fade

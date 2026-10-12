@@ -39,6 +39,11 @@ Subcommands:
       does not import FCPXML); --format fcpxml targets Resolve / Final Cut. Also
       writes a cut-time caption file to render the aligned overlay (captions-render).
 
+  visuals-render <visuals.json> --project DIR [--frames N] [--dry-run]
+      Render each remotion beat of a visuals.json (#62) to a region-sized
+      <reel_id>-<beat_id>.mov (ProRes 4444) + still previews. handoff --visuals
+      places those clips on V2, timed per beat (planned durations, or aligned
+      with --transcript).
   fcpxml <decision.yml> -o <out.fcpxml> --reframed <clip.mp4> [--captions cap.yml]
       Back-compat alias of `handoff --format fcpxml` (always emits FCPXML).
 """
@@ -72,6 +77,8 @@ _PROJECT_LAYOUT = {
     "overlay": "layers/captions.mov",
     "composite": "review/composite.mp4",
     "base": "work/base.mp4",
+    "visuals": "work/visuals.json",
+    "visuals_dir": "layers/visuals",
 }
 
 
@@ -877,8 +884,33 @@ def _cmd_handoff(args: argparse.Namespace) -> int:
               f"--project <root>", file=sys.stderr)
         return 2
 
+    # Visual track (#62): visuals.json + its rendered clips. With --project the
+    # spec defaults to work/visuals.json when present, clips to layers/visuals/.
+    root = Path(args.project) if args.project else None
+    if args.visuals is None and root is not None and (root / _PROJECT_LAYOUT["visuals"]).exists():
+        args.visuals = str(root / _PROJECT_LAYOUT["visuals"])
+    if args.visuals_dir is None and root is not None:
+        args.visuals_dir = str(root / _PROJECT_LAYOUT["visuals_dir"])
+
     out_w, out_h = _PROFILE_DIMS.get(args.profile, (1080, 1920))
-    result = assemble_project(
+    try:
+        result = _assemble_handoff(args, assemble_project, fmt, out_w, out_h)
+    except ValueError as exc:  # includes VisualsSpecError
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    _report_handoff(result)
+    return 0
+
+
+def _assemble_handoff(args, assemble_project, fmt, out_w, out_h):
+    if args.visuals:
+        from .visuals.spec import load_visuals
+        spec = load_visuals(args.visuals)
+        if (spec.width, spec.height) != (out_w, out_h):
+            raise ValueError(
+                f"visuals.json canvas {spec.width}x{spec.height} does not match the "
+                f"--profile {args.profile} sequence {out_w}x{out_h}")
+    return assemble_project(
         args.decision,
         args.output,
         reframed_clip=args.reframed,
@@ -891,19 +923,32 @@ def _cmd_handoff(args: argparse.Namespace) -> int:
         fps=args.fps,
         event_name=args.event,
         project_name=args.project_name,
+        visuals_path=args.visuals,
+        visuals_dir=args.visuals_dir,
+        transcript_path=args.transcript,
     )
+
+
+def _report_handoff(result: dict) -> None:
     label = "Premiere FCP7 XML" if result["format"] == "premiere" else "FCPXML"
     print(
         f"wrote {result['project']}  [{label}]  base-cut clips={result['clips']}  "
         f"duration={result['kept_duration']:.2f}s"
     )
+    vis = result.get("visuals")
+    if vis:
+        track = "V2" if result["format"] == "premiere" else "lane 1"
+        print(f"placed {vis['placed']} visual clip(s) on {track} for {vis['reel_id']}  "
+              f"timing: {vis['timing']}")
+        print(f"  clips from {vis['clips_dir']} (render: video-pipeline visuals-render)")
+        for note in vis["notes"]:
+            print(f"  note: {note}")
     if result["cut_captions"]:
         print(f"wrote cut-time caption file -> {result['cut_captions']}")
         print(
             "  render the aligned overlay:  video-pipeline captions-render "
             f"{result['cut_captions']} -o {result['overlay']} --safezone <spec.json>"
         )
-    return 0
 
 
 def _add_handoff_args(parser: argparse.ArgumentParser) -> None:
@@ -932,9 +977,66 @@ def _add_handoff_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--profile", default="reels-9x16",
                         help="output profile -> sequence dimensions (default reels-9x16)")
     parser.add_argument("--fps", type=int, default=30, help="sequence frame rate (default 30)")
+    parser.add_argument("--visuals", default=None,
+                        help="visuals.json (#62); its rendered remotion clips go on V2, "
+                             "placed in their region and timed per beat "
+                             "(default with --project: work/visuals.json if present)")
+    parser.add_argument("--visuals-dir", default=None,
+                        help="where visuals-render wrote the clips (default with --project: "
+                             "layers/visuals/, else <output dir>/visuals/)")
+    parser.add_argument("--transcript", default=None,
+                        help="word-level transcript JSON; aligns visual beats to where their "
+                             "lines are spoken (else planned durations are used as cut time)")
     parser.add_argument("--event", default="JasonOS", help="FCPXML event name (fcpxml only)")
     parser.add_argument("--project-name", default=None,
                         help="project/sequence name (default: the decision file's source)")
+
+
+def _cmd_visuals_render(args: argparse.Namespace) -> int:
+    """Render each ``generator: remotion`` beat of a visuals.json (#62)."""
+    from .visuals.render import render_visuals
+    from .visuals.spec import VisualsSpecError, load_visuals
+    from .visuals.style import load_visual_style
+
+    try:
+        spec = load_visuals(args.visuals)
+    except VisualsSpecError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+
+    root = Path(args.project) if args.project else None
+    out_dir = args.out_dir or (str(root / _PROJECT_LAYOUT["visuals_dir"]) if root else None)
+    if out_dir is None:
+        print("error: give --project <root> or --out-dir <dir>", file=sys.stderr)
+        return 2
+    frames_dir = args.frames_dir or (
+        str(root / "review" / "visuals") if root else str(Path(out_dir) / "frames"))
+
+    # Style identity: --identity, else the spec's, else the project's project.yml.
+    identity = args.identity or spec.identity
+    if identity is None and root is not None and (root / "project.yml").exists():
+        from .manifest import load_manifest
+        identity = load_manifest(root).identity
+    try:
+        style = load_visual_style(args.config_root, identity)
+        results = render_visuals(
+            spec, out_dir, style, frames=args.frames, frames_dir=frames_dir,
+            only=args.beat or None, dry_run=args.dry_run,
+        )
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    skipped = len(spec.beats) - len(spec.remotion_beats())
+    verb = "would render" if args.dry_run else "rendered"
+    print(f"{verb} {len(results)} clip(s) for {spec.reel_id} "
+          f"(style: {identity or 'global'}); skipped {skipped} non-remotion beat(s)")
+    for r in results:
+        print(f"  {r['beat_id']}  {r['template']:<15} {r['width']}x{r['height']}  -> {r['output']}")
+        if args.dry_run:
+            print("    " + " ".join(r["argv"]))
+        for png in r["frames"]:
+            print(f"    still {png}")
+    return 0
 
 
 def _cmd_proxy(args: argparse.Namespace) -> int:
@@ -1418,6 +1520,31 @@ def build_parser() -> argparse.ArgumentParser:
     px.add_argument("--dry-run", action="store_true",
                     help="print the ffmpeg command without rendering")
     px.set_defaults(func=_cmd_proxy)
+
+    # visuals-render — the comedy-forward visual track (#62): one named clip per
+    # remotion beat, sized to its region, plus optional still previews.
+    vr = sub.add_parser(
+        "visuals-render",
+        help="render each remotion beat of a visuals.json to <reel_id>-<beat_id>.mov "
+             "(ProRes 4444, sized to its region) + still previews",
+    )
+    vr.add_argument("visuals", help="visuals.json (validated against schema/visuals.schema.json)")
+    vr.add_argument("--project", default=None,
+                    help="project root; clips go to <project>/layers/visuals/, stills to "
+                         "<project>/review/visuals/")
+    vr.add_argument("--out-dir", default=None, help="clip directory (overrides --project)")
+    vr.add_argument("--frames", type=int, default=0, metavar="N",
+                    help="grab N still previews per clip (the last on the settled end frame)")
+    vr.add_argument("--frames-dir", default=None, help="still directory (overrides --project)")
+    vr.add_argument("--beat", action="append", default=[], metavar="ID",
+                    help="render only this beat id (repeatable)")
+    vr.add_argument("--identity", default=None,
+                    help="style identity (default: the spec's, else project.yml's)")
+    vr.add_argument("--config-root", default=str(_DEFAULT_CONFIG_ROOT),
+                    help="config dir holding visual-styles/ (default: repo config/)")
+    vr.add_argument("--dry-run", action="store_true",
+                    help="print the Remotion/FFmpeg plan without rendering or writing")
+    vr.set_defaults(func=_cmd_visuals_render)
 
     # handoff — the editor project. Default format is Premiere-compatible FCP7
     # XML (Premiere does not import FCPXML); --format fcpxml targets Resolve / FCP.

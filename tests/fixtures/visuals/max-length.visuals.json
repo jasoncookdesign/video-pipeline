@@ -1,0 +1,229 @@
+{
+  "schema_version": 1,
+  "reel_id": "MAX-LENGTH",
+  "identity": "dyson-hope",
+  "title": "Every string at its schema cap (fit stress test)",
+  "canvas": {
+    "w": 1080,
+    "h": 1920,
+    "fps": 30
+  },
+  "layout": "top-bottom",
+  "regions_version": "reels-9x16.top-bottom.v1",
+  "regions": {
+    "graphic": {
+      "x": 0,
+      "y": 0,
+      "w": 1080,
+      "h": 960
+    },
+    "graphic_safe": {
+      "x": 35,
+      "y": 250,
+      "w": 1010,
+      "h": 710
+    },
+    "presenter": {
+      "x": 0,
+      "y": 960,
+      "w": 1080,
+      "h": 960
+    },
+    "presenter_safe": {
+      "x": 35,
+      "y": 960,
+      "w": 880,
+      "h": 510
+    },
+    "full_safe": {
+      "x": 35,
+      "y": 250,
+      "w": 880,
+      "h": 1220
+    }
+  },
+  "beats": [
+    {
+      "id": "M01",
+      "spoken": "",
+      "duration_s": 3,
+      "layout": "split",
+      "generator": "remotion",
+      "template": "text-card",
+      "parody": true,
+      "props": {
+        "eyebrow": "MEGA FESTIVAL TYCOON DELUXEZ",
+        "title": "MEGA FESTIVAL TYCOON DELUXE WRIS",
+        "subtitle": "MEGA FESTIVAL TYCOON DELUXE WRISTBANDS PLATINUM EXPANSION VI",
+        "source": "MEGA FESTIVAL TYCOON DELUXE WRISTBANDS P"
+      }
+    },
+    {
+      "id": "M02",
+      "spoken": "",
+      "duration_s": 4,
+      "layout": "split",
+      "generator": "remotion",
+      "template": "game-hud",
+      "parody": true,
+      "props": {
+        "title": "MEGA FESTIVAL TYCOON DEL",
+        "currency": {
+          "label": "MEGA FESTI",
+          "value": 99999999
+        },
+        "stack": {
+          "label": "MEGA FESTIVAL TYCOON",
+          "items": [
+            "WRISTBANDZ",
+            "WRISTBANDZ",
+            "WRISTBANDZ",
+            "WRISTBANDZ",
+            "WRISTBANDZ",
+            "WRISTBANDZ"
+          ]
+        },
+        "achievement": {
+          "label": "MEGA FESTIVALZ",
+          "state": "locked"
+        },
+        "toast": "MEGA FESTIVALZ"
+      }
+    },
+    {
+      "id": "M03",
+      "spoken": "",
+      "duration_s": 3,
+      "layout": "split",
+      "generator": "remotion",
+      "template": "store-card",
+      "parody": true,
+      "props": {
+        "eyebrow": "MEGA FESTIVAL TYCOON",
+        "title": "MEGA FESTIVAL TYCOON DEL",
+        "price": "$99,999.99",
+        "price_note": "MEGA FESTIVAL TYCOON DEL",
+        "features": [
+          "MEGA FESTIVAL TYCOON DELUXEZ",
+          "MEGA FESTIVAL TYCOON DELUXEZ",
+          "MEGA FESTIVAL TYCOON DELUXEZ"
+        ],
+        "cta": "MEGA FESTIVAL TY",
+        "badge": "MEGA FESTI"
+      }
+    },
+    {
+      "id": "M04",
+      "spoken": "",
+      "duration_s": 3,
+      "layout": "split",
+      "generator": "remotion",
+      "template": "stat-dashboard",
+      "parody": true,
+      "props": {
+        "title": "MEGA FESTIVAL TYCOON DEL",
+        "stats": [
+          {
+            "label": "MEGA FESTIVAL TY",
+            "value": -999999,
+            "prefix": "$$",
+            "suffix": "%%%",
+            "decimals": 2
+          },
+          {
+            "label": "MEGA FESTIVAL TY",
+            "value": -999999,
+            "prefix": "$$",
+            "suffix": "%%%",
+            "decimals": 2
+          },
+          {
+            "label": "MEGA FESTIVAL TY",
+            "value": -999999,
+            "prefix": "$$",
+            "suffix": "%%%",
+            "decimals": 2
+          },
+          {
+            "label": "MEGA FESTIVAL TY",
+            "value": -999999,
+            "prefix": "$$",
+            "suffix": "%%%",
+            "decimals": 2
+          }
+        ],
+        "footnote": "MEGA FESTIVAL TYCOON DELUXE WRISTBANDS PLATINUMZ"
+      }
+    },
+    {
+      "id": "M05",
+      "spoken": "",
+      "duration_s": 3,
+      "layout": "split",
+      "generator": "remotion",
+      "template": "progress-bar",
+      "parody": true,
+      "props": {
+        "label": "MEGA FESTIVAL TYCOON DELUXEZ",
+        "from_pct": 0,
+        "to_pct": 100,
+        "status": "MEGA FESTIVAL TYCOON DELUXE WRIS",
+        "caption": "MEGA FESTIVAL TYCOON DELUXE WRISTBANDS PLATINUMZ"
+      }
+    },
+    {
+      "id": "M06",
+      "spoken": "",
+      "duration_s": 4,
+      "layout": "split",
+      "generator": "remotion",
+      "template": "timeline",
+      "parody": true,
+      "props": {
+        "title": "MEGA FESTIVAL TYCOON DEL",
+        "items": [
+          {
+            "when": "MEGA FES",
+            "label": "MEGA FESTIVAL TYCOON DEL"
+          },
+          {
+            "when": "MEGA FES",
+            "label": "MEGA FESTIVAL TYCOON DEL"
+          },
+          {
+            "when": "MEGA FES",
+            "label": "MEGA FESTIVAL TYCOON DEL"
+          },
+          {
+            "when": "MEGA FES",
+            "label": "MEGA FESTIVAL TYCOON DEL"
+          },
+          {
+            "when": "MEGA FES",
+            "label": "MEGA FESTIVAL TYCOON DEL"
+          }
+        ],
+        "emphasis_last": true
+      }
+    },
+    {
+      "id": "M07",
+      "spoken": "",
+      "duration_s": 4,
+      "layout": "split",
+      "generator": "remotion",
+      "template": "flowchart",
+      "parody": true,
+      "props": {
+        "title": "MEGA FESTIVAL TYCOON DEL",
+        "steps": [
+          "MEGA FESTIVAL TYCO",
+          "MEGA FESTIVAL TYCO",
+          "MEGA FESTIVAL TYCO",
+          "MEGA FESTIVAL TYCO",
+          "MEGA FESTIVAL TYCO"
+        ]
+      }
+    }
+  ]
+}

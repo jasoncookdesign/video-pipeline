@@ -2,6 +2,7 @@ import React from "react";
 import { Composition } from "remotion";
 import { Captions } from "./Captions";
 import { Card } from "./Card";
+import { VisualCompositions } from "./visuals/Visuals";
 import type { CaptionProps, CardProps } from "./types";
 
 // Fallback props so the studio opens without a --props file. The real render is
@@ -143,6 +144,8 @@ export const RemotionRoot: React.FC = () => {
           };
         }}
       />
+      {/* Comedy-forward visual templates (#62): one composition per template. */}
+      <VisualCompositions />
     </>
   );
 };

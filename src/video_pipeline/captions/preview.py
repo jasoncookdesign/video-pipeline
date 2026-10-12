@@ -74,7 +74,10 @@ def frame_extract_command(
         "-i",
         f"color=c={background}:s={width}x{height}:d=0.1",
         "-filter_complex",
-        "[1:v][0:v]overlay=0:0:format=auto",
+        # Rebase the seeked overlay to pts 0: a seek between frame boundaries
+        # leaves its first frame at a positive pts and overlay would emit the
+        # bare plate for frame 0 (an all-background still).
+        "[0:v]setpts=PTS-STARTPTS[ov];[1:v][ov]overlay=0:0:format=auto",
         "-frames:v",
         "1",
         str(Path(out_png)),

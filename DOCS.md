@@ -22,6 +22,7 @@ When you add or remove a document, or add a subsystem, update this index too.
 | [docs/phase5.md](docs/phase5.md) | Phase 5: editor handoff — base cut over the reframed clip + caption overlay, cue cut-time remap, and the FCP7 XML (Premiere) / FCPXML serializers. |
 | [docs/reframe.md](docs/reframe.md) | The reframe subsystem: target format (aspect presets, resolution tiers, Auto), framing intents, the propose/render split + editable `reframe.def`, scale/pan/subject-y, composition lock, and the project-level `target`. |
 | [docs/ini-089-overlay.md](docs/ini-089-overlay.md) | The overlay subsystem: timed/placed overlay primitive, the editable `overlay.def`, the `overlay.occupancy` descriptor, the transcript→window proposer, and the source-card producer. |
+| [docs/visuals.md](docs/visuals.md) | The comedy-forward visual track (#62): the `visuals.json` contract (`schema/visuals.schema.json`), top-bottom region math, the DH-framed template library, `visuals-render`, and V2 placement/timing at handoff. |
 | [docs/gui-schema.md](docs/gui-schema.md) | The pipeline side of the control-tower GUI contract: the `schema` subcommand (emit/`--check`), the `schema/` module layout, and how to add a step/flag/export target. (GUI repo: `video-pipeline-gui`.) |
 
 ## Configuration and renderer (layered config + Node)
@@ -30,5 +31,6 @@ When you add or remove a document, or add a subsystem, update this index too.
 |---|---|
 | [config/glossary/README.md](config/glossary/README.md) | The layered caption vocabulary (global + per-identity glossary files). |
 | [config/caption-styles/README.md](config/caption-styles/README.md) | The layered caption style + chunking config (look, casing, the words-per-cue range, the font allowlist and style caps). |
+| [config/visual-styles/README.md](config/visual-styles/README.md) | The layered visual-template style config (frame colors, fonts, type scale with legibility floors, PARODY/brand labels). |
 | [config/safezone/README.md](config/safezone/README.md) | The safe-zone template PNG → generated spec workflow. |
 | [remotion/README.md](remotion/README.md) | The Remotion caption renderer (the style layer; the Node project the pipeline drives). |
