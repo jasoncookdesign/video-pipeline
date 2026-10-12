@@ -74,7 +74,7 @@ export const TextCard: React.FC<VisualProps<TextCardProps>> = (v) => {
           (p.subtitle ? s.body_px * 1.25 * 2 + 24 : 0) +
           (p.source ? s.label_px * 2 : 0);
         const big = v.layout === "full-graphic" ? s.title_px * 2.6 : s.title_px * 1.25;
-        const tpx = fitText(p.title, c.width, c.height - reserve, big, s.title_px);
+        const tpx = fitText(p.title, c.width, c.height - reserve, big, v.minType.title_px);
         return (
           <At box={c} style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: 24 }}>
             {p.eyebrow ? <div style={{ ...monoLabel(s, s.accent), ...eyebrow }}>[ {p.eyebrow} ]</div> : null}
@@ -123,7 +123,7 @@ export const GameHud: React.FC<VisualProps<GameHudProps>> = (v) => {
     <DhFrame v={v}>
       {(c) => {
         const barH = Math.round(s.heading_px * 1.5);
-        const titlePx = fitText(p.title, c.width * 0.7 - 40, barH - 16, s.heading_px, s.body_px);
+        const titlePx = fitText(p.title, c.width - 240, s.heading_px, s.heading_px, v.minType.body_px);
         const bodyBox = inset({ ...c, y: c.y + barH + 20, height: c.height - barH - 20 }, 0);
         const colGap = 24;
         const leftW = p.stack ? Math.round(bodyBox.width * 0.52) : 0;
@@ -147,7 +147,7 @@ export const GameHud: React.FC<VisualProps<GameHudProps>> = (v) => {
                 ...bar,
               }}
             >
-              <div style={{ ...display(s, titlePx, 900), letterSpacing: "0.01em" }}>{p.title}</div>
+              <div style={{ ...display(s, titlePx, 900), letterSpacing: "0.01em", whiteSpace: "nowrap" }}>{p.title}</div>
               <div
                 style={{
                   ...monoLabel(s, s.accent_ink),
@@ -162,7 +162,7 @@ export const GameHud: React.FC<VisualProps<GameHudProps>> = (v) => {
             {/* left: the stack that piles up */}
             {p.stack ? (
               <At box={{ ...bodyBox, width: leftW }} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <div style={{ ...monoLabel(s), marginBottom: 8 }}>{p.stack.label}</div>
+                <div style={{ ...monoLabel(s), marginBottom: 8, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.stack.label}</div>
                 {items.map((it, i) => {
                   const start = 6 + i * step;
                   const pin = interpolate(frame, [start, start + 8], [0, 1], {
@@ -217,7 +217,7 @@ export const GameHud: React.FC<VisualProps<GameHudProps>> = (v) => {
                   <div style={{ ...monoLabel(s), marginBottom: 8 }}>{p.currency.label}</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                     <Coin color={s.warm} ink={s.ground} size={s.heading_px} />
-                    <span style={{ ...display(s, Math.max(s.heading_px, fitText(formatNumber(p.currency.value), rightW - s.heading_px - 60, s.heading_px * 1.2, s.heading_px * 1.1, s.heading_px, 0.66)), 900), color: s.warm }}>
+                    <span style={{ ...display(s, fitText(formatNumber(p.currency.value), rightW - s.heading_px - 60, s.heading_px * 1.2, s.heading_px * 1.1, v.minType.body_px, 0.66), 900), color: s.warm, whiteSpace: "nowrap" }}>
                       {formatNumber(Math.round(p.currency.value * coinP))}
                     </span>
                   </div>
@@ -257,7 +257,8 @@ export const GameHud: React.FC<VisualProps<GameHudProps>> = (v) => {
                 <div
                   style={{
                     ...toast,
-                    ...display(s, s.body_px, 800),
+                    ...display(s, fitText(p.toast, rightW - 36, s.body_px, s.body_px, v.minType.body_px), 800),
+                    whiteSpace: "nowrap",
                     color: s.accent_ink,
                     background: s.warm,
                     borderRadius: radius * 0.6,
@@ -293,7 +294,7 @@ export const StoreCard: React.FC<VisualProps<StoreCardProps>> = (v) => {
       {(c) => {
         const pad = 32;
         const inner = inset(c, pad);
-        const tpx = fitText(p.title, inner.width - (p.badge ? 200 : 0), s.heading_px * 2.2, s.heading_px * 1.1, s.heading_px);
+        const tpx = fitText(p.title, inner.width, s.heading_px * 1.1, s.heading_px * 1.1, v.minType.body_px);
         return (
           <At
             box={c}
@@ -316,8 +317,8 @@ export const StoreCard: React.FC<VisualProps<StoreCardProps>> = (v) => {
                 </div>
               ) : null}
             </div>
-            <div style={{ ...display(s, tpx, 900) }}>{p.title}</div>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 18, ...price }}>
+            <div style={{ ...display(s, tpx, 900), whiteSpace: "nowrap" }}>{p.title}</div>
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", columnGap: 18, ...price }}>
               <span style={{ ...display(s, s.heading_px * 1.3, 900), color: s.warm, letterSpacing: "-0.02em" }}>
                 {p.price}
               </span>
@@ -405,7 +406,7 @@ export const StatDashboard: React.FC<VisualProps<StatDashboardProps>> = (v) => {
     <DhFrame v={v}>
       {(c) => {
         const headH = Math.round(s.heading_px * 1.1);
-        const footH = p.footnote ? Math.round(s.label_px * 2) : 0;
+        const footH = p.footnote ? Math.round(s.label_px * 2.8) : 0;
         const grid: Box = { ...c, y: c.y + headH + 18, height: c.height - headH - 18 - footH };
         // tall boxes (full-graphic) stack tiles; wide panels use a 2-up grid
         const cols = n === 1 || grid.height >= grid.width ? 1 : 2;
@@ -416,7 +417,7 @@ export const StatDashboard: React.FC<VisualProps<StatDashboardProps>> = (v) => {
         return (
           <>
             <At box={{ ...c, height: headH }} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", ...head }}>
-              <div style={{ ...display(s, fitText(p.title, c.width * 0.65, headH, s.heading_px, s.body_px), 900) }}>
+              <div style={{ ...display(s, fitText(p.title, c.width * 0.65, headH, s.heading_px, v.minType.body_px), 900) }}>
                 {p.title}
               </div>
               <div style={{ ...monoLabel(s, s.text), display: "flex", alignItems: "center", gap: 10, border: `${HAIR}px solid ${s.line_2}`, borderRadius: radius, padding: "8px 14px" }}>
@@ -432,7 +433,7 @@ export const StatDashboard: React.FC<VisualProps<StatDashboardProps>> = (v) => {
               const val = from + (st.value - from) * prog;
               const txt = `${st.prefix ?? ""}${formatNumber(val, st.decimals ?? 0)}${st.suffix ?? ""}`;
               const finalTxt = `${st.prefix ?? ""}${formatNumber(st.value, st.decimals ?? 0)}${st.suffix ?? ""}`;
-              const numPx = fitText(finalTxt, box.width - 48, box.height * 0.45, s.heading_px * (cols === 1 ? 2.2 : 1.6), s.heading_px, 0.66);
+              const numPx = fitText(finalTxt, box.width - 48, box.height * 0.45, s.heading_px * (cols === 1 ? 2.2 : 1.6), v.minType.body_px, 0.66);
               const tileIn = interpolate(frame, [i * 3, i * 3 + 10], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: EASE });
               return (
                 <At
@@ -449,8 +450,8 @@ export const StatDashboard: React.FC<VisualProps<StatDashboardProps>> = (v) => {
                     opacity: tileIn,
                   }}
                 >
-                  <div style={{ ...monoLabel(s) }}>{st.label}</div>
-                  <div style={{ ...display(s, numPx, 900), letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums" }}>{txt}</div>
+                  <div style={{ ...monoLabel(s), whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{st.label}</div>
+                  <div style={{ ...display(s, numPx, 900), letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{txt}</div>
                   <Sparkline seed={i} color={s.accent} width={box.width - 48} height={Math.max(24, Math.round(box.height * 0.16))} progress={prog} />
                 </At>
               );
@@ -542,10 +543,11 @@ export const Timeline: React.FC<VisualProps<TimelineProps>> = (v) => {
         const rowH = Math.floor(list.height / n);
         const dot = Math.round(s.label_px * 0.8);
         const railX = list.x + dot / 2;
+        const whenW = Math.ceil(Math.max(0, ...p.items.map((it) => (it.when ?? "").length)) * s.label_px * 0.78);
         return (
           <>
             {p.title ? (
-              <At box={{ ...c, height: titleH }} style={{ ...display(s, fitText(p.title, c.width, titleH, s.heading_px, s.body_px), 900), ...head }}>
+              <At box={{ ...c, height: titleH }} style={{ ...display(s, fitText(p.title, c.width, titleH, s.heading_px, v.minType.body_px), 900), ...head }}>
                 {p.title}
               </At>
             ) : null}
@@ -558,7 +560,7 @@ export const Timeline: React.FC<VisualProps<TimelineProps>> = (v) => {
               return (
                 <At key={i} box={row} style={{ display: "flex", alignItems: "center", gap: 28, opacity: pin, transform: `translateX(${(1 - pin) * 40}px)` }}>
                   <div style={{ width: dot, height: dot, flex: "none", background: hot ? s.accent : s.ground, border: `${HAIR}px solid ${hot ? s.accent : s.text_2}` }} />
-                  {it.when ? <div style={{ ...monoLabel(s, hot ? s.accent : s.text_2), width: s.label_px * 4.2, flex: "none" }}>{it.when}</div> : null}
+                  {it.when ? <div style={{ ...monoLabel(s, hot ? s.accent : s.text_2), width: whenW, flex: "none", whiteSpace: "nowrap" }}>{it.when}</div> : null}
                   <div
                     style={{
                       ...body(s, s.body_px * (hot ? 1.1 : 1), hot ? 800 : 600),
@@ -603,7 +605,7 @@ export const Flowchart: React.FC<VisualProps<FlowchartProps>> = (v) => {
         return (
           <>
             {p.title ? (
-              <At box={{ ...c, height: titleH }} style={{ ...display(s, fitText(p.title, c.width, titleH, s.heading_px, s.body_px), 900), ...head }}>
+              <At box={{ ...c, height: titleH }} style={{ ...display(s, fitText(p.title, c.width, titleH, s.heading_px, v.minType.body_px), 900), ...head }}>
                 {p.title}
               </At>
             ) : null}

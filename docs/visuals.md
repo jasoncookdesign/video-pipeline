@@ -22,14 +22,17 @@ Top level: `schema_version`, `reel_id` (filename-safe), optional `identity`
 (style layer) and `title`, `canvas` (`1080×1920`, `fps` 24/25/30/60), `layout`
 (`top-bottom`), `regions_version`, `regions`, `beats`.
 
-Each beat: `id` (unique, filename-safe), `spoken` (`""` for a silent hold),
-`duration_s` (> 0, ≤ 60), `layout` (`split` | `full-graphic` | `full-presenter`),
+Each beat: `id` (filename-safe, unique ignoring case — ids name clip files),
+`spoken` (`""` for a silent hold), `duration_s` (0.25–60), `layout` (`split` | `full-graphic` | `full-presenter`),
 `generator` (`remotion` | `higgsfield` | `real` | `none`), and:
 
 - `remotion` → `template`, `props`, `parody` required; no `asset`.
 - `real` / `higgsfield` → `asset` required; no `template`/`props`.
 - `none` → no `asset`/`template`/`props`.
-- `full-presenter` → `generator` must be `none`.
+- `full-presenter` → `generator` must be `none`. It only leaves V2 empty: V1
+  shows unchanged; any presenter punch-in is the editor's call.
+- `full-graphic` → needs a graphic (`generator` is not `none`).
+- `split` + `none` is a plain split: nothing on V2, the panel area shows V1.
 - optional `notes` (never rendered).
 
 ## Regions (`reels-9x16.top-bottom.v1`)
@@ -55,17 +58,19 @@ Clip sizes: `split` → 1080×960 at (0, 0); `full-graphic` → 1080×1920;
 Each is a Remotion composition (`remotion/src/visuals/`) inside the shared DH
 frame: ground fill, mono header row (brand label, PARODY tag when
 `parody: true`), hairline rule, barcode motif in the bleed, accent seam on the
-panel edge. Everything settles within ~55% of the beat. Props (full limits in
-the schema):
+panel edge. Everything settles within ~55% of the beat. Text length caps live in
+the schema and were sized by rendering every field at its cap
+(`tests/fixtures/visuals/max-length.visuals.json`) — the longest allowed strings
+still fit at the legibility floors. Props:
 
 | Template id | Composition | Props |
 |---|---|---|
 | `text-card` | `TextCard` | `title`, `eyebrow?`, `subtitle?`, `source?` |
 | `game-hud` | `GameHud` | `title`, `currency? {label, value}`, `stack? {label, items[1–6]}`, `achievement? {label, state: locked\|unlocked}`, `toast?` |
-| `store-card` | `StoreCard` | `title`, `price`, `cta`, `eyebrow?`, `price_note?`, `features[0–5]?`, `badge?` |
-| `stat-dashboard` | `StatDashboard` | `title`, `stats[1–4] {label, value, from?, prefix?, suffix?, decimals?}` (count-up), `footnote?` |
+| `store-card` | `StoreCard` | `title`, `price`, `cta`, `eyebrow?`, `price_note?`, `features[0–3]?`, `badge?` |
+| `stat-dashboard` | `StatDashboard` | `title`, `stats[1–4] {label, value (±999,999), from?, prefix?, suffix?, decimals?}` (count-up), `footnote?` |
 | `progress-bar` | `ProgressBar` | `label`, `to_pct`, `from_pct?`, `status?`, `caption?` |
-| `timeline` | `Timeline` | `items[2–6] {label, when?}`, `title?`, `emphasis_last?` |
+| `timeline` | `Timeline` | `items[2–5] {label, when?}`, `title?`, `emphasis_last?` |
 | `flowchart` | `Flowchart` | `steps[2–5]` (last = punchline, highlighted), `title?` |
 
 Look comes from the layered style config `config/visual-styles/` (see its
@@ -87,8 +92,9 @@ One clip per `remotion` beat: `<project>/layers/visuals/<reel_id>-<beat_id>.mov`
 transcript-aligned window that runs long still has picture). `--frames N` grabs N
 stills per clip into `<project>/review/visuals/` (the last on the settled final
 frame). Non-remotion beats are skipped. Flags: `--out-dir`, `--frames-dir`,
-`--beat ID` (repeatable), `--identity` (default: the spec's, then
-`project.yml`'s), `--config-root`, `--dry-run`.
+`--beat ID` (repeatable; an unknown id exits 2), `--identity` (default: the
+spec's, then `project.yml`'s; an unknown identity exits 2), `--config-root`,
+`--dry-run`.
 
 Why ProRes 4444 `.mov` over H.264 `.mp4`: it is the codec the bundled Remotion
 config already renders (one render path for captions, cards, visuals), it keeps
@@ -119,10 +125,13 @@ clips of a few seconds.
   (1080×960 or the project format), connected on **lane 1** to the base clip
   containing its start, with `adjust-conform type="none"` and `adjust-transform
   position` in percent of frame height, y up (split → `0 25`). Captions move to
-  lane 2, the composite guide up one.
+  lane 2, the composite guide up one. Roles use `videoRole` (`Visuals`,
+  `Captions`, `Composite`) per the FCPXML DTD.
 - `full-presenter` beats leave V2 empty. `real` / `higgsfield` beats are listed as
-  "place by hand" notes. A window longer than the rendered clip is trimmed with a
-  note.
+  "place by hand" notes. A window longer than the rendered clip, or running past
+  the end of the cut, is trimmed with a note; clips not yet rendered are listed.
+- Errors exit 2 with a message: an invalid visuals.json, an fps mismatch, or a
+  `--profile` whose canvas differs from the spec's.
 
 **Acceptance still open:** the transform encodings follow Apple's FCPXML
 reference and Premiere's own default-center export (`0,0`), but opening the

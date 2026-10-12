@@ -73,6 +73,12 @@ class ValidSpecTests(unittest.TestCase):
         )
 
 
+    def test_max_length_fixture_is_valid(self):
+        # every string at its schema cap; rendered to prove the caps fit (docs/visuals.md)
+        spec = load_visuals(FIXTURES / "max-length.visuals.json")
+        self.assertEqual(len(spec.remotion_beats()), 7)
+
+
 class InvalidSpecTests(unittest.TestCase):
     """Each mutation must be rejected with VisualsSpecError naming the problem."""
 
@@ -118,7 +124,7 @@ class InvalidSpecTests(unittest.TestCase):
 
     def test_text_card_title_too_long(self):
         d = _data()
-        _beat(d, "B02")["props"]["title"] = "X" * 41
+        _beat(d, "B02")["props"]["title"] = "X" * 33
         self.assertRejected(d, "beats/1/props/title")
 
     def test_blank_label_rejected(self):
@@ -179,6 +185,31 @@ class InvalidSpecTests(unittest.TestCase):
         d = _data()
         _beat(d, "B03")["id"] = "B02"
         self.assertRejected(d, "duplicate beat id 'B02'")
+
+    def test_beat_ids_unique_ignoring_case(self):
+        # B02 and b02 name the same clip on a case-insensitive filesystem
+        d = _data()
+        _beat(d, "B03")["id"] = "b02"
+        self.assertRejected(d, "duplicate beat id")
+
+    def test_sub_quarter_second_beat_rejected(self):
+        d = _data()
+        _beat(d, "B03")["duration_s"] = 0.001
+        self.assertRejected(d, "beats/2/duration_s")
+
+    def test_full_graphic_needs_a_graphic(self):
+        d = _data()
+        b = _beat(d, "B03")
+        b["generator"] = "none"
+        del b["template"], b["props"], b["parody"]
+        self.assertRejected(d, "beats/2")
+
+    def test_split_with_no_graphic_is_a_plain_split(self):
+        d = _data()
+        b = _beat(d, "B02")
+        b["generator"] = "none"
+        del b["template"], b["props"], b["parody"]
+        self.assertEqual(parse_visuals(d).beats[1].generator, "none")
 
     def test_load_reports_unparseable_json(self):
         import tempfile

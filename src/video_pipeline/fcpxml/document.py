@@ -254,7 +254,7 @@ def build_document(
         vc = ET.SubElement(spine_els[idx], "asset-clip", {
             "ref": f"rv{k}", "lane": "1", "offset": time_str(local, fps),
             "name": vp.name, "start": "0s", "duration": time_str(vp.duration, fps),
-            "role": "Visuals",
+            "videoRole": "Visuals",
         })
         ET.SubElement(vc, "adjust-conform", {"type": "none"})
         px, py = fcpxml_position(vp.x, vp.y, vp.w, vp.h, width, height)
@@ -275,7 +275,7 @@ def build_document(
                 "name": "Captions",
                 "start": "0s",
                 "duration": time_str(total, fps),
-                "role": "Captions",
+                "videoRole": "Captions",
             },
         )
 
@@ -294,7 +294,7 @@ def build_document(
                 "start": "0s",
                 "duration": time_str(total, fps),
                 "enabled": "0",
-                "role": "Composite",
+                "videoRole": "Composite",
             },
         )
 

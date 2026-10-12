@@ -133,7 +133,7 @@
             "prefix": "$"
           },
           {
-            "label": "Water, per bottle",
+            "label": "Water / bottle",
             "value": 19.5,
             "prefix": "$",
             "decimals": 2
@@ -188,7 +188,7 @@
           },
           {
             "when": "08:05",
-            "label": "Platinum+ dynamic pricing"
+            "label": "Platinum+ surge pricing"
           }
         ],
         "emphasis_last": true

@@ -247,7 +247,7 @@ class DocumentTests(unittest.TestCase):
         cap = first.find("./asset-clip")
         self.assertIsNotNone(cap)
         self.assertEqual(cap.attrib["lane"], "1")
-        self.assertEqual(cap.attrib["role"], "Captions")
+        self.assertEqual(cap.attrib["videoRole"], "Captions")
         self.assertEqual(cap.attrib["ref"], "r3")
         # anchored at the first base clip's source in-point so it aligns to t=0
         self.assertEqual(cap.attrib["offset"], "12/30s")

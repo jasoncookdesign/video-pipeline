@@ -94,7 +94,6 @@ class XmemlTests(unittest.TestCase):
         self.assertIsNotNone(f0.find("pathurl"))
         self.assertTrue(f0.find("pathurl").text.startswith("file://localhost/Video/"),
                         f0.find("pathurl").text)
-        self.assertTrue(f0.find("pathurl").text.startswith("file://localhost/"))
         # second clip is a bare back-reference
         f1 = clips[1].find("file")
         self.assertEqual(f1.attrib["id"], "file-1")

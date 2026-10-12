@@ -893,7 +893,24 @@ def _cmd_handoff(args: argparse.Namespace) -> int:
         args.visuals_dir = str(root / _PROJECT_LAYOUT["visuals_dir"])
 
     out_w, out_h = _PROFILE_DIMS.get(args.profile, (1080, 1920))
-    result = assemble_project(
+    try:
+        result = _assemble_handoff(args, assemble_project, fmt, out_w, out_h)
+    except ValueError as exc:  # includes VisualsSpecError
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    _report_handoff(result)
+    return 0
+
+
+def _assemble_handoff(args, assemble_project, fmt, out_w, out_h):
+    if args.visuals:
+        from .visuals.spec import load_visuals
+        spec = load_visuals(args.visuals)
+        if (spec.width, spec.height) != (out_w, out_h):
+            raise ValueError(
+                f"visuals.json canvas {spec.width}x{spec.height} does not match the "
+                f"--profile {args.profile} sequence {out_w}x{out_h}")
+    return assemble_project(
         args.decision,
         args.output,
         reframed_clip=args.reframed,
@@ -910,6 +927,9 @@ def _cmd_handoff(args: argparse.Namespace) -> int:
         visuals_dir=args.visuals_dir,
         transcript_path=args.transcript,
     )
+
+
+def _report_handoff(result: dict) -> None:
     label = "Premiere FCP7 XML" if result["format"] == "premiere" else "FCPXML"
     print(
         f"wrote {result['project']}  [{label}]  base-cut clips={result['clips']}  "
@@ -929,7 +949,6 @@ def _cmd_handoff(args: argparse.Namespace) -> int:
             "  render the aligned overlay:  video-pipeline captions-render "
             f"{result['cut_captions']} -o {result['overlay']} --safezone <spec.json>"
         )
-    return 0
 
 
 def _add_handoff_args(parser: argparse.ArgumentParser) -> None:
@@ -998,12 +1017,15 @@ def _cmd_visuals_render(args: argparse.Namespace) -> int:
     if identity is None and root is not None and (root / "project.yml").exists():
         from .manifest import load_manifest
         identity = load_manifest(root).identity
-    style = load_visual_style(args.config_root, identity)
-
-    results = render_visuals(
-        spec, out_dir, style, frames=args.frames, frames_dir=frames_dir,
-        only=args.beat or None, dry_run=args.dry_run,
-    )
+    try:
+        style = load_visual_style(args.config_root, identity)
+        results = render_visuals(
+            spec, out_dir, style, frames=args.frames, frames_dir=frames_dir,
+            only=args.beat or None, dry_run=args.dry_run,
+        )
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
     skipped = len(spec.beats) - len(spec.remotion_beats())
     verb = "would render" if args.dry_run else "rendered"
     print(f"{verb} {len(results)} clip(s) for {spec.reel_id} "

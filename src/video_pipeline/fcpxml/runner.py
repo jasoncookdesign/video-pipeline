@@ -158,7 +158,10 @@ def _visual_placements(visuals_path, decision, *, fps, clips_dir, transcript_pat
     time, remapped through the decision file like overlays); otherwise the planned
     durations are laid end-to-end as cut time.
     """
+    from dataclasses import replace
+
     from ..visuals.placement import build_placements
+    from .timeline import cut_duration, kept_spans, quantize
     from ..visuals.spec import load_visuals
     from ..visuals.timing import (
         quantize_windows,
@@ -175,17 +178,29 @@ def _visual_placements(visuals_path, decision, *, fps, clips_dir, transcript_pat
 
         raw = windows_from_transcript(spec, load_transcript_json(transcript_path))
         windows = remap_windows(raw, decision, fps)
-        matched = sum(1 for w in raw if w.basis == "transcript")
-        timing = f"transcript ({matched} matched, {len(raw) - matched} by planned duration)"
+        on_cut = {w.beat_id for w in windows}
+        matched = sum(1 for w in raw if w.basis == "transcript" and w.beat_id in on_cut)
+        timing = (f"transcript ({matched} matched, {len(on_cut) - matched} by planned duration"
+                  f"{', ' + str(len(spec.beats) - len(on_cut)) + ' off the cut' if len(on_cut) < len(spec.beats) else ''})")
     else:
         windows = quantize_windows(windows_from_durations(spec), fps)
         timing = "durations (planned, as cut time)"
     placements, notes = build_placements(spec, windows, clips_dir, fps=fps)
-    total = decision.kept_duration()
-    late = [p.beat_id for p in placements if p.start >= total]
-    placements = [p for p in placements if p.start < total]
-    if late:
-        notes.append(f"beyond the end of the cut ({total:.2f}s), not placed: {', '.join(late)}")
+    total = cut_duration(kept_spans(decision, fps))
+    kept = []
+    for p in placements:
+        if p.end > total + 1e-9:
+            end = quantize(total, fps)
+            if end - p.start < 1.0 / fps:
+                notes.append(f"{p.beat_id}: starts at/after the end of the cut ({total:.2f}s) — not placed")
+                continue
+            notes.append(f"{p.beat_id}: trimmed at the end of the cut ({total:.2f}s)")
+            p = replace(p, end=end)
+        kept.append(p)
+    placements = kept
+    missing = [p.beat_id for p in placements if not Path(p.src).exists()]
+    if missing:
+        notes.append(f"clips not rendered yet (run visuals-render): {', '.join(missing)}")
     return placements, {
         "reel_id": spec.reel_id,
         "placed": len(placements),

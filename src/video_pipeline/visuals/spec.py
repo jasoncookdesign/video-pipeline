@@ -3,7 +3,7 @@
 The contract is ``schema/visuals.schema.json`` (owned here; the reels plugin pins a
 copy and writes against it). This module is the boundary: it validates a spec
 against that schema — including each template's props contract — plus the one
-rule JSON Schema cannot express (unique beat ids), and returns typed objects.
+rule JSON Schema cannot express (beat ids unique ignoring case), and returns typed objects.
 Nothing downstream (props builder, renderer, handoff) re-validates; a spec that
 loads is a spec the renderer can render.
 
@@ -101,9 +101,10 @@ def validate_visuals_dict(data: dict) -> None:
 
     seen = set()
     for i, beat in enumerate(data["beats"]):
-        if beat["id"] in seen:
-            raise VisualsSpecError(f"beats/{i}/id: duplicate beat id {beat['id']!r}")
-        seen.add(beat["id"])
+        key = beat["id"].casefold()  # ids name clip files; APFS is case-insensitive
+        if key in seen:
+            raise VisualsSpecError(f"beats/{i}/id: duplicate beat id {beat['id']!r} (ids compare ignoring case)")
+        seen.add(key)
 
 
 def parse_visuals(data: dict) -> VisualsSpec:

@@ -58,6 +58,7 @@ MIN_KEYWORD_COVERAGE = 0.5
 
 def _locate(words, spoken: str):
     """(start, end) of ``spoken`` in ``words`` if the match is strong enough."""
+    spoken = spoken.replace("\u2019", "'").replace("\u2018", "'")  # typographic quotes
     if not words or not spoken.strip():
         return None
     match = propose_window(Transcript(words=tuple(words)), spoken)

@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from .regions import clip_geometry
 from .spec import Beat, VisualsSpec
-from .style import VisualStyle
+from .style import MIN_TYPE_PX, VisualStyle
 
 VISUAL_PROPS_SCHEMA_VERSION = 1
 
@@ -72,5 +72,7 @@ def beat_to_remotion_props(spec: VisualsSpec, beat: Beat, style: VisualStyle) ->
         "safeBox": {"x": geom.safe_box.x, "y": geom.safe_box.y,
                     "width": geom.safe_box.w, "height": geom.safe_box.h},
         "style": style.to_dict(),
+        # legibility floors: fitted text may shrink to these, never below
+        "minType": dict(MIN_TYPE_PX),
         "props": beat.props,
     }

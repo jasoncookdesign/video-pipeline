@@ -113,5 +113,6 @@ the suite.
 
 With `--visuals`, beat clips from `visuals-render` ride **V2** (FCP7 XML) / **lane
 1** (FCPXML), positioned into the graphic panel and timed per beat; captions move
-up to V3 / lane 2. Without `--visuals` the layout above is unchanged. See
+up to V3 / lane 2. The visual track is added when `--visuals` is given or, with
+`--project`, when `work/visuals.json` exists; otherwise the layout above is unchanged. See
 `docs/visuals.md`.

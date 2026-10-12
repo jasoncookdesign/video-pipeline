@@ -19,7 +19,7 @@ const base = (template: string, props: unknown, parody = false): VisualProps<any
   schemaVersion: 1, kind: "visual", template, reelId: "PREVIEW", beatId: "B01",
   layout: "split", parody, fps: 30, beatFrames: 120, durationInFrames: 165,
   dimensions: { width: 1080, height: 960 }, safeBox: { x: 35, y: 250, width: 1010, height: 710 },
-  style: previewStyle, props,
+  style: previewStyle, minType: { label_px: 28, body_px: 40, heading_px: 56, title_px: 72 }, props,
 });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

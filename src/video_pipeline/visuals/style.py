@@ -103,6 +103,10 @@ def load_visual_style(
     merged: Dict[str, Any] = {}
     merged.update(_load_layer(root / "global.yml"))
     if identity:
-        merged.update(_load_layer(root / "identities" / f"{identity}.yml"))
+        layer = root / "identities" / f"{identity}.yml"
+        if not layer.exists():
+            known = sorted(f.stem for f in (root / "identities").glob("*.yml"))
+            raise ValueError(f"unknown visual-style identity {identity!r} (known: {known})")
+        merged.update(_load_layer(layer))
     merged.update(_clean(overrides))
     return replace(VisualStyle(), **merged)

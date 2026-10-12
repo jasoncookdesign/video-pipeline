@@ -665,8 +665,7 @@ class PreviewFrameTests(unittest.TestCase):
         self.assertTrue(any("color=c=#808080:s=1080x1920" in a for a in cmd))
         self.assertEqual(cmd[-1], "out/p.png")
         # color (bg, input 1) under overlay (input 0)
-        self.assertTrue(any("[1:v][0:v]overlay" in a for a in cmd)
-                        or any("[1:v][ov]overlay" in a for a in cmd))
+        self.assertTrue(any("[1:v][ov]overlay" in a for a in cmd))
 
     def test_frame_extract_rebases_the_seeked_overlay_to_zero(self):
         # A seek that is not on a frame boundary leaves the overlay's first frame at

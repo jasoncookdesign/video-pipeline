@@ -31,4 +31,7 @@ The identity comes from `visuals.json` (`identity`), else the project's
 Type sizes are px at the 1920-px canvas height. The floors are enforced at the
 Python boundary (`video_pipeline.visuals.style`) so a template is always legible
 at the graphic-panel size on a phone (28 px ≈ 10 pt, 40 px ≈ 14 pt on a 390-pt-wide
-screen); the templates fit long strings down toward these floors, never below.
+screen). The floors also ride in every clip's props (`minType`): hero titles fit
+down to the title floor (72), other fitted headings and numbers down to the body
+floor (40), never below. The schema's length caps are sized so the longest
+allowed strings fit at those floors (`tests/fixtures/visuals/max-length.visuals.json`).

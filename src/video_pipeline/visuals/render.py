@@ -68,6 +68,10 @@ def plan_render(
     """One :class:`RenderJob` per remotion beat (optionally filtered by beat id)."""
     out = Path(out_dir)
     keep = set(only) if only else None
+    if keep is not None:
+        unknown = keep - {b.id for b in spec.remotion_beats()}
+        if unknown:
+            raise ValueError(f"no remotion beat with id {', '.join(sorted(unknown))} in {spec.reel_id}")
     jobs: List[RenderJob] = []
     for beat in spec.remotion_beats():
         if keep is not None and beat.id not in keep:

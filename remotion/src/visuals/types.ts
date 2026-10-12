@@ -102,5 +102,8 @@ export type VisualProps<P = TemplateProps> = {
   dimensions: { width: number; height: number };
   safeBox: Box; // content rect, relative to this clip's frame
   style: VisualStyle;
+  // legibility floors (px) from video_pipeline.visuals.style.MIN_TYPE_PX:
+  // fitted text may shrink toward these, never below
+  minType: { label_px: number; body_px: number; heading_px: number; title_px: number };
   props: P;
 };

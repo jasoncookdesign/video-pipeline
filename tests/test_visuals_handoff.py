@@ -79,6 +79,24 @@ class PlacementTests(unittest.TestCase):
         self.assertTrue(any("B04" in n and "longer than" in n for n in notes))
 
 
+class CutLengthTests(unittest.TestCase):
+    def test_placements_are_clamped_to_the_cut(self):
+        from video_pipeline.fcpxml.runner import _visual_placements
+
+        placed, info = _visual_placements(str(REEL_0227), _decision(total=12.0), fps=FPS,
+                                          clips_dir=CLIPS)
+        by = {p.beat_id: p for p in placed}
+        self.assertEqual((by["B03"].start, by["B03"].end), (10.5, 12.0))
+        self.assertNotIn("B04", by)
+        self.assertTrue(any("B03" in n and "end of the cut" in n for n in info["notes"]))
+
+    def test_missing_rendered_clips_are_reported(self):
+        from video_pipeline.fcpxml.runner import _visual_placements
+
+        _, info = _visual_placements(str(REEL_0227), _decision(), fps=FPS, clips_dir=CLIPS)
+        self.assertTrue(any("not rendered" in n and "B02" in n for n in info["notes"]))
+
+
 class XmemlVisualTests(unittest.TestCase):
     def _root(self, visuals, captions=True):
         xml, _ = assemble_xmeml(
@@ -150,7 +168,7 @@ class FcpxmlVisualTests(unittest.TestCase):
         return ET.fromstring(xml.split("<!DOCTYPE fcpxml>")[1])
 
     def _visual_clips(self, root):
-        return [c for c in root.iter("asset-clip") if c.get("role") == "Visuals"]
+        return [c for c in root.iter("asset-clip") if c.get("videoRole") == "Visuals"]
 
     def test_visual_assets_carry_their_own_format(self):
         root = self._root(_decision(), _placements()[0])
@@ -192,10 +210,10 @@ class FcpxmlVisualTests(unittest.TestCase):
 
     def test_captions_move_to_lane_2_when_visuals_present(self):
         root = self._root(_decision(), _placements()[0])
-        caps = [c for c in root.iter("asset-clip") if c.get("role") == "Captions"][0]
+        caps = [c for c in root.iter("asset-clip") if c.get("videoRole") == "Captions"][0]
         self.assertEqual(caps.get("lane"), "2")
         root = self._root(_decision(), None)
-        caps = [c for c in root.iter("asset-clip") if c.get("role") == "Captions"][0]
+        caps = [c for c in root.iter("asset-clip") if c.get("videoRole") == "Captions"][0]
         self.assertEqual(caps.get("lane"), "1")
 
 
@@ -245,6 +263,38 @@ class HandoffCliTests(unittest.TestCase):
             root_el = ET.fromstring(xml.split("<!DOCTYPE fcpxml>")[1])
             b02 = next(c for c in root_el.iter("asset-clip") if c.get("name") == "DH-REEL-0227-B02")
             self.assertEqual(b02.get("offset"), "90/30s")  # spoken at 3.0 s
+
+    def _run(self, *argv):
+        from video_pipeline.cli import main
+        out, err = StringIO(), StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            code = main(list(argv))
+        return code, out.getvalue(), err.getvalue()
+
+    def _project(self, tmp):
+        root = Path(tmp)
+        (root / "work").mkdir()
+        _decision().write(root / "work" / "roughcut.decision.yml")
+        _track().write(root / "work" / "captions.yml")
+        return root
+
+    def test_invalid_visuals_exits_2(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._project(tmp)
+            bad = root / "bad.json"
+            bad.write_text('{"schema_version": 1}', encoding="utf-8")
+            code, _, err = self._run("handoff", "--project", tmp, "--reframed", "r.mp4",
+                                     "--visuals", str(bad))
+            self.assertEqual(code, 2)
+            self.assertIn("error:", err)
+
+    def test_profile_canvas_mismatch_exits_2(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self._project(tmp)
+            code, _, err = self._run("handoff", "--project", tmp, "--reframed", "r.mp4",
+                                     "--visuals", str(REEL_0227), "--profile", "feed-square-1x1")
+            self.assertEqual(code, 2)
+            self.assertIn("1080x1920", err)
 
 
 if __name__ == "__main__":

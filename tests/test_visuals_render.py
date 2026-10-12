@@ -63,6 +63,10 @@ class StyleTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             VisualStyle(display_font="Comic Sans MS")
 
+    def test_unknown_identity_is_an_error(self):
+        with self.assertRaises(ValueError):
+            load_visual_style(CONFIG, "dyson-hopee")
+
     def test_color_must_be_hex(self):
         with self.assertRaises(ValueError):
             VisualStyle(accent="periwinkle")
@@ -99,12 +103,19 @@ class PropsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             beat_to_remotion_props(self.spec, self.beats["B01"], self.style)
 
-    def test_every_template_has_a_composition(self):
-        self.assertEqual(
-            set(TEMPLATE_COMPOSITIONS),
-            {"text-card", "game-hud", "store-card", "stat-dashboard",
-             "progress-bar", "timeline", "flowchart"},
-        )
+    def test_schema_python_and_remotion_agree_on_templates(self):
+        schema = json.loads((REPO_ROOT / "schema" / "visuals.schema.json").read_text(encoding="utf-8"))
+        enum = schema["definitions"]["beat"]["properties"]["template"]["enum"]
+        self.assertEqual(set(TEMPLATE_COMPOSITIONS), set(enum))
+        for tid in enum:
+            self.assertIn(f"props-{tid}", schema["definitions"])
+        tsx = (REPO_ROOT / "remotion" / "src" / "visuals" / "Visuals.tsx").read_text(encoding="utf-8")
+        for comp in TEMPLATE_COMPOSITIONS.values():
+            self.assertIn(f'["{comp}", {comp},', tsx)
+
+    def test_props_carry_the_legibility_floors(self):
+        p = beat_to_remotion_props(self.spec, self.beats["B05"], self.style)
+        self.assertEqual(p["minType"], MIN_TYPE_PX)
 
 
 class StillTimesTests(unittest.TestCase):
@@ -211,6 +222,13 @@ class CliTests(unittest.TestCase):
             self.assertIn("skipped 5 non-remotion beat(s)", out)
             self.assertIn(str(Path(tmp) / "review" / "visuals"), out)
             self.assertEqual(list(Path(tmp).iterdir()), [])
+
+    def test_unknown_beat_id_exits_2(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            code, _, err = self._run("visuals-render", str(REEL_0227), "--project", tmp,
+                                     "--beat", "B99", "--dry-run")
+            self.assertEqual(code, 2)
+            self.assertIn("B99", err)
 
     def test_invalid_spec_exits_2(self):
         with tempfile.TemporaryDirectory() as tmp:
