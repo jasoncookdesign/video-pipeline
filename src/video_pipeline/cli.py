@@ -873,7 +873,7 @@ def _cmd_handoff(args: argparse.Namespace) -> int:
 
     # Resolve inputs + output from --project when given (explicit flags win).
     ext = ".xml" if fmt == "premiere" else ".fcpxml"
-    name = args.project_name or (Path(args.project).name if args.project else "reel")
+    name = args.project_name or (Path(args.project).resolve().name if args.project else "reel")
     _resolve_project_paths(
         args, ["decision", "reframed", "captions", "overlay", "composite"],
         output_name=f"exports/{fmt}/{name}{ext}",

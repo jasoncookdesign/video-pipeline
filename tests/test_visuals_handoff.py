@@ -278,6 +278,21 @@ class HandoffCliTests(unittest.TestCase):
         _track().write(root / "work" / "captions.yml")
         return root
 
+    def test_project_dot_names_the_export_after_the_directory(self):
+        import os
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._project(tmp)
+            cwd = os.getcwd()
+            os.chdir(tmp)
+            try:
+                code, _, err = self._run("handoff", "--project", ".", "--reframed", "r.mp4")
+            finally:
+                os.chdir(cwd)
+            self.assertEqual(code, 0, err)
+            out_dir = root / "exports" / "premiere"
+            self.assertTrue((out_dir / f"{root.resolve().name}.xml").exists())
+            self.assertFalse((out_dir / ".xml").exists())
+
     def test_invalid_visuals_exits_2(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = self._project(tmp)
