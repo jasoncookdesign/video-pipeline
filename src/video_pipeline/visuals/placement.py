@@ -16,7 +16,6 @@ from typing import List, Tuple
 
 from ..fcpxml.timeline import quantize
 from .props import clip_duration_s, clip_name
-from .regions import clip_geometry
 from .spec import VisualsSpec
 from .timing import BeatWindow
 
@@ -29,7 +28,7 @@ class VisualPlacement:
     layout: str          # split | full-graphic
     x: int
     y: int
-    w: int               # clip pixel size == its region
+    w: int               # clip pixel size == the canvas (the panel is baked in)
     h: int
     start: float         # cut-time seconds, frame-quantized
     end: float
@@ -63,7 +62,6 @@ def build_placements(
         if win is None:
             notes.append(f"{beat.id}: no window on the cut (dropped by the rough cut) — not placed")
             continue
-        geom = clip_geometry(beat.layout, spec.regions)
         media = clip_duration_s(beat)
         start, end = quantize(win.start, fps), quantize(win.end, fps)
         if end - start > media + 1e-9:
@@ -73,8 +71,8 @@ def build_placements(
         name = clip_name(spec.reel_id, beat.id, ext="")
         placed.append(VisualPlacement(
             beat_id=beat.id, name=name, src=str(Path(clips_dir) / clip_name(spec.reel_id, beat.id)),
-            layout=beat.layout, x=geom.placement.x, y=geom.placement.y,
-            w=geom.placement.w, h=geom.placement.h, start=start, end=end,
+            layout=beat.layout, x=0, y=0, w=spec.width, h=spec.height,
+            start=start, end=end,
             media_duration=media, canvas_w=spec.width, canvas_h=spec.height,
         ))
     return placed, notes

@@ -93,6 +93,9 @@ class StyleLayeringTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             CaptionStyle(position="sideways")
 
+    def test_under_center_position_accepted(self):
+        self.assertEqual(CaptionStyle(position="under-center").position, "under-center")
+
     def test_h_offset_default_and_validation(self):
         self.assertEqual(CaptionStyle().h_offset, "clear-notch")
         self.assertEqual(
@@ -435,6 +438,20 @@ class PlacementTests(unittest.TestCase):
             ys.append(box.y)
         self.assertTrue(ys[0] < ys[1] < ys[2])  # upper above center above lower
 
+    def test_under_center_sits_in_the_presenter_panel_above_the_notch(self):
+        # Split layouts: the band just under the vertical center, below the graphic
+        # panel (y >= 960) and above the notch (y < 1117), so it spans the full width.
+        box = caption_box(self.spec, position="under-center")
+        self.assertTrue(
+            self.spec.rect_clear(box.x, box.y, box.x1, box.y1),
+            f"box {box.to_dict()} intrudes on the danger region",
+        )
+        self.assertGreaterEqual(box.y, 960)
+        self.assertEqual(box.y - 960, 8)  # 8 px of top padding under the center line
+        self.assertGreaterEqual(box.y1 - box.y, 100)  # room for a plated small caption
+        self.assertLessEqual(box.y1, 1117)
+        self.assertGreater(box.width, caption_box(self.spec, position="lower-third").width)
+
     def test_lower_third_narrower_than_upper_due_to_notch(self):
         upper = caption_box(self.spec, position="upper-third")
         lower = caption_box(self.spec, position="lower-third")
@@ -518,6 +535,14 @@ class RemotionPropsTests(unittest.TestCase):
         self.assertEqual(c["durationInFrames"], 30)
         self.assertEqual(c["emphasis"], [1])
         self.assertEqual(c["text"], "hi there")
+
+    def test_position_override_is_carried_into_the_style_props(self):
+        # the renderer aligns the block inside the box from style.position, so an
+        # override must reach it, not just the box geometry.
+        props = build_props_from_safezone(
+            self._track(), CaptionStyle(), self.spec, fps=30, position="under-center"
+        )
+        self.assertEqual(props["style"]["position"], "under-center")
 
     def test_props_uppercase_applies_to_text_and_words(self):
         style = CaptionStyle(uppercase=True)

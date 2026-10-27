@@ -25,6 +25,11 @@ _ANCHOR_BANDS = {
     "upper-third": (0.06, 0.34),
     "center": (0.36, 0.64),
     "lower-third": (0.66, 0.94),
+    # Split layouts: just under the vertical center (the seam at y 960 on the
+    # 1080x1920 frame), 8 px of top padding, inside the presenter panel and above
+    # the Reels action-button notch (y >= 1117). The renderer top-aligns the
+    # caption block in this band, so the plate's top edge sits at y 968.
+    "under-center": (0.5885, 0.6787),
 }
 
 
@@ -155,6 +160,7 @@ _DODGE_PREFERENCE = {
     "lower-third": ("lower-third", "upper-third", "center"),
     "upper-third": ("upper-third", "lower-third", "center"),
     "center": ("center", "upper-third", "lower-third"),
+    "under-center": ("under-center", "lower-third", "center"),
 }
 
 

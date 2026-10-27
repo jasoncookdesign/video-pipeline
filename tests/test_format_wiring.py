@@ -54,6 +54,13 @@ class TestReframeCliFlags(unittest.TestCase):
         self.assertEqual(ns.subject_occupancy, "occ.json")
         self.assertEqual(ns.position, "lower-third")
 
+    def test_captions_render_accepts_under_center_position(self):
+        ns = self.p.parse_args([
+            "captions-render", "cap.yml", "-o", "o.mov", "--safezone", "s.json",
+            "--position", "under-center",
+        ])
+        self.assertEqual(ns.position, "under-center")
+
 
 class TestRescale(unittest.TestCase):
     def test_uniform_rescale(self):

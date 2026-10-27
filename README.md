@@ -260,7 +260,7 @@ captions:
   max_gap_s: 0.6         # pause (s) that forces a caption break
   karaoke: false         # true = active-word highlight (each word lights up as spoken)
   uppercase: true        # render text uppercase
-  position: lower-third  # caption box anchor: upper-third | center | lower-third
+  position: lower-third  # caption box anchor: upper-third | center | under-center | lower-third
   h_offset: clear-notch  # horizontal placement: clear-notch (widest notch-free
                          #   span, may bias off-center) | center (symmetric, still
                          #   clears the notch). Per-run flag: --h-offset.
