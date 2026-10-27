@@ -20,6 +20,7 @@ Only kept cues cross either boundary; ``source/`` is never touched.
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from typing import Optional
 
 from .cue import CaptionTrack
@@ -179,6 +180,9 @@ def build_props_from_safezone(
     """
     pos = position or style.position
     h_off = h_offset or style.h_offset
+    if pos != style.position:
+        # the renderer aligns the block inside the box from style.position
+        style = replace(style, position=pos)
     box = caption_box(safezone_spec, position=pos, h_offset=h_off)
 
     cue_boxes = None

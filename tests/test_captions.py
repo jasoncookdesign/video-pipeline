@@ -447,7 +447,7 @@ class PlacementTests(unittest.TestCase):
             f"box {box.to_dict()} intrudes on the danger region",
         )
         self.assertGreaterEqual(box.y, 960)
-        self.assertLessEqual(box.y - 960, 5)  # hugs the seam: little top padding
+        self.assertEqual(box.y - 960, 8)  # 8 px of top padding under the center line
         self.assertGreaterEqual(box.y1 - box.y, 100)  # room for a plated small caption
         self.assertLessEqual(box.y1, 1117)
         self.assertGreater(box.width, caption_box(self.spec, position="lower-third").width)
@@ -535,6 +535,14 @@ class RemotionPropsTests(unittest.TestCase):
         self.assertEqual(c["durationInFrames"], 30)
         self.assertEqual(c["emphasis"], [1])
         self.assertEqual(c["text"], "hi there")
+
+    def test_position_override_is_carried_into_the_style_props(self):
+        # the renderer aligns the block inside the box from style.position, so an
+        # override must reach it, not just the box geometry.
+        props = build_props_from_safezone(
+            self._track(), CaptionStyle(), self.spec, fps=30, position="under-center"
+        )
+        self.assertEqual(props["style"]["position"], "under-center")
 
     def test_props_uppercase_applies_to_text_and_words(self):
         style = CaptionStyle(uppercase=True)
