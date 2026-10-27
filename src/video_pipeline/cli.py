@@ -82,11 +82,15 @@ _PROJECT_LAYOUT = {
 }
 
 
-def _resolve_project_paths(args: argparse.Namespace, keys, *, output_name: str) -> None:
+def _resolve_project_paths(
+    args: argparse.Namespace, keys, *, output_name: str, optional=()
+) -> None:
     """Fill any unset path args from ``args.project`` using the standard layout.
 
     Only fills attributes left as ``None`` (explicit flags win). ``output_name`` is
-    the bundle-relative output (e.g. ``exports/premiere/reel.xml``).
+    the bundle-relative output (e.g. ``exports/premiere/reel.xml``). Keys in
+    ``optional`` are filled only when the file already exists, so a project that
+    hasn't produced that layer yet doesn't get a reference to missing media.
     """
     root = getattr(args, "project", None)
     if not root:
@@ -94,7 +98,10 @@ def _resolve_project_paths(args: argparse.Namespace, keys, *, output_name: str) 
     base = Path(root)
     for k in keys:
         if getattr(args, k, None) is None:
-            setattr(args, k, str(base / _PROJECT_LAYOUT[k]))
+            path = base / _PROJECT_LAYOUT[k]
+            if k in optional and not path.exists():
+                continue
+            setattr(args, k, str(path))
     if getattr(args, "output", None) is None:
         args.output = str(base / output_name)
 
@@ -877,6 +884,7 @@ def _cmd_handoff(args: argparse.Namespace) -> int:
     _resolve_project_paths(
         args, ["decision", "reframed", "captions", "overlay", "composite"],
         output_name=f"exports/{fmt}/{name}{ext}",
+        optional=("captions", "overlay", "composite"),
     )
     missing = [k for k in ("decision", "reframed", "output") if getattr(args, k) is None]
     if missing:

@@ -293,6 +293,30 @@ class HandoffCliTests(unittest.TestCase):
             self.assertTrue((out_dir / f"{root.resolve().name}.xml").exists())
             self.assertFalse((out_dir / ".xml").exists())
 
+    def test_project_without_optional_layers_omits_their_tracks(self):
+        # captions, overlay and composite are optional: a project that hasn't made
+        # them yet must not get clips that point at missing media.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "work").mkdir()
+            _decision().write(root / "work" / "roughcut.decision.yml")
+            code, _, err = self._run("handoff", "--project", tmp, "--reframed", "r.mp4")
+            self.assertEqual(code, 0, err)
+            xml = (root / "exports" / "premiere" / f"{root.name}.xml").read_text(encoding="utf-8")
+            self.assertNotIn("Composite (guide)", xml)
+            self.assertNotIn("composite.mp4", xml)
+            self.assertNotIn("captions.mov", xml)
+
+    def test_project_composite_is_included_once_it_exists(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._project(tmp)
+            (root / "review").mkdir()
+            (root / "review" / "composite.mp4").write_bytes(b"x")
+            code, _, err = self._run("handoff", "--project", tmp, "--reframed", "r.mp4")
+            self.assertEqual(code, 0, err)
+            xml = (root / "exports" / "premiere" / f"{root.name}.xml").read_text(encoding="utf-8")
+            self.assertIn("Composite (guide)", xml)
+
     def test_invalid_visuals_exits_2(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = self._project(tmp)
