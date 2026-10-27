@@ -1,7 +1,7 @@
 """Layout-aware handoff (#62 part A): visual clips on V2, placed + timed per beat.
 
 Both serializers: FCP7 XML (Premiere) and FCPXML (Resolve / Final Cut). Split-
-layout clips are the graphic panel (1080x960) positioned at the top of the frame;
+layout clips are canvas-sized (1080x1920) with the graphic in the top panel;
 full-graphic clips fill it; full-presenter beats leave V2 empty. Captions move up
 one track/lane when visuals are present and stay put when they are not.
 """
@@ -63,7 +63,7 @@ class PlacementTests(unittest.TestCase):
         placed = {p.beat_id: p for p in _placements()[0]}
         b02 = placed["B02"]
         self.assertEqual(b02.src, f"{CLIPS}/DH-REEL-0227-B02.mov")
-        self.assertEqual((b02.x, b02.y, b02.w, b02.h), (0, 0, 1080, 960))
+        self.assertEqual((b02.x, b02.y, b02.w, b02.h), (0, 0, 1080, 1920))  # canvas-sized clip
         self.assertEqual((b02.start, b02.end), (4.5, 10.5))
         self.assertEqual(b02.media_duration, 6.0 + HOLD_TAIL_S)
         b03 = placed["B03"]
@@ -122,10 +122,10 @@ class XmemlVisualTests(unittest.TestCase):
         self.assertEqual(b02.findtext("alphatype"), "straight")
         self.assertTrue(b02.find("file/pathurl").text.endswith("/layers/visuals/DH-REEL-0227-B02.mov"))
         sc = b02.find("file/media/video/samplecharacteristics")
-        self.assertEqual((sc.findtext("width"), sc.findtext("height")), ("1080", "960"))
+        self.assertEqual((sc.findtext("width"), sc.findtext("height")), ("1080", "1920"))
         self.assertIsNone(b02.find("file/media/audio"))
 
-    def test_split_clip_is_moved_to_the_top_panel(self):
+    def test_split_clip_needs_no_motion_offset(self):
         b02 = self._tracks(self._root(_placements()[0]))[1].findall("clipitem")[0]
         eff = b02.find("filter/effect")
         self.assertEqual(eff.findtext("effectid"), "basic")
@@ -133,7 +133,7 @@ class XmemlVisualTests(unittest.TestCase):
         self.assertEqual(params["scale"].findtext("value"), "100")
         center = params["center"].find("value")
         self.assertEqual(float(center.findtext("horiz")), 0.0)
-        self.assertEqual(float(center.findtext("vert")), -0.25)  # panel center y=480 of 1920
+        self.assertEqual(float(center.findtext("vert")), 0.0)  # canvas-sized: the panel is baked in
 
     def test_full_graphic_clip_is_centered_full_frame(self):
         b03 = self._tracks(self._root(_placements()[0]))[1].findall("clipitem")[1]
@@ -176,7 +176,7 @@ class FcpxmlVisualTests(unittest.TestCase):
         assets = {a.get("name"): a for a in root.findall("./resources/asset")}
         b02 = assets["DH-REEL-0227-B02"]
         self.assertEqual((fmts[b02.get("format")].get("width"), fmts[b02.get("format")].get("height")),
-                         ("1080", "960"))
+                         ("1080", "1920"))
         self.assertEqual(b02.get("duration"), f"{round((6.0 + HOLD_TAIL_S) * FPS)}/30s")
         self.assertIsNone(b02.get("hasAudio"))
         self.assertTrue(b02.find("media-rep").get("src").endswith("DH-REEL-0227-B02.mov"))
@@ -189,8 +189,8 @@ class FcpxmlVisualTests(unittest.TestCase):
         self.assertEqual(b02.get("offset"), "135/30s")  # parent-local == cut time (source_in 0)
         self.assertEqual(b02.get("duration"), "180/30s")
         self.assertEqual(b02.find("adjust-conform").get("type"), "none")
-        # +25% of frame height = up 480 px: panel center (y=480) vs frame center (960)
-        self.assertEqual(b02.find("adjust-transform").get("position"), "0 25")
+        # canvas-sized clip: the top panel is baked into the clip, so no offset
+        self.assertEqual(b02.find("adjust-transform").get("position"), "0 0")
 
     def test_full_graphic_has_no_offset(self):
         b03 = self._visual_clips(self._root(_decision(), _placements()[0]))[1]

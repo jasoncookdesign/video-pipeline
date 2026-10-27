@@ -24,7 +24,12 @@ from video_pipeline.visuals.props import (
     beat_to_remotion_props,
     clip_name,
 )
-from video_pipeline.visuals.render import plan_render, render_visuals, still_times
+from video_pipeline.visuals.render import (
+    pad_to_canvas_command,
+    plan_render,
+    render_visuals,
+    still_times,
+)
 from video_pipeline.visuals.spec import load_visuals
 from video_pipeline.visuals.style import (
     MIN_TYPE_PX,
@@ -144,6 +149,23 @@ class _StubRun:
         return subprocess.CompletedProcess(argv, 0)
 
 
+class PadCommandTests(unittest.TestCase):
+    def test_pads_with_transparency_into_alpha_prores(self):
+        argv = pad_to_canvas_command("in.mov", "out.mov", x=0, y=0, canvas_w=1080, canvas_h=1920)
+        self.assertEqual(argv[0], "ffmpeg")
+        self.assertEqual(argv[argv.index("-i") + 1], "in.mov")
+        self.assertEqual(argv[-1], "out.mov")
+        joined = " ".join(argv)
+        self.assertIn("pad=1080:1920:0:0:color=0x00000000", joined)
+        self.assertIn("prores_ks", joined)
+        self.assertIn("4444", joined)
+        self.assertIn("yuva444p10le", joined)
+
+    def test_panel_offset_is_passed_through(self):
+        argv = pad_to_canvas_command("a.mov", "b.mov", x=0, y=960, canvas_w=1080, canvas_h=1920)
+        self.assertIn("pad=1080:1920:0:960:color=0x00000000", " ".join(argv))
+
+
 class RenderTests(unittest.TestCase):
     def setUp(self):
         self.spec = load_visuals(REEL_0227)
@@ -181,11 +203,28 @@ class RenderTests(unittest.TestCase):
         self.assertEqual(b03[4], "TextCard")
         self.assertIn("--codec=prores", b03)
         self.assertIn("--prores-profile=4444", b03)
-        # stills are composited at the clip's own size
-        ff = [c for c in run.calls if c[0] == "ffmpeg" and "B03" in c[-1]]
-        self.assertTrue(any("s=1080x1920" in a for a in ff[0]))
-        ff5 = [c for c in run.calls if c[0] == "ffmpeg" and "B05" in c[-1]]
-        self.assertTrue(any("s=1080x960" in a for a in ff5[0]))
+        # every clip is canvas-sized, so stills are composited at the canvas size
+        for beat in ("B03", "B05"):
+            ff = [c for c in run.calls if c[0] == "ffmpeg" and f"{beat}-f" in c[-1]]
+            self.assertTrue(any("s=1080x1920" in a for a in ff[0]), beat)
+
+    def test_split_clips_are_padded_to_the_canvas_and_full_clips_are_not(self):
+        run = _StubRun()
+        results = render_visuals(self.spec, self.tmp / "layers", self.style, run=run)
+        pads = [c for c in run.calls if c[0] == "ffmpeg" and any("pad=" in a for a in c)]
+        padded = sorted(Path(c[c.index("-i") + 1]).name for c in pads)
+        split = sorted(f"DH-REEL-0227-{b.id}.mov" for b in self.spec.remotion_beats()
+                       if b.layout == "split")
+        self.assertIn("full-graphic", {b.layout for b in self.spec.remotion_beats()})
+        self.assertEqual(padded, split)
+        for c in pads:
+            self.assertIn("pad=1080:1920:0:0:color=0x00000000", " ".join(c))
+        for r in results:
+            self.assertEqual((r["width"], r["height"]), (1080, 1920))
+            self.assertTrue(Path(r["output"]).exists())
+        leftovers = [p.name for p in (self.tmp / "layers").iterdir()
+                     if p.suffix == ".mov" and ".canvas" in p.name]
+        self.assertEqual(leftovers, [])
 
     def test_dry_run_spawns_nothing_and_writes_nothing(self):
         run = _StubRun()

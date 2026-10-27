@@ -50,8 +50,11 @@ and a test asserts they still equal the derivation.
 | `presenter_safe` | 35, 960, 880, 510 | Notch-free safe rect — frame the face here when recording |
 | `full_safe` | 35, 250, 880, 1220 | Where content lives in a full-graphic clip |
 
-Clip sizes: `split` → 1080×960 at (0, 0); `full-graphic` → 1080×1920;
-`full-presenter` → no clip.
+Clip sizes: every rendered clip is **canvas-sized (1080×1920)**. A `split` beat
+renders at the graphic-panel size (1080×960), then an FFmpeg pass pads it onto a
+transparent canvas with the panel at the top, so the editor places it with no
+position transform and every NLE agrees on where it lands. `full-graphic` clips
+fill the canvas; `full-presenter` → no clip.
 
 ## Templates
 
@@ -117,14 +120,11 @@ clips of a few seconds.
   if the next located beat comes first). Those source-time windows are remapped
   to the cut with the same kept-span mapping as overlays (`remap_window`).
 - **FCP7 XML (Premiere).** V1 base cut, **V2 visuals**, V3 captions, V4
-  composite guide. Each beat is a clipitem at native size (Scale 100) with Basic
-  Motion `center` = clip-center offset from frame center normalized by the
-  sequence size (split → `0, -0.25`; full-graphic → `0, 0`), `alphatype
-  straight`.
-- **FCPXML (Resolve / FCP).** Each beat is an asset with its own format
-  (1080×960 or the project format), connected on **lane 1** to the base clip
-  containing its start, with `adjust-conform type="none"` and `adjust-transform
-  position` in percent of frame height, y up (split → `0 25`). Captions move to
+  composite guide. Each beat is a canvas-sized clipitem (Scale 100, Basic Motion
+  `center` `0, 0`), `alphatype straight`.
+- **FCPXML (Resolve / FCP).** Each beat is a canvas-sized asset, connected on
+  **lane 1** to the base clip containing its start, with `adjust-conform
+  type="none"` and `adjust-transform position="0 0"`. Captions move to
   lane 2, the composite guide up one. Roles use `videoRole` (`Visuals`,
   `Captions`, `Composite`) per the FCPXML DTD.
 - `full-presenter` beats leave V2 empty. `real` / `higgsfield` beats are listed as
@@ -133,7 +133,6 @@ clips of a few seconds.
 - Errors exit 2 with a message: an invalid visuals.json, an fps mismatch, or a
   `--profile` whose canvas differs from the spec's.
 
-**Acceptance still open:** the transform encodings follow Apple's FCPXML
-reference and Premiere's own default-center export (`0,0`), but opening the
-generated projects in Premiere and Resolve and confirming the panel sits on top
-is the local acceptance check.
+Because the panel position is baked into each clip, the handoff carries no
+position encoding for an NLE to interpret. Open the generated project and confirm
+the panel sits on top.
