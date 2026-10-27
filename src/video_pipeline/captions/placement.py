@@ -25,9 +25,10 @@ _ANCHOR_BANDS = {
     "upper-third": (0.06, 0.34),
     "center": (0.36, 0.64),
     "lower-third": (0.66, 0.94),
-    # Split layouts: just under the vertical center, inside the presenter panel
-    # (y >= 960 on the 1080x1920 frame) and above the Reels action-button notch.
-    "under-center": (0.59, 0.71),
+    # Split layouts: hugging the vertical center from below, inside the presenter
+    # panel (y 960-1070 on the 1080x1920 frame) and above the Reels action-button
+    # notch (y >= 1117).
+    "under-center": (0.582, 0.672),
 }
 
 

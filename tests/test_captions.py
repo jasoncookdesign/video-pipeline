@@ -447,6 +447,8 @@ class PlacementTests(unittest.TestCase):
             f"box {box.to_dict()} intrudes on the danger region",
         )
         self.assertGreaterEqual(box.y, 960)
+        self.assertLessEqual(box.y - 960, 5)  # hugs the seam: little top padding
+        self.assertGreaterEqual(box.y1 - box.y, 100)  # room for a plated small caption
         self.assertLessEqual(box.y1, 1117)
         self.assertGreater(box.width, caption_box(self.spec, position="lower-third").width)
 
