@@ -660,7 +660,7 @@ def build_schema() -> Schema:
                        "off the subject; absent or missing, captions render normally.",
                   ui=UI(label="Subject occupancy", control="picker", group="Placement")),
             Param("position", "enum", flag="--position",
-                  options=["upper-third", "center", "lower-third"],
+                  options=["upper-third", "center", "under-center", "lower-third"],
                   hint="Caption anchor (optional override).",
                   help="Forces the caption band; overrides the style default and any "
                        "framing-intent hint carried in the occupancy file.",

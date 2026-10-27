@@ -30,7 +30,7 @@ layers to the built-in `CaptionStyle` defaults.
 | `stroke_color` / `stroke_width` | Outline colour / px (legibility over video). |
 | `emphasis_color` | Fill for emphasis words (glossary terms / ALL-CAPS). |
 | `uppercase` | Force-uppercase the rendered text (timing/text data unchanged). |
-| `position` | Vertical anchor inside the safe zone: `lower-third`, `center`, `upper-third`. |
+| `position` | Vertical anchor inside the safe zone: `lower-third`, `under-center` (the band just under the vertical center, for split layouts), `center`, `upper-third`. |
 | `h_offset` | Horizontal placement: `clear-notch` (widest notch-free span; may bias left at lower-third) or `center` (symmetric about frame-center). Per-run `--h-offset`. |
 | `bg_enabled` | Draw a whole-block rounded rectangle behind the caption text (off by default). Per-run `--bg`. |
 | `bg_color` | Background-plate fill (hex). Per-run `--bg-color`. |

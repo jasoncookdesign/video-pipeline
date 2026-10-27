@@ -24,7 +24,7 @@ from typing import Any, Dict, Optional
 import yaml
 
 # Vertical anchors for the caption box inside the safe zone.
-POSITIONS = ("upper-third", "center", "lower-third")
+POSITIONS = ("upper-third", "center", "under-center", "lower-third")
 
 # Horizontal placement (INI-088 Phase 3). "clear-notch" fills the widest notch-
 # free span (may sit left of frame-center at lower-third, maximizing width);

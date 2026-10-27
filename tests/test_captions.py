@@ -93,6 +93,9 @@ class StyleLayeringTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             CaptionStyle(position="sideways")
 
+    def test_under_center_position_accepted(self):
+        self.assertEqual(CaptionStyle(position="under-center").position, "under-center")
+
     def test_h_offset_default_and_validation(self):
         self.assertEqual(CaptionStyle().h_offset, "clear-notch")
         self.assertEqual(
@@ -434,6 +437,18 @@ class PlacementTests(unittest.TestCase):
             self.assertTrue(self.spec.rect_clear(box.x, box.y, box.x1, box.y1), pos)
             ys.append(box.y)
         self.assertTrue(ys[0] < ys[1] < ys[2])  # upper above center above lower
+
+    def test_under_center_sits_in_the_presenter_panel_above_the_notch(self):
+        # Split layouts: the band just under the vertical center, below the graphic
+        # panel (y >= 960) and above the notch (y < 1117), so it spans the full width.
+        box = caption_box(self.spec, position="under-center")
+        self.assertTrue(
+            self.spec.rect_clear(box.x, box.y, box.x1, box.y1),
+            f"box {box.to_dict()} intrudes on the danger region",
+        )
+        self.assertGreaterEqual(box.y, 960)
+        self.assertLessEqual(box.y1, 1117)
+        self.assertGreater(box.width, caption_box(self.spec, position="lower-third").width)
 
     def test_lower_third_narrower_than_upper_due_to_notch(self):
         upper = caption_box(self.spec, position="upper-third")

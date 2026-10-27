@@ -12,7 +12,7 @@ export type CaptionStyle = {
   stroke_width: number;
   emphasis_color: string;
   uppercase: boolean;
-  position: "upper-third" | "center" | "lower-third";
+  position: "upper-third" | "center" | "under-center" | "lower-third";
   // horizontal placement (v2; consumed Python-side to derive safeBox, not by the
   // renderer — present for parity/debuggability)
   h_offset?: "clear-notch" | "center";

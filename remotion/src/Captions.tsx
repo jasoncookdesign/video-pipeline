@@ -46,7 +46,7 @@ const CueBlock: React.FC<{
   const justify =
     style.position === "upper-third"
       ? "flex-start"
-      : style.position === "center"
+      : style.position === "center" || style.position === "under-center"
       ? "center"
       : "flex-end";
 

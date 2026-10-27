@@ -1383,7 +1383,7 @@ def build_parser() -> argparse.ArgumentParser:
                     help="subject occupancy JSON from reframe --occupancy-out; "
                          "captions dodge the subject (INI-090 Phase 2)")
     cr.add_argument("--position", default=None,
-                    choices=["upper-third", "center", "lower-third"],
+                    choices=["upper-third", "center", "under-center", "lower-third"],
                     help="caption anchor; overrides the style + any framing-intent hint")
     cr.add_argument("--props", default=None,
                     help="props JSON path to write (default: alongside output)")
