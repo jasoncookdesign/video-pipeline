@@ -204,6 +204,21 @@ video-pipeline handoff --project . --reframed work/reframed.mp4 --visuals work/v
     --transcript work/transcript.json
 ```
 
+## Kinetic-text overlay
+
+A `kinetic.json` (contract: `schema/kinetic.schema.json`) describes one transparent
+1080×1920 layer: a static title at the top of the safe zone for the whole clip, and
+text beats beneath it that animate in and out at reading pace. Render it once and lay
+it over any footage. Full detail: [`docs/kinetic.md`](docs/kinetic.md).
+
+```bash
+# Validate the spec: schema, timing, caption rules; prints the resolved timeline
+video-pipeline kinetic-check episode.kinetic.json
+
+# Render layers/kinetic/<reel_id>-kinetic.mov (ProRes 4444 alpha) + a still per text beat
+video-pipeline kinetic-render episode.kinetic.json --project . --stills
+```
+
 ## Control-tower schema (GUI)
 
 The pipeline is the single source of truth for an optional desktop control-tower
@@ -302,6 +317,7 @@ python -m unittest discover -s tests   # stdlib-only fallback (no pytest needed)
 ```
 schema/project.schema.json        project.yml contract (rough_cut + captions + qc blocks)
 schema/visuals.schema.json        visuals.json contract (per-Reel visual track, #62)
+schema/kinetic.schema.json        kinetic.json contract (kinetic-text overlay layer)
 config/safezone/                  template PNG + generated spec
 config/glossary/                  layered caption vocabulary (global + per-identity)
 config/caption-styles/            layered caption style/chunk config (global + per-identity)
@@ -315,6 +331,7 @@ src/video_pipeline/
   captions/                       chunk (timing) -> caption file -> placement/export -> Remotion (style)
   overlay/                        timed/placed overlay layer + overlay.def + occupancy; window proposer; card producer (capture -> content -> Remotion card)
   visuals/                        visuals.json -> regions -> Remotion template clips -> V2 placement/timing
+  kinetic/                        kinetic.json -> reading-pace timing + caption rules -> Remotion KineticText layer
   qc/                             validate frame layout vs safe polygon -> report + danger preview + clean
   fcpxml/                         base cut + cue cut-time remap -> FCP7 XML (Premiere) / FCPXML (Resolve, FCP)
   manifest.py  project.py         project.yml load/validate + scaffolding
@@ -325,6 +342,7 @@ docs/phase1.md … phase5.md        what each phase delivers + acceptance steps
 docs/reframe.md                   multi-target + interactive reframe (INI-090/091)
 docs/ini-089-overlay.md           overlay subsystem; docs/gui-schema.md  GUI schema contract
 docs/visuals.md                   comedy-forward visual track (#62)
+docs/kinetic.md                   kinetic-text overlay layer
 ```
 
 Projects are **data**, not code: each lives in its own folder (with `source/` as

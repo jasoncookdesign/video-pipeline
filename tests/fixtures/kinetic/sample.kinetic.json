@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "reel_id": "SAMPLE-01",
+  "title": "Where is the stage?",
+  "caption": "A street musician on why the best corner is the one with no spotlight.",
+  "topic_terms": [
+    "street",
+    "musician",
+    "corner",
+    "spotlight"
+  ],
+  "canvas": {
+    "w": 1080,
+    "h": 1920,
+    "fps": 30
+  },
+  "beats": [
+    {
+      "id": "B01",
+      "kind": "text",
+      "text": "I used to play on the same corner every Friday.",
+      "role": "statement",
+      "motion": "resolve"
+    },
+    {
+      "id": "B02",
+      "kind": "text",
+      "text": "People walked past without a glance.",
+      "role": "aside",
+      "motion": "diminish",
+      "slot": "bottom",
+      "align": "right"
+    },
+    {
+      "id": "B03",
+      "kind": "space",
+      "duration_s": 2
+    },
+    {
+      "id": "B04",
+      "kind": "text",
+      "text": "The crowd formed around each other.",
+      "role": "statement",
+      "motion": "gather",
+      "accents": [
+        {
+          "text": "each other",
+          "weight": 900,
+          "italic": true,
+          "color": "accent"
+        }
+      ]
+    },
+    {
+      "id": "B05",
+      "kind": "text",
+      "text": "Where would your attention go?",
+      "role": "question",
+      "motion": "resolve",
+      "duration_s": 4,
+      "accents": [
+        {
+          "text": "your",
+          "weight": 900,
+          "color": "accent",
+          "treatment": "bloom"
+        }
+      ]
+    }
+  ]
+}

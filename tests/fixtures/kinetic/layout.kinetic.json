@@ -1,0 +1,261 @@
+{
+  "schema_version": 1,
+  "reel_id": "LAYOUT-01",
+  "title": "Layout probe",
+  "canvas": {
+    "w": 1080,
+    "h": 1920,
+    "fps": 30
+  },
+  "beats": [
+    {
+      "id": "T1",
+      "kind": "text",
+      "text": "Top slot text appears here now",
+      "role": "statement",
+      "motion": "slide",
+      "slot": "top",
+      "align": "center"
+    },
+    {
+      "id": "S1",
+      "kind": "space",
+      "duration_s": 0.5
+    },
+    {
+      "id": "M1",
+      "kind": "text",
+      "text": "Middle slot text appears here now",
+      "role": "statement",
+      "motion": "rise",
+      "slot": "middle",
+      "align": "center"
+    },
+    {
+      "id": "S2",
+      "kind": "space",
+      "duration_s": 0.5
+    },
+    {
+      "id": "U1",
+      "kind": "text",
+      "text": "Bottom slot text appears here now",
+      "role": "statement",
+      "motion": "mask",
+      "slot": "bottom",
+      "align": "center"
+    },
+    {
+      "id": "S3",
+      "kind": "space",
+      "duration_s": 0.5
+    },
+    {
+      "id": "L1",
+      "kind": "text",
+      "text": "Left aligned words sit here now",
+      "role": "statement",
+      "motion": "rise",
+      "slot": "middle",
+      "align": "left"
+    },
+    {
+      "id": "S4",
+      "kind": "space",
+      "duration_s": 0.5
+    },
+    {
+      "id": "R1",
+      "kind": "text",
+      "text": "Right aligned words sit here now",
+      "role": "statement",
+      "motion": "rise",
+      "slot": "middle",
+      "align": "right"
+    },
+    {
+      "id": "S5",
+      "kind": "space",
+      "duration_s": 0.5
+    },
+    {
+      "id": "A1",
+      "kind": "text",
+      "text": "Accent word shows up in colour",
+      "role": "statement",
+      "motion": "rise",
+      "slot": "middle",
+      "align": "center",
+      "accents": [
+        {
+          "text": "Accent",
+          "weight": 900,
+          "color": "accent"
+        }
+      ]
+    },
+    {
+      "id": "S6",
+      "kind": "space",
+      "duration_s": 0.5
+    },
+    {
+      "id": "N1",
+      "kind": "text",
+      "text": "Plain words only shown here today",
+      "role": "statement",
+      "motion": "rise",
+      "slot": "middle",
+      "align": "center",
+      "voice": "even"
+    },
+    {
+      "id": "S7",
+      "kind": "space",
+      "duration_s": 0.5
+    },
+    {
+      "id": "G1",
+      "kind": "text",
+      "text": "Words gather from both sides of the frame",
+      "role": "statement",
+      "motion": "gather",
+      "slot": "middle",
+      "align": "center"
+    },
+    {
+      "id": "S8",
+      "kind": "space",
+      "duration_s": 0.5
+    },
+    {
+      "id": "E1",
+      "kind": "text",
+      "text": "Middle slot text appears here now",
+      "role": "statement",
+      "motion": "rise",
+      "slot": "middle",
+      "align": "center",
+      "voice": "even"
+    },
+    {
+      "id": "S9",
+      "kind": "space",
+      "duration_s": 0.5
+    },
+    {
+      "id": "W0",
+      "kind": "text",
+      "text": "Mask reveal then lean forward slowly",
+      "role": "statement",
+      "motion": "mask",
+      "slot": "middle",
+      "align": "center"
+    },
+    {
+      "id": "S9a",
+      "kind": "space",
+      "duration_s": 0.5
+    },
+    {
+      "id": "W1",
+      "kind": "text",
+      "text": "Mask reveal then lean forward slowly",
+      "role": "statement",
+      "motion": "mask",
+      "slot": "middle",
+      "align": "center",
+      "accents": [
+        {
+          "text": "lean",
+          "treatment": "whip"
+        },
+        {
+          "text": "forward",
+          "treatment": "swell"
+        }
+      ]
+    },
+    {
+      "id": "S10",
+      "kind": "space",
+      "duration_s": 0.5
+    },
+    {
+      "id": "R0",
+      "kind": "text",
+      "text": "Mask reveal then lean forward slowly",
+      "role": "statement",
+      "motion": "rise",
+      "slot": "middle",
+      "align": "center"
+    },
+    {
+      "id": "S11a",
+      "kind": "space",
+      "duration_s": 0.5
+    },
+    {
+      "id": "R2",
+      "kind": "text",
+      "text": "Mask reveal then lean forward slowly",
+      "role": "statement",
+      "motion": "rise",
+      "slot": "middle",
+      "align": "center",
+      "accents": [
+        {
+          "text": "lean",
+          "treatment": "whip"
+        },
+        {
+          "text": "forward",
+          "treatment": "swell"
+        }
+      ]
+    },
+    {
+      "id": "S11",
+      "kind": "space",
+      "duration_s": 0.5
+    },
+    {
+      "id": "D1",
+      "kind": "text",
+      "text": "Drift",
+      "role": "statement",
+      "motion": "rise",
+      "slot": "middle",
+      "align": "center"
+    },
+    {
+      "id": "S12",
+      "kind": "space",
+      "duration_s": 0.5
+    },
+    {
+      "id": "DM",
+      "kind": "text",
+      "text": "Diminish softens this line slowly over time",
+      "role": "statement",
+      "motion": "diminish",
+      "slot": "middle",
+      "align": "center",
+      "duration_s": 5
+    },
+    {
+      "id": "S13",
+      "kind": "space",
+      "duration_s": 0.5
+    },
+    {
+      "id": "F1",
+      "kind": "text",
+      "text": "Where would your attention go tonight?",
+      "role": "question",
+      "motion": "resolve",
+      "slot": "middle",
+      "align": "center"
+    }
+  ]
+}

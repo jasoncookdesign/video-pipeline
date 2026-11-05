@@ -23,6 +23,7 @@ When you add or remove a document, or add a subsystem, update this index too.
 | [docs/reframe.md](docs/reframe.md) | The reframe subsystem: target format (aspect presets, resolution tiers, Auto), framing intents, the propose/render split + editable `reframe.def`, scale/pan/subject-y, composition lock, and the project-level `target`. |
 | [docs/ini-089-overlay.md](docs/ini-089-overlay.md) | The overlay subsystem: timed/placed overlay primitive, the editable `overlay.def`, the `overlay.occupancy` descriptor, the transcript→window proposer, and the source-card producer. |
 | [docs/visuals.md](docs/visuals.md) | The comedy-forward visual track (#62): the `visuals.json` contract (`schema/visuals.schema.json`), top-bottom region math, the DH-framed template library, `visuals-render`, and V2 placement/timing at handoff. |
+| [docs/kinetic.md](docs/kinetic.md) | The kinetic-text overlay: the `kinetic.json` contract (`schema/kinetic.schema.json`), reading-pace timing, the static-title layout inside the safe rectangle, the motion vocabulary, caption rules, and `kinetic-check` / `kinetic-render`. |
 | [docs/gui-schema.md](docs/gui-schema.md) | The pipeline side of the control-tower GUI contract: the `schema` subcommand (emit/`--check`), the `schema/` module layout, and how to add a step/flag/export target. (GUI repo: `video-pipeline-gui`.) |
 
 ## Configuration and renderer (layered config + Node)

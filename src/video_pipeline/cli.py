@@ -44,6 +44,12 @@ Subcommands:
       <reel_id>-<beat_id>.mov (ProRes 4444) + still previews. handoff --visuals
       places those clips on V2, timed per beat (planned durations, or aligned
       with --transcript).
+  kinetic-check <kinetic.json>
+      Validate a kinetic-text overlay spec (schema, timing, caption rules) and
+      print its timeline.
+  kinetic-render <kinetic.json> --project DIR [--stills] [--dry-run]
+      Render a kinetic.json to one canvas-sized ProRes 4444 alpha layer,
+      <reel_id>-kinetic.mov, plus optional still previews.
   fcpxml <decision.yml> -o <out.fcpxml> --reframed <clip.mp4> [--captions cap.yml]
       Back-compat alias of `handoff --format fcpxml` (always emits FCPXML).
 """
@@ -79,6 +85,7 @@ _PROJECT_LAYOUT = {
     "base": "work/base.mp4",
     "visuals": "work/visuals.json",
     "visuals_dir": "layers/visuals",
+    "kinetic_dir": "layers/kinetic",
 }
 
 
@@ -1047,6 +1054,74 @@ def _cmd_visuals_render(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_kinetic_check(args: argparse.Namespace) -> int:
+    """Validate a kinetic.json and print its resolved timeline."""
+    from .kinetic.spec import KineticSpecError, load_kinetic
+
+    try:
+        spec = load_kinetic(args.kinetic)
+    except KineticSpecError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    texts = spec.text_beats()
+    print(f"{spec.reel_id}  {spec.total_s:.1f}s  {len(spec.beats)} beats ({len(texts)} text)  "
+          f"title: {spec.title!r}")
+    for b in spec.beats:
+        if b.kind == "text":
+            print(f"  {b.id:<6} {b.start_s:5.1f}s {b.duration_s:4.1f}s  text   "
+                  f"{b.role:<9} {b.motion:<9} {b.text!r}")
+        else:
+            print(f"  {b.id:<6} {b.start_s:5.1f}s {b.duration_s:4.1f}s  space")
+    if spec.caption:
+        print(f"caption: ok ({len(spec.topic_terms)} topic terms) {spec.caption!r}")
+    else:
+        print("caption: none")
+    return 0
+
+
+def _cmd_kinetic_render(args: argparse.Namespace) -> int:
+    """Render a kinetic.json to one canvas-sized alpha layer."""
+    from .kinetic.render import render_kinetic
+    from .kinetic.spec import KineticSpecError, load_kinetic
+    from .visuals.style import load_visual_style
+
+    try:
+        spec = load_kinetic(args.kinetic)
+    except KineticSpecError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+
+    root = Path(args.project) if args.project else None
+    out_dir = args.out_dir or (str(root / _PROJECT_LAYOUT["kinetic_dir"]) if root else None)
+    if out_dir is None:
+        print("error: give --project <root> or --out-dir <dir>", file=sys.stderr)
+        return 2
+    frames_dir = args.frames_dir or (
+        str(root / "review" / "kinetic") if root else str(Path(out_dir) / "frames"))
+
+    identity = args.identity or spec.identity
+    if identity is None and root is not None and (root / "project.yml").exists():
+        from .manifest import load_manifest
+        identity = load_manifest(root).identity
+    try:
+        style = load_visual_style(args.config_root, identity)
+        result = render_kinetic(
+            spec, out_dir, style, stills=args.stills, frames_dir=frames_dir,
+            dry_run=args.dry_run, preview_bg=args.preview_bg,
+        )
+    except (ValueError, RuntimeError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    verb = "would render" if args.dry_run else "rendered"
+    print(f"{verb} {spec.reel_id} ({spec.total_s:.1f}s, style: {identity or 'global'})")
+    print(f"  {result['width']}x{result['height']}  -> {result['output']}")
+    if args.dry_run:
+        print("    " + " ".join(result["argv"]))
+    for png in result["frames"]:
+        print(f"    still {png}")
+    return 0
+
+
 def _cmd_proxy(args: argparse.Namespace) -> int:
     from .proxy import render_proxy
 
@@ -1553,6 +1628,38 @@ def build_parser() -> argparse.ArgumentParser:
     vr.add_argument("--dry-run", action="store_true",
                     help="print the Remotion/FFmpeg plan without rendering or writing")
     vr.set_defaults(func=_cmd_visuals_render)
+
+    # kinetic-check / kinetic-render — the kinetic-text overlay: one static title
+    # and a sequence of reading-pace text beats on a single canvas-sized layer.
+    kc = sub.add_parser(
+        "kinetic-check",
+        help="validate a kinetic.json (schema, timing, caption rules) and print its timeline",
+    )
+    kc.add_argument("kinetic", help="kinetic.json (validated against schema/kinetic.schema.json)")
+    kc.set_defaults(func=_cmd_kinetic_check)
+
+    kr = sub.add_parser(
+        "kinetic-render",
+        help="render a kinetic.json to <reel_id>-kinetic.mov (ProRes 4444 alpha, 1080x1920) "
+             "+ optional still previews",
+    )
+    kr.add_argument("kinetic", help="kinetic.json (validated against schema/kinetic.schema.json)")
+    kr.add_argument("--project", default=None,
+                    help="project root; the layer goes to <project>/layers/kinetic/, stills to "
+                         "<project>/review/kinetic/")
+    kr.add_argument("--out-dir", default=None, help="layer directory (overrides --project)")
+    kr.add_argument("--stills", action="store_true",
+                    help="grab one still per text beat, over a neutral plate")
+    kr.add_argument("--frames-dir", default=None, help="still directory (overrides --project)")
+    kr.add_argument("--preview-bg", default=None, metavar="COLOR",
+                    help="plate color the stills are composited over (default: neutral gray)")
+    kr.add_argument("--identity", default=None,
+                    help="style identity (default: the spec's, then project.yml's, then global)")
+    kr.add_argument("--config-root", default=str(_DEFAULT_CONFIG_ROOT),
+                    help="config dir holding visual-styles/ (default: repo config/)")
+    kr.add_argument("--dry-run", action="store_true",
+                    help="print the Remotion plan without rendering or writing")
+    kr.set_defaults(func=_cmd_kinetic_render)
 
     # handoff — the editor project. Default format is Premiere-compatible FCP7
     # XML (Premiere does not import FCPXML); --format fcpxml targets Resolve / FCP.
