@@ -252,10 +252,32 @@ class SpecTests(unittest.TestCase):
         d["beats"][0]["text"] = "   "
         self.assertIn("beats/0/text", message_for(d))
 
-    def test_beat_text_over_90_chars_rejected(self):
+    def test_beat_text_over_150_chars_rejected_and_150_accepted(self):
         d = sample_dict()
-        d["beats"][0]["text"] = "word " * 19  # 95 chars
+        d["beats"][0]["text"] = "word " * 30 + "x"  # 151 chars
         self.assertIn("beats/0/text", message_for(d))
+        d["beats"][0]["text"] = "word " * 30  # 150 chars
+        validate_kinetic_dict(d)
+
+    def test_a_130_character_stanza_fits_the_body_container(self):
+        d = sample_dict()
+        stanza = ("The bass came up under the floor and the whole room leaned into it, "
+                  "strangers shoulder to shoulder, nobody checking a phone.")
+        self.assertGreaterEqual(len(stanza), 120)
+        d["beats"][0].update(text=stanza, role="statement", accents=[])
+        validate_kinetic_dict(d)
+        props = kinetic_to_remotion_props(parse_kinetic(d), load_visual_style(CONFIG, None))
+        c, body = props["bodyContainer"], props["bodyBox"]
+        self.assertGreaterEqual(c["y"], body["y"] + layout.PAD)
+
+    def test_a_block_too_tall_for_the_body_container_is_rejected(self):
+        d = sample_dict()
+        d["beats"][0].update(text="\n".join(["Word"] * 11), role="question", accents=[])  # 11 authored lines
+        msg = message_for(d)
+        self.assertIn("beats/0/text", msg)
+        self.assertIn("body", msg)
+        d["beats"][0]["text"] = "\n".join(["Word"] * 8)
+        validate_kinetic_dict(d)
 
     def test_a_word_longer_than_18_characters_is_rejected_in_beat_text(self):
         d = sample_dict()
@@ -369,13 +391,22 @@ class SpecTests(unittest.TestCase):
         d["beats"][0]["duration_s"] = 3.25
         validate_kinetic_dict(d)
 
-    def test_total_over_60_seconds_rejected_and_exactly_60_accepted(self):
+    def test_total_over_120_seconds_rejected_and_exactly_120_accepted(self):
+        d = sample_dict()
+        d.pop("caption"); d.pop("topic_terms")
+        d["beats"] = [{"id": f"S{i}", "kind": "space", "duration_s": 6} for i in range(21)]
+        self.assertIn("120", message_for(d))
+        d["beats"] = [{"id": f"S{i}", "kind": "space", "duration_s": 6} for i in range(20)]
+        validate_kinetic_dict(d)
+
+    def test_total_between_60_and_120_seconds_is_accepted_with_a_length_warning(self):
         d = sample_dict()
         d.pop("caption"); d.pop("topic_terms")
         d["beats"] = [{"id": f"S{i}", "kind": "space", "duration_s": 6} for i in range(11)]
-        self.assertIn("60", message_for(d))
+        spec = parse_kinetic(d)
+        self.assertEqual(spec.length_warnings(), ["total length 66.0s is over the 60 s guideline (hard limit 120 s)"])
         d["beats"] = [{"id": f"S{i}", "kind": "space", "duration_s": 6} for i in range(10)]
-        validate_kinetic_dict(d)
+        self.assertEqual(parse_kinetic(d).length_warnings(), [])
 
     def test_space_beat_cannot_carry_text(self):
         d = sample_dict()
@@ -1151,6 +1182,29 @@ class CliTests(unittest.TestCase):
         for b in spec.beats:
             self.assertIn(b.id, out)
         self.assertIn("caption: ok", out.lower())
+
+    def test_check_over_60_seconds_succeeds_and_warns_and_over_120_exits_2(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            long_ = Path(tmp) / "long.kinetic.json"
+            d = sample_dict()
+            d.pop("caption"); d.pop("topic_terms")
+            d["beats"] = [{"id": f"S{i}", "kind": "space", "duration_s": 6} for i in range(11)]
+            long_.write_text(json.dumps(d), encoding="utf-8")
+            code, out, err = self._run("kinetic-check", str(long_))
+            self.assertEqual(code, 0)
+            self.assertIn("warning", (out + err).lower())
+            self.assertIn("60 s", out + err)
+            code, _, err = self._run("kinetic-render", str(long_), "--project", tmp, "--dry-run")
+            self.assertIn("60 s", err)
+            d["beats"] = [{"id": f"S{i}", "kind": "space", "duration_s": 6} for i in range(21)]
+            long_.write_text(json.dumps(d), encoding="utf-8")
+            code, _, err = self._run("kinetic-check", str(long_))
+            self.assertEqual(code, 2)
+            self.assertIn("120", err)
+
+    def test_check_within_60_seconds_prints_no_warning(self):
+        code, out, err = self._run("kinetic-check", str(SAMPLE))
+        self.assertNotIn("warning", (out + err).lower())
 
     def test_check_invalid_spec_exits_2_with_the_path(self):
         with tempfile.TemporaryDirectory() as tmp:

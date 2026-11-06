@@ -19,9 +19,9 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 
 from .caption import check_caption
-from .layout import FAMILY_FOR_ROLE, ROLE_PX, fit_title, fits_line, line_width, text_width_em
+from .layout import BODY_MAX_BLOCK_H, FAMILY_FOR_ROLE, ROLE_PX, fit_title, fits_line, line_width, text_width_em
 from .text import authored_lines, phrase_span, words
-from .timing import EXIT_DEFAULT_S, SCATTER_DEFAULT_S, MAX_TOTAL_S, beat_duration_s
+from .timing import EXIT_DEFAULT_S, SCATTER_DEFAULT_S, MAX_TOTAL_S, SOFT_TOTAL_S, beat_duration_s
 
 SCHEMA_PATH = Path(__file__).resolve().parents[3] / "schema" / "kinetic.schema.json"
 
@@ -89,6 +89,13 @@ class KineticSpec:
     @property
     def total_s(self) -> float:
         return sum(b.duration_s for b in self.beats)
+
+    def length_warnings(self) -> List[str]:
+        """Non-fatal notes about the spec: a layer over the 60 s guideline."""
+        if self.total_s > SOFT_TOTAL_S + 1e-9:
+            return [f"total length {self.total_s:.1f}s is over the {SOFT_TOTAL_S:.0f} s guideline "
+                    f"(hard limit {MAX_TOTAL_S:.0f} s)"]
+        return []
 
     def text_beats(self) -> List[KineticBeat]:
         return [b for b in self.beats if b.kind == "text"]
@@ -211,6 +218,20 @@ def _check_text_beat(i: int, b: dict) -> None:
                 f"(this line needs at least {MIN_OVERRIDE_FRACTION * computed:.2f} s)")
 
 
+def _check_block_heights(beats: List["KineticBeat"]) -> None:
+    """Every text block must fit the body container, which is as tall as the tallest block."""
+    from .voice import plan_motion  # voice imports this module
+
+    for i, b in enumerate(beats):
+        if b.kind != "text":
+            continue
+        height = plan_motion(b, max(1, round(b.duration_s * 30)), 30, False).block_height
+        if height > BODY_MAX_BLOCK_H:
+            raise KineticSpecError(
+                f"beats/{i}/text: the laid-out block is {height} px tall and the body container "
+                f"holds {BODY_MAX_BLOCK_H} px; shorten the text")
+
+
 def validate_kinetic_dict(data: dict) -> None:
     """Raise :class:`KineticSpecError` (naming the JSON path) unless ``data``
     satisfies the schema and the rules the schema cannot express."""
@@ -246,6 +267,8 @@ def validate_kinetic_dict(data: dict) -> None:
     if total > MAX_TOTAL_S + 1e-9:
         raise KineticSpecError(
             f"beats: total length {total:.1f}s exceeds the {MAX_TOTAL_S:.0f} s maximum")
+
+    _check_block_heights(beats)
 
     if "caption" in data:
         problems = check_caption(

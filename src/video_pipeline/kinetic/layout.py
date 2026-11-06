@@ -16,6 +16,9 @@ ROLE_PX = {"statement": 60, "aside": 50, "question": 68}
 # Content is inset this far from the safe rect's sides (room for the text glow),
 # and a text block is this share of that inner width (room for drift to either side).
 PAD = 28
+# The tallest text block that fits the body container: from PAD below the title block's
+# gap to PAD above the bottom of the safe rect.
+BODY_MAX_BLOCK_H = FULL_SAFE[3] - PAD - (TITLE_BLOCK_H + TITLE_GAP + PAD)
 LINE_SHARE = {"statement": 0.9, "aside": 0.78, "question": 0.9}
 # Title block internals: text, then a gap, then an accent bar, each inset by PAD.
 BAR_GAP = 28

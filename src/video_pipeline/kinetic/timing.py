@@ -14,7 +14,9 @@ LEAD_S = 0.5
 EXIT_DEFAULT_S = 0.4
 SCATTER_DEFAULT_S = 2.0
 # Longest allowed overlay layer.
-MAX_TOTAL_S = 60.0
+# Total layer length: over SOFT_TOTAL_S is allowed with a warning, over MAX_TOTAL_S is an error.
+SOFT_TOTAL_S = 60.0
+MAX_TOTAL_S = 120.0
 
 
 def word_count(text: str) -> int:

@@ -1063,6 +1063,8 @@ def _cmd_kinetic_check(args: argparse.Namespace) -> int:
     except KineticSpecError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
+    for note in spec.length_warnings():
+        print(f"warning: {note}", file=sys.stderr)
     texts = spec.text_beats()
     print(f"{spec.reel_id}  {spec.total_s:.1f}s  {len(spec.beats)} beats ({len(texts)} text)  "
           f"title: {spec.title!r}")
@@ -1090,6 +1092,8 @@ def _cmd_kinetic_render(args: argparse.Namespace) -> int:
     except KineticSpecError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
+    for note in spec.length_warnings():
+        print(f"warning: {note}", file=sys.stderr)
 
     root = Path(args.project) if args.project else None
     out_dir = args.out_dir or (str(root / _PROJECT_LAYOUT["kinetic_dir"]) if root else None)

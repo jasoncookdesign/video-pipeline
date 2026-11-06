@@ -30,7 +30,7 @@ express, and errors name the JSON path (`beats/3/accents/0/text`).
 | `caption`, `topic_terms` | Optional, together. See *Caption rules* |
 | `beats` | 1–40 beats, in order |
 
-A **text beat** has `id`, `kind: "text"`, `text` (≤ 90 characters, no word over 18 characters or wider than a line), `role`,
+A **text beat** has `id`, `kind: "text"`, `text` (≤ 150 characters, no word over 18 characters or wider than a line), `role`,
 `motion`, and optionally `slot`, `align`, `voice`, `accents`, `exit`, `duration_s`:
 
 | Field | Values |
@@ -72,7 +72,11 @@ of the layer and never exits.
 A **space beat** (`id`, `kind: "space"`, `duration_s` 0.5–6) shows no text: the footage is
 left alone.
 
-Beat ids must be unique ignoring case. The total length is at most 60 seconds.
+Beat ids must be unique ignoring case. The total length should stay within 60 seconds: a longer layer (up to the 120 second
+limit) is accepted, and `kinetic-check` and `kinetic-render` print a warning that the reel
+is over 60 s. Beyond 120 seconds is an error. A text beat's laid-out block must also fit
+the body container (764 px tall, about 10 lines of statement type); a longer block is an error
+naming the beat.
 
 ## Timing
 
