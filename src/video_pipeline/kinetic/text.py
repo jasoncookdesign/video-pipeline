@@ -55,3 +55,16 @@ def phrase_indices(tokens: List[str]) -> List[int]:
             phrase += 1
     # a trailing boundary does not create an empty phrase
     return out
+
+
+def is_function_word(token: str) -> bool:
+    """Whether ``token`` is a function word, or a contraction of one (``I'd``, ``it's``)."""
+    norm = norm_token(token)
+    return norm in STOPWORDS or norm.replace("’", "'").split("'")[0] in STOPWORDS
+
+
+def authored_lines(text: str) -> Optional[List[List[str]]]:
+    """The author's lines (each a list of words) when ``text`` contains line breaks
+    (newlines), else ``None``. Blank lines are ignored."""
+    lines = [ln.split() for ln in text.split("\n") if ln.strip()]
+    return lines if len(lines) > 1 else None

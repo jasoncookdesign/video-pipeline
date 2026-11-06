@@ -19,8 +19,8 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 
 from .caption import check_caption
-from .layout import fit_title, fits_line
-from .text import phrase_span, words
+from .layout import FAMILY_FOR_ROLE, ROLE_PX, fit_title, fits_line, line_width, text_width_em
+from .text import authored_lines, phrase_span, words
 from .timing import MAX_TOTAL_S, beat_duration_s
 
 SCHEMA_PATH = Path(__file__).resolve().parents[3] / "schema" / "kinetic.schema.json"
@@ -126,6 +126,34 @@ def _resolve_beats(data: dict) -> List[KineticBeat]:
     return beats
 
 
+def _check_authored_lines(i: int, b: dict, spans: list) -> None:
+    """Lines the author broke with newlines must each fit the measure, and no accent may cross a break."""
+    lines = authored_lines(b["text"])
+    if lines is None:
+        return
+    scale_of = {}
+    for j, span in spans:
+        for k in range(*span):
+            scale_of[k] = b["accents"][j].get("scale", 1.0)
+    family, px, measure = FAMILY_FOR_ROLE[b["role"]], ROLE_PX[b["role"]], line_width(b["role"])
+    space = text_width_em(" ", family) * px
+    first = 0
+    for n, line in enumerate(lines, 1):
+        last = first + len(line) - 1
+        for j, (a, e) in spans:
+            if a <= last < e - 1:
+                raise KineticSpecError(
+                    f"beats/{i}/accents/{j}: the accent's words cross the line break after line {n}; "
+                    "an accent's words stay on one line")
+        width = sum(text_width_em(t, family) * px * scale_of.get(first + k, 1.0) for k, t in enumerate(line))
+        width += space * (len(line) - 1)
+        if width > measure:
+            raise KineticSpecError(
+                f"beats/{i}/text: line {n} ({' '.join(line)!r}) is {width:.0f} px wide and the measure is "
+                f"{measure:.0f} px; break it into shorter lines")
+        first = last + 1
+
+
 def _check_text_beat(i: int, b: dict) -> None:
     text = b["text"]
     for word in words(text):
@@ -156,6 +184,8 @@ def _check_text_beat(i: int, b: dict) -> None:
         if accent.get("treatment") == "whip" and accent.get("italic") is True:
             raise KineticSpecError(
                 f"{where}: treatment 'whip' produces the italic itself; it cannot be combined with italic: true")
+
+    _check_authored_lines(i, b, spans)
 
     if "duration_s" in b:
         computed = beat_duration_s(text)

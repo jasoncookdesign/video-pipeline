@@ -10,11 +10,11 @@ entrance, exit, and treatment frames (:mod:`video_pipeline.kinetic.voice`).
 from __future__ import annotations
 
 from ..visuals.style import MIN_TYPE_PX, VisualStyle
-from .layout import FULL_SAFE, ROLE_PX, TITLE_BLOCK_H, TITLE_GAP, fit_title  # noqa: F401  (re-exported)
+from .layout import FULL_SAFE, PAD, ROLE_PX, TITLE_BLOCK_H, TITLE_GAP, fit_title  # noqa: F401  (re-exported)
 from .spec import KineticSpec
 from .voice import plan_motion
 
-KINETIC_PROPS_SCHEMA_VERSION = 2
+KINETIC_PROPS_SCHEMA_VERSION = 3
 COMPOSITION = "KineticText"
 CLIP_EXT = ".mov"
 
@@ -49,17 +49,23 @@ def kinetic_to_remotion_props(spec: KineticSpec, style: VisualStyle) -> dict:
                 text=b.text, role=b.role, motion=b.motion, slot=b.slot, align=b.align,
                 sizePx=ROLE_PX[b.role], revealFrames=plan.reveal_frames,
                 exitFrames=plan.exit_frames, driftPx=plan.drift_px,
+                lineHeights=plan.line_heights, blockHeight=plan.block_height,
                 words=[
                     {"text": w.text, "family": w.family, "weight": w.weight, "italic": w.italic,
                      "scale": w.scale, "color": w.color, "treatment": w.treatment, "keep": w.keep,
                      "inFrom": t.in_from, "inFrames": t.in_frames,
                      "outFrom": t.out_from, "outFrames": t.out_frames,
-                     "treatFrom": t.treat_from, "treatFrames": t.treat_frames}
-                    for w, t in zip(plan.words, plan.timings)
+                     "treatFrom": t.treat_from, "treatFrames": t.treat_frames, "line": ln,
+                     "pushes": [list(p) for p in t.pushes]}
+                    for w, t, ln in zip(plan.words, plan.timings, plan.lines)
                 ],
             )
         beats.append(entry)
     body_y = y + TITLE_BLOCK_H + TITLE_GAP
+    # The body container is as tall as the tallest block and sits at the bottom of the
+    # safe zone; every block starts at the container's top (its slot says otherwise).
+    tallest = max((e["blockHeight"] for e in beats if e["kind"] == "text"), default=0)
+    container = _box(x + PAD, y + h - PAD - tallest, w - 2 * PAD, tallest)
     title_px = fit_title(spec.title, min(style.title_px + 48, 160), MIN_TYPE_PX["title_px"])
     return {
         "schemaVersion": KINETIC_PROPS_SCHEMA_VERSION,
@@ -71,6 +77,7 @@ def kinetic_to_remotion_props(spec: KineticSpec, style: VisualStyle) -> dict:
         "safeBox": _box(x, y, w, h),
         "titleBox": _box(x, y, w, TITLE_BLOCK_H),
         "bodyBox": _box(x, body_y, w, y + h - body_y),
+        "bodyContainer": container,
         "style": style.to_dict(),
         "minType": dict(MIN_TYPE_PX),
         "title": spec.title,

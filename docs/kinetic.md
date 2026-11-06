@@ -37,7 +37,7 @@ A **text beat** has `id`, `kind: "text"`, `text` (≤ 90 characters, no word ove
 |---|---|
 | `role` | `statement` (display type, 60 px), `aside` (body type, 50 px), `question` (display type, 68 px) |
 | `motion` | How each clause's words arrive: `resolve` (blur to sharp), `rise`, `slide` (in from the right), `mask` (up from a clipped baseline), `gather` (in from alternating sides), `diminish` (rise, then the whole line shrinks, loosens, and softens while held) |
-| `slot` | Vertical position in the body area: `top` (default), `middle`, `bottom`. The default puts the first line of every block at the same height; the others are deliberate choices |
+| `slot` | Vertical position inside the body container (below): `top` (default), `middle`, `bottom`. The default puts the first line of every block at the same height; the others are deliberate choices |
 | `align` | `left` (default), `center`, `right`. Left is the rule; the others are deliberate choices |
 | `voice` | `contrast` (default): function words light, content words heavy. `even`: one weight throughout |
 | `accents` | Up to 4 per-word treatments, below |
@@ -54,7 +54,7 @@ not overlap. The words of one accent never break across lines.
 | `italic` | `true` for the true italic face |
 | `scale` | 0.8–1.4 times the line's size. The accent's words, which never break across lines, must fit one line at that scale. Fit is measured from the bundled fonts' real glyph widths (the widest weight and style), so wide capitals count for more than narrow letters: for example 12 capital W fit a statement line, and `extraordinarily` fits a question line up to scale 1.3 |
 | `color` | `accent`, `warm`, `dim` (the style layer's colors) |
-| `treatment` | A follow-up move once the word has arrived: `whip` (the word leans into an italic; not combined with `italic: true`), `bloom` (color shifts to the accent), `swell` (grows 10%), or `none` |
+| `treatment` | A follow-up move once the word has arrived: `whip` (the word leans into an italic, and the words after it on its line slide over by 0.15 of its size, in step with the lean, so it never touches them; not combined with `italic: true`), `bloom` (color shifts to the accent), `swell` (grows 10%), or `none` |
 
 A **space beat** (`id`, `kind: "space"`, `duration_s` 0.5–6) shows no text: the footage is
 left alone.
@@ -99,6 +99,31 @@ Everything is drawn inside the shared full-frame safe rectangle `x 35, y 250, 88
 px gap follows; the remaining 820 px are the body area for text beats. The composition
 clips to the safe rectangle and insets content by the text glow's reach, so nothing is
 drawn outside it, or in the gap under the title, at any frame.
+
+The body copy sits in a **body container** at the bottom of the safe zone (inset by the
+glow's reach). The container is as tall as the tallest block in the layer, so the whole
+body is bottom-anchored while every block starts at the container's top, and the first
+lines of all blocks share one height.
+
+### Line breaks
+
+Lines are chosen, like the lines of a stanza; the composition draws the lines it is given.
+
+**Authored.** A newline in a beat's `text` is a line break the author chose. When a beat
+has any, every line is shown exactly as written (a one-word line is allowed), each line
+must fit the measure, and no accent's words may cross a break. Errors name the line.
+
+**Automatic.** A beat with no newline is broken in Python
+(`video_pipeline.kinetic.linebreak`) for the whole block at once, from the bundled fonts'
+measured widths. The rules, in order of weight:
+
+- No one-word lines (no orphans or widows) in a block of more than one line.
+- Balance: every line, the last included, is as close to the full measure as the other rules allow.
+- Break between clauses where possible; a break inside a clause costs a little, and
+  ending a line on a function word (`the`, `I'd`) costs a little more.
+- The fewest lines the rules above allow. An accent's words never split across lines.
+
+A line is as tall as the role's type size × 1.2, or as its largest accent if taller.
 
 ## Caption rules
 

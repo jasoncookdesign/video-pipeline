@@ -89,7 +89,8 @@ const WordSpan: React.FC<{ w: WordPlan; i: number; motion: TextBeat["motion"]; s
   const pT = w.treatFrames > 0 ? prog(frame, w.treatFrom, w.treatFrames) : 0;
   const dir = i % 2 === 0 ? -1 : 1;
 
-  let tx = 0;
+  // an earlier whip leaned over its neighbours: this word slides over to make room
+  let tx = w.pushes.reduce((sum, [from, dur, px]) => sum + px * prog(frame, from, dur), 0);
   let ty = 0;
   let blur = 0;
   let scale = 1;
@@ -97,7 +98,7 @@ const WordSpan: React.FC<{ w: WordPlan; i: number; motion: TextBeat["motion"]; s
   let inner: React.CSSProperties | null = null;
   switch (motion) {
     case "slide":
-      tx = (1 - pIn) * 40;
+      tx += (1 - pIn) * 40;
       break;
     case "rise":
       ty = (1 - pIn) * 28;
@@ -111,7 +112,7 @@ const WordSpan: React.FC<{ w: WordPlan; i: number; motion: TextBeat["motion"]; s
       break;
     case "gather": {
       const reach = w.color !== "text" ? 200 : 90;
-      tx = dir * (1 - pIn) * reach;
+      tx += dir * (1 - pIn) * reach;
       blur = (1 - pIn) * 8;
       break;
     }
@@ -160,22 +161,19 @@ const WordSpan: React.FC<{ w: WordPlan; i: number; motion: TextBeat["motion"]; s
 
 const BodyBeat: React.FC<{ p: KineticProps; beat: TextBeat }> = ({ p, beat }) => {
   const frame = useCurrentFrame();
-  const b = rel(p.bodyBox, p.safeBox);
-  const inner = b.width - 2 * PAD;
-  const width = inner * LINE_SHARE[beat.role];
+  const c = rel(p.bodyContainer, p.safeBox);
+  const width = c.width * LINE_SHARE[beat.role];
   const s = p.style;
   const display = beat.words.length ? beat.words[0].family : "display";
-  const groups: number[][] = [];
-  beat.words.forEach((_, i) => {
-    if (i > 0 && beat.words[i - 1].keep) groups[groups.length - 1].push(i);
-    else groups.push([i]);
-  });
+  // the lines were broken in Python; the composition draws them as given
+  const lines: number[][] = beat.lineHeights.map(() => []);
+  beat.words.forEach((w, i) => lines[w.line].push(i));
 
   const pDrift = prog(frame, 0, beat.revealFrames, DRIFT_EASE);
   const exitStart = beat.durationInFrames - beat.exitFrames;
   const pLeave = beat.exitFrames > 0 ? prog(frame, exitStart, beat.exitFrames - 1, LEAVE) : 0;
   const away = -Math.sign(beat.driftPx || 1) * Math.abs(beat.driftPx) * 0.6; // keeps moving the way it came
-  let tx = (1 - pDrift) * beat.driftPx + pLeave * away;
+  const tx = (1 - pDrift) * beat.driftPx + pLeave * away;
 
   let scale = 1;
   let spacing = 0;
@@ -191,10 +189,10 @@ const BodyBeat: React.FC<{ p: KineticProps; beat: TextBeat }> = ({ p, beat }) =>
     <div
       style={{
         position: "absolute",
-        left: b.x + PAD,
-        top: b.y + PAD,
-        width: inner,
-        height: b.height - 2 * PAD,
+        left: c.x,
+        top: c.y,
+        width: c.width,
+        height: c.height,
         display: "flex",
         flexDirection: "column",
         justifyContent: JUSTIFY[beat.slot],
@@ -204,9 +202,9 @@ const BodyBeat: React.FC<{ p: KineticProps; beat: TextBeat }> = ({ p, beat }) =>
       <div
         style={{
           width,
+          height: beat.blockHeight,
           fontFamily: fam(s, display),
           fontSize: beat.sizePx,
-          lineHeight: 1.2,
           textAlign: beat.align,
           letterSpacing: `${spacing}em`,
           opacity: soften,
@@ -214,19 +212,15 @@ const BodyBeat: React.FC<{ p: KineticProps; beat: TextBeat }> = ({ p, beat }) =>
           transformOrigin: beat.align === "right" ? "100% 50%" : beat.align === "left" ? "0 50%" : "50% 50%",
         }}
       >
-        {groups.map((idxs, g) => (
-          <React.Fragment key={g}>
-            {/* words of one accent phrase never break across lines */}
-            <span style={{ display: "inline-block", whiteSpace: "nowrap" }}>
-              {idxs.map((i, k) => (
-                <React.Fragment key={i}>
-                  <WordSpan w={beat.words[i]} i={i} motion={beat.motion} s={s} />
-                  {k < idxs.length - 1 ? "\u00A0" : null}
-                </React.Fragment>
-              ))}
-            </span>
-            {g < groups.length - 1 ? " " : null}
-          </React.Fragment>
+        {lines.map((idxs, ln) => (
+          <div key={ln} style={{ height: beat.lineHeights[ln], whiteSpace: "nowrap", lineHeight: 1 }}>
+            {idxs.map((i, k) => (
+              <React.Fragment key={i}>
+                <WordSpan w={beat.words[i]} i={i} motion={beat.motion} s={s} />
+                {k < idxs.length - 1 ? " " : null}
+              </React.Fragment>
+            ))}
+          </div>
         ))}
       </div>
     </div>

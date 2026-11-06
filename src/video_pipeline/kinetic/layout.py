@@ -21,6 +21,8 @@ LINE_SHARE = {"statement": 0.9, "aside": 0.78, "question": 0.9}
 BAR_GAP = 28
 BAR_H = 8
 TITLE_LINE_HEIGHT = 1.0
+# Line pitch as a multiple of the type size; a line with a bigger accent is as tall as that accent.
+LINE_HEIGHT = 1.2
 FAMILY_FOR_ROLE = {"statement": "display", "aside": "body", "question": "display"}
 
 # Advance widths (em) of printable ASCII, common punctuation, and Latin accents,

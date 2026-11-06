@@ -21,7 +21,7 @@ from unittest import mock
 from tests._util import REPO_ROOT
 
 from video_pipeline.kinetic import caption as caption_mod
-from video_pipeline.kinetic import layout, timing, voice
+from video_pipeline.kinetic import layout, linebreak, timing, voice
 from video_pipeline.kinetic.caption import check_caption
 from video_pipeline.kinetic.props import (
     COMPOSITION,
@@ -180,6 +180,25 @@ class SpecTests(unittest.TestCase):
         beats = load_kinetic(SAMPLE).beats
         self.assertEqual((beats[0].slot, beats[0].align), ("top", "left"))
         self.assertEqual((beats[1].slot, beats[1].align), ("bottom", "right"))  # deliberate overrides survive
+
+    def test_a_newline_in_the_text_is_an_authored_line_break(self):
+        d = sample_dict()
+        d["beats"][0]["text"] = "On Fridays,\nI played\nthe same corner."
+        spec = parse_kinetic(d)
+        self.assertEqual(spec.beats[0].text, "On Fridays,\nI played\nthe same corner.")
+        self.assertAlmostEqual(spec.beats[0].duration_s, timing.beat_duration_s("On Fridays, I played the same corner."))
+
+    def test_an_authored_line_too_wide_for_the_measure_is_rejected_with_its_path(self):
+        d = sample_dict()
+        d["beats"][0]["text"] = "On Fridays I played the same corner for years\nand years"
+        self.assertIn("beats/0/text", message_for(d))
+        self.assertIn("line 1", message_for(d))
+
+    def test_an_accent_cannot_cross_an_authored_line_break(self):
+        d = sample_dict()
+        d["beats"][0]["text"] = "On Fridays I played\nthe same corner."
+        d["beats"][0]["accents"] = [{"text": "played the", "weight": 900}]
+        self.assertIn("beats/0/accents/0", message_for(d))
 
     def test_every_documented_motion_is_accepted_and_others_name_their_path(self):
         for motion in ("resolve", "rise", "slide", "mask", "gather", "diminish"):
@@ -539,6 +558,68 @@ class VoiceTests(unittest.TestCase):
         self.assertEqual([w.phrase for w in voice.style_words(b)], [0, 0, 0, 1, 1, 1])
 
 
+class LineBreakTests(unittest.TestCase):
+    """The pure breaker: units of known width, clause numbers, a measure."""
+
+    @staticmethod
+    def units(widths, clauses=None, weak=()):
+        clauses = clauses or [0] * len(widths)
+        return [linebreak.Unit(width=w, words=1, clause=c, weak_end=i in weak)
+                for i, (w, c) in enumerate(zip(widths, clauses))]
+
+    @staticmethod
+    def groups(lines):
+        out = {}
+        for i, ln in enumerate(lines):
+            out.setdefault(ln, []).append(i)
+        return [out[k] for k in sorted(out)]
+
+    def test_a_block_that_fits_is_one_line(self):
+        self.assertEqual(linebreak.break_units(self.units([30, 30, 30]), 0, 100), [0, 0, 0])
+
+    def test_no_word_is_left_alone_on_a_line_when_it_can_be_avoided(self):
+        # greedy fill gives 3 + 3 + 3 + 1; a widow
+        lines = linebreak.break_units(self.units([30] * 10), 0, 100)
+        sizes = [len(g) for g in self.groups(lines)]
+        self.assertGreaterEqual(min(sizes), 2, sizes)
+        self.assertLessEqual(max(sizes) - min(sizes), 1, "and the lines are balanced")
+
+    def test_a_short_last_line_is_pulled_up_to_balance_the_block(self):
+        # greedy: 90, 90, 20. Balanced: three lines of roughly 65.
+        widths = [30, 30, 30, 30, 30, 30, 20]
+        lines = linebreak.break_units(self.units(widths), 0, 100)
+        totals = [sum(widths[i] for i in g) for g in self.groups(lines)]
+        self.assertLessEqual(max(totals) - min(totals), 30, totals)
+
+    def test_breaks_fall_between_clauses_when_that_costs_little(self):
+        lines = linebreak.break_units(self.units([20] * 8, [0, 0, 0, 1, 1, 1, 1, 1]), 0, 100)
+        self.assertEqual(self.groups(lines), [[0, 1, 2], [3, 4, 5, 6, 7]])
+
+    def test_a_line_does_not_end_on_a_function_word_inside_a_clause(self):
+        # seven words, one clause, three lines either way; a break after word 2 (a function word) is the one to avoid
+        widths = [30] * 7
+        for weak in ({2}, {1}, {2, 4}):
+            lines = linebreak.break_units(self.units(widths, weak=weak), 0, 100)
+            ends = {g[-1] for g in self.groups(lines)[:-1]}
+            self.assertFalse(ends & weak, (weak, self.groups(lines)))
+
+    def test_the_words_of_one_unit_stay_together_and_count_as_words(self):
+        units = [linebreak.Unit(80, 2, 0, False), linebreak.Unit(30, 1, 0, False), linebreak.Unit(30, 1, 0, False)]
+        lines = linebreak.break_units(units, 5, 100)
+        self.assertEqual(lines[0], 0)
+        self.assertNotEqual(lines[0], lines[1])  # 80 + 5 + 30 does not fit
+
+    def test_a_unit_wider_than_the_measure_gets_its_own_line(self):
+        self.assertEqual(linebreak.break_units(self.units([30, 150, 30]), 0, 100), [0, 1, 2])
+
+    def test_empty_input(self):
+        self.assertEqual(linebreak.break_units([], 5, 100), [])
+
+    def test_deterministic(self):
+        u = self.units([30, 20, 40, 30, 50, 10, 20], [0, 0, 1, 1, 1, 2, 2])
+        self.assertEqual(linebreak.break_units(u, 3, 100), linebreak.break_units(u, 3, 100))
+
+
 class MotionPlanTests(unittest.TestCase):
     TEXTS = {
         "one": "Hello",
@@ -642,6 +723,93 @@ class MotionPlanTests(unittest.TestCase):
     def test_plan_is_deterministic(self):
         self.assertEqual(self.plan("two_phrases", 30)[2], self.plan("two_phrases", 30)[2])
 
+    # -- a whip leans over its neighbour: the rest of the line makes room --
+    def test_the_words_after_a_whip_on_its_line_slide_over_in_step_with_the_lean(self):
+        acc = [{"text": "ask", "weight": 800, "treatment": "whip"}]
+        b = text_beat("I'd ask people if they knew where it was. Many didn't.", accents=acc)
+        m = voice.plan_motion(b, round(b.duration_s * 30), 30, False)
+        i = [w.text for w in m.words].index("ask")
+        whip = m.timings[i]
+        for j, (w, t, ln) in enumerate(zip(m.words, m.timings, m.lines)):
+            if j > i and ln == m.lines[i]:
+                self.assertEqual(len(t.pushes), 1, w.text)
+                frm, frames, px = t.pushes[0]
+                self.assertEqual((frm, frames), (whip.treat_from, whip.treat_frames))
+                self.assertGreater(px, 0)
+            else:
+                self.assertEqual(t.pushes, (), w.text)
+
+    def test_two_whips_on_a_line_push_the_words_after_the_second_twice(self):
+        acc = [{"text": "one", "treatment": "whip"}, {"text": "three", "treatment": "whip"}]
+        b = text_beat("one two three four", accents=acc)
+        m = voice.plan_motion(b, round(b.duration_s * 30), 30, False)
+        self.assertEqual([len(t.pushes) for t in m.timings], [0, 1, 1, 2])
+
+    # -- line breaks --
+    def test_authored_line_breaks_are_kept_exactly_even_where_the_breaker_would_choose_otherwise(self):
+        authored = "At raves in the\n90s, I'd always look\nfor the DJ booth."
+        self.assertEqual(self.lines_of(authored), ["At raves in the", "90s, I'd always look", "for the DJ booth."])
+        self.assertNotEqual(self.lines_of(authored.replace("\n", " ")), self.lines_of(authored))
+
+    def test_an_authored_one_word_line_is_allowed_because_the_author_chose_it(self):
+        self.assertEqual(self.lines_of("Many didn't.\nWhy?"), ["Many didn't.", "Why?"])
+
+    def lines_of(self, text, **kw):
+        m = voice.plan_motion(text_beat(text, **kw), 150, 30, False)
+        out = {}
+        for w, ln in zip(m.words, m.lines):
+            out.setdefault(ln, []).append(w.text)
+        return [" ".join(out[k]) for k in sorted(out)]
+
+    def test_a_clause_is_not_split_when_it_fits_a_line_and_a_line_does_not_end_on_id(self):
+        lines = self.lines_of("At raves in the 90s, I'd always look for the DJ booth.")
+        self.assertEqual(lines[0], "At raves in the 90s,")
+        self.assertFalse(any(l.endswith("I'd") for l in lines), lines)
+
+    def test_no_line_is_a_single_word_unless_the_block_is_one_line(self):
+        texts = [
+            "I'd ask people if they knew where it was. Many didn't.",
+            "When I found it, it was a corner, a loft, a spot off to the side.",
+            "It was placed so the DJ could see the floor. The floor didn't need to see back.",
+            "There was no stage show. The spectacle was each other.",
+            "If nobody knew where the DJ was tonight, where would your attention go?",
+        ]
+        for t in texts:
+            lines = self.lines_of(t)
+            if len(lines) > 1:
+                self.assertTrue(all(len(l.split()) > 1 for l in lines), lines)
+
+    def test_lines_are_balanced(self):
+        for t in ("It was placed so the DJ could see the floor. The floor didn't need to see back.",
+                  "If nobody knew where the DJ was tonight, where would your attention go?"):
+            m = voice.plan_motion(text_beat(t), 150, 30, False)
+            widths = {}
+            for w, ln in zip(m.words, m.lines):
+                widths[ln] = widths.get(ln, 0) + layout.text_width_em(w.text + " ", "display") * w.scale
+            self.assertLess(max(widths.values()) - min(widths.values()), 0.45 * max(widths.values()), widths)
+
+    def test_every_line_fits_the_measure_and_accent_groups_stay_on_one_line(self):
+        acc = [{"text": "DJ booth", "weight": 900}]
+        m = voice.plan_motion(text_beat("At raves in the 90s, I'd always look for the DJ booth.", accents=acc),
+                              150, 30, False)
+        by_word = {w.text: ln for w, ln in zip(m.words, m.lines)}
+        self.assertEqual(by_word["DJ"], by_word["booth."])
+        self.assertEqual(m.lines, sorted(m.lines))
+        measure = layout.line_width("statement")
+        for ln in set(m.lines):
+            em = sum(layout.text_width_em(w.text + " ", "display") * w.scale
+                     for w, k in zip(m.words, m.lines) if k == ln)
+            self.assertLessEqual(em * layout.ROLE_PX["statement"] - 0.214 * 60, measure)
+
+    def test_block_height_is_the_sum_of_line_heights_and_grows_for_big_accents(self):
+        plain = voice.plan_motion(text_beat("One two three four five six seven eight nine ten"), 150, 30, False)
+        self.assertEqual(len(plain.line_heights), max(plain.lines) + 1)
+        self.assertEqual(plain.block_height, sum(plain.line_heights))
+        self.assertEqual(plain.line_heights[0], round(1.2 * layout.ROLE_PX["statement"]))
+        big = voice.plan_motion(text_beat("One two three four five six seven eight nine ten",
+                                          accents=[{"text": "two", "scale": 1.4}]), 150, 30, False)
+        self.assertGreater(big.block_height, plain.block_height)
+
     def test_the_fastest_legal_override_still_plans_cleanly(self):
         # 15 words, computed 6.5 s; half is the floor.
         for fps in FPS_SET:
@@ -663,7 +831,7 @@ class PropsTests(unittest.TestCase):
 
     def test_header(self):
         p = self.props
-        self.assertEqual((p["schemaVersion"], p["kind"], p["reelId"], p["fps"]), (2, "kinetic", "SAMPLE-01", 30))
+        self.assertEqual((p["schemaVersion"], p["kind"], p["reelId"], p["fps"]), (3, "kinetic", "SAMPLE-01", 30))
         self.assertEqual(p["dimensions"], {"width": 1080, "height": 1920})
         self.assertEqual(COMPOSITION, "KineticText")
 
@@ -692,13 +860,41 @@ class PropsTests(unittest.TestCase):
             self.assertEqual(entry["revealFrames"], plan.reveal_frames)
             self.assertEqual(entry["exitFrames"], plan.exit_frames)
             self.assertEqual(entry["driftPx"], plan.drift_px)
-            for got, w, t in zip(entry["words"], plan.words, plan.timings):
+            for got, w, t, ln in zip(entry["words"], plan.words, plan.timings, plan.lines):
                 self.assertEqual(
                     got,
                     {"text": w.text, "family": w.family, "weight": w.weight, "italic": w.italic,
                      "scale": w.scale, "color": w.color, "treatment": w.treatment, "keep": w.keep,
                      "inFrom": t.in_from, "inFrames": t.in_frames, "outFrom": t.out_from,
-                     "outFrames": t.out_frames, "treatFrom": t.treat_from, "treatFrames": t.treat_frames})
+                     "outFrames": t.out_frames, "treatFrom": t.treat_from, "treatFrames": t.treat_frames, "line": ln,
+                     "pushes": [list(p) for p in t.pushes]})
+            self.assertEqual(entry["lineHeights"], plan.line_heights)
+            self.assertEqual(entry["blockHeight"], plan.block_height)
+
+    def test_words_carry_their_line_and_beats_their_block_height(self):
+        by_id = {b["id"]: b for b in self.props["beats"]}
+        b1 = by_id["B01"]
+        self.assertTrue(all("line" in w for w in b1["words"]))
+        self.assertEqual(b1["blockHeight"], sum(b1["lineHeights"]))
+        self.assertEqual(len(b1["lineHeights"]), max(w["line"] for w in b1["words"]) + 1)
+
+    def test_the_body_container_sits_at_the_bottom_of_the_safe_zone_and_fits_the_tallest_block(self):
+        c = self.props["bodyContainer"]
+        tallest = max(b["blockHeight"] for b in self.props["beats"] if b["kind"] == "text")
+        self.assertEqual(c["height"], tallest)
+        safe = self.props["safeBox"]
+        self.assertEqual(c["y"] + c["height"], safe["y"] + safe["height"] - layout.PAD)
+        self.assertEqual((c["x"], c["width"]), (safe["x"] + layout.PAD, safe["width"] - 2 * layout.PAD))
+        body = self.props["bodyBox"]
+        self.assertGreaterEqual(c["y"], body["y"] + layout.PAD)
+
+    def test_the_tallest_legal_block_still_fits_the_body_area(self):
+        d = sample_dict()
+        d["beats"][0].update(text=" ".join(["WWWWWWWWWW"] * 8), role="question", accents=[])  # 8 one-word lines
+        props = kinetic_to_remotion_props(parse_kinetic(d), self.style)
+        c, body = props["bodyContainer"], props["bodyBox"]
+        self.assertEqual(c["height"], props["beats"][0]["blockHeight"])
+        self.assertGreaterEqual(c["y"], body["y"] + layout.PAD)
 
     def test_beat_frames_are_contiguous_and_cover_the_clip(self):
         beats = self.props["beats"]
@@ -1122,8 +1318,8 @@ class RemotionAcceptanceTests(unittest.TestCase):
             bb = self._bbox(self._body("layout", self._settled("layout", bid)))
             self.assertIsNotNone(bb, bid)
             ys[bid] = (bb[1] + bb[3]) / 2
-        self.assertLess(ys["T1"] + 120, ys["M1"])
-        self.assertLess(ys["M1"] + 120, ys["U1"])
+        self.assertLess(ys["T1"] + 30, ys["M1"])
+        self.assertLess(ys["M1"] + 30, ys["U1"])
 
     def test_default_blocks_share_one_first_line_position_and_left_edge(self):
         tops, lefts = [], []
@@ -1134,7 +1330,28 @@ class RemotionAcceptanceTests(unittest.TestCase):
             lefts.append(bb[0])
         self.assertLessEqual(abs(tops[0] - tops[1]), 6, "first lines start at the same height")
         self.assertLessEqual(abs(lefts[0] - lefts[1]), 40, "left-aligned blocks share a left edge")
-        self.assertLessEqual(tops[0], self.BODY_TOP + 40, "the shared position is the top of the body area")
+
+    def test_the_body_container_sits_at_the_bottom_of_the_safe_zone(self):
+        # P2 is the tallest block, so its last line ends at the container's bottom edge
+        bb = self._bbox(self._body("defaults", self._settled("defaults", "P2")))
+        bottom = FULL_SAFE[1] + FULL_SAFE[3] - layout.PAD
+        ink_bottom = bb[3] + self.BODY_TOP  # the probe is cropped at the top of the body area
+        self.assertLessEqual(ink_bottom, bottom)
+        self.assertGreaterEqual(ink_bottom, bottom - 50)
+
+    def test_the_rest_of_a_line_slides_over_when_a_word_whips(self):
+        spec, _, props = self.renders["defaults"]
+        _, pb = self._beat("defaults", "P4")
+        push = next(w for w in pb["words"] if w["text"] == "now")["pushes"][0]
+        rights = []
+        for bid in ("P3", "P4"):
+            b, pbeat = self._beat("defaults", bid)
+            t = b.start_s + (push[0] + push[1] + 6) / spec.fps
+            bb = self._bbox(self._body("defaults", t))
+            self.assertIsNotNone(bb, bid)
+            rights.append(bb[2])
+        self.assertGreaterEqual(rights[1] - rights[0], push[2] - 3)
+        self.assertLessEqual(rights[1] - rights[0], push[2] + 4)
 
     def test_align_moves_the_text_horizontally(self):
         edges = {bid: self._bbox(self._body("layout", self._settled("layout", bid))) for bid in ("L1", "M1", "R1")}

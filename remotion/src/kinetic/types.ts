@@ -1,4 +1,4 @@
-// Mirrors video_pipeline.kinetic.props.kinetic_to_remotion_props (schemaVersion 2)
+// Mirrors video_pipeline.kinetic.props.kinetic_to_remotion_props (schemaVersion 3)
 // and schema/kinetic.schema.json. The Python boundary validates everything and
 // resolves every word's style and timing before a render, so components trust
 // these shapes and do no text analysis or timing arithmetic.
@@ -26,6 +26,8 @@ export type WordPlan = {
   outFrames: number; // 0 = holds to the end of the layer
   treatFrom: number;
   treatFrames: number; // 0 = no treatment
+  line: number; // 0-based line the word sits on (decided in Python)
+  pushes: [number, number, number][]; // [from frame, frames, px]: slides over as an earlier whip leans
 };
 
 export type TextBeat = {
@@ -43,6 +45,8 @@ export type TextBeat = {
   revealFrames: number;
   exitFrames: number;
   driftPx: number;
+  lineHeights: number[]; // px, one per line
+  blockHeight: number; // px
   words: WordPlan[];
 };
 
@@ -59,6 +63,7 @@ export type KineticProps = {
   safeBox: Box;
   titleBox: Box;
   bodyBox: Box;
+  bodyContainer: Box; // as tall as the tallest block, at the bottom of the safe zone
   style: VisualStyle;
   minType: { label_px: number; body_px: number; heading_px: number; title_px: number };
   title: string;

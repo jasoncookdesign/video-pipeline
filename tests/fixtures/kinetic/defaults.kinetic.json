@@ -2,10 +2,60 @@
   "schema_version": 1,
   "reel_id": "DEFAULTS-01",
   "title": "Default placement",
-  "canvas": { "w": 1080, "h": 1920, "fps": 30 },
+  "canvas": {
+    "w": 1080,
+    "h": 1920,
+    "fps": 30
+  },
   "beats": [
-    { "id": "P1", "kind": "text", "text": "A short block.", "role": "statement", "motion": "rise" },
-    { "id": "S1", "kind": "space", "duration_s": 0.5 },
-    { "id": "P2", "kind": "text", "text": "A longer block wraps onto several lines, so its height differs from the first.", "role": "statement", "motion": "rise" }
+    {
+      "id": "P1",
+      "kind": "text",
+      "text": "A short block.",
+      "role": "statement",
+      "motion": "rise"
+    },
+    {
+      "id": "S1",
+      "kind": "space",
+      "duration_s": 0.5
+    },
+    {
+      "id": "P2",
+      "kind": "text",
+      "text": "A longer block wraps onto several lines, so its height differs from the first.",
+      "role": "statement",
+      "motion": "rise"
+    },
+    {
+      "id": "SP2",
+      "kind": "space",
+      "duration_s": 0.5
+    },
+    {
+      "id": "P3",
+      "kind": "text",
+      "text": "Look at this one now",
+      "role": "statement",
+      "motion": "rise"
+    },
+    {
+      "id": "SP3",
+      "kind": "space",
+      "duration_s": 0.5
+    },
+    {
+      "id": "P4",
+      "kind": "text",
+      "text": "Look at this one now",
+      "role": "statement",
+      "motion": "rise",
+      "accents": [
+        {
+          "text": "Look",
+          "treatment": "whip"
+        }
+      ]
+    }
   ]
 }

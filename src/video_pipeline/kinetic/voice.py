@@ -14,11 +14,13 @@ clause punctuation; the ``phrase`` field numbers them.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import List
+from dataclasses import dataclass, replace
+from typing import List, Tuple
 
+from .layout import FAMILY_FOR_ROLE, LINE_HEIGHT, ROLE_PX, line_width, text_width_em
+from .linebreak import Unit, break_units
 from .spec import KineticBeat
-from .text import STOPWORDS, norm_token, phrase_indices, phrase_span, words
+from .text import STOPWORDS, authored_lines, is_function_word, norm_token, phrase_indices, phrase_span, words
 
 # Clause entrance length (s), the share of the beat spent revealing, the shortest
 # fully visible hold, and the exit length.
@@ -33,6 +35,9 @@ MIN_ANIM_FRAMES = 4
 MIN_EXIT_WORD_FRAMES = 3
 # Sideways drift of the whole line while it reveals (px); right-aligned text drifts the other way.
 DRIFT_PX = 40
+# A whip leans its word over the next one; the words after it on the line slide over
+# by this share of the leaning word's size so the lean never touches them.
+WHIP_PUSH_EM = 0.15
 TREATMENT_S = {"whip": 0.27, "bloom": 0.47, "swell": 0.4}
 
 # role -> (family, content weight, function weight, even weight)
@@ -64,6 +69,7 @@ class WordTiming:
     out_frames: int      # 0 when the word holds to the end of the layer
     treat_from: int
     treat_frames: int    # 0 when the word has no treatment
+    pushes: Tuple[Tuple[int, int, int], ...] = ()   # (from frame, frames, px): slides over as an earlier whip leans
 
 
 @dataclass(frozen=True)
@@ -73,6 +79,9 @@ class BeatMotion:
     reveal_frames: int   # when the last word has finished arriving
     exit_frames: int
     drift_px: int
+    lines: List[int]          # line number of each word
+    line_heights: List[int]   # px, one per line
+    block_height: int         # px, the sum of the line heights
 
 
 def style_words(beat: KineticBeat) -> List[Word]:
@@ -107,6 +116,44 @@ def style_words(beat: KineticBeat) -> List[Word]:
             w = out[i]
             out[i] = Word(text=w.text, phrase=w.phrase, family=w.family, weight=w.weight, italic=w.italic,
                           scale=w.scale, color=w.color, treatment=w.treatment, keep=True)
+    return out
+
+
+def break_into_lines(beat: KineticBeat, ws: List[Word]) -> List[int]:
+    """Line number of each word. Lines the author broke with newlines are kept exactly;
+    otherwise the breaker chooses: clauses kept whole where they fit, no one-word lines,
+    lines of similar length (:mod:`video_pipeline.kinetic.linebreak`). The words of
+    one accent stay on one line."""
+    authored = authored_lines(beat.text)
+    if authored is not None:    # the author broke the lines: keep them exactly
+        return [n for n, line in enumerate(authored) for _ in line]
+    px = ROLE_PX[beat.role]
+    space = text_width_em(" ", FAMILY_FOR_ROLE[beat.role]) * px
+    units: List[Unit] = []
+    members: List[int] = []     # first word of each unit
+    for i, w in enumerate(ws):
+        width = text_width_em(w.text, w.family) * px * w.scale
+        if i > 0 and ws[i - 1].keep:
+            u = units[-1]
+            units[-1] = Unit(u.width + space + width, u.words + 1, w.phrase, is_function_word(w.text))
+        else:
+            units.append(Unit(width, 1, w.phrase, is_function_word(w.text)))
+            members.append(i)
+    unit_lines = break_units(units, space, line_width(beat.role))
+    lines: List[int] = []
+    for i in range(len(ws)):
+        k = max(j for j, first in enumerate(members) if first <= i)
+        lines.append(unit_lines[k])
+    return lines
+
+
+def line_heights(beat: KineticBeat, ws: List[Word], lines: List[int]) -> List[int]:
+    """Height of each line in px: the role's pitch, or the biggest accent on the line if taller."""
+    px = ROLE_PX[beat.role]
+    out = []
+    for ln in range(max(lines) + 1 if lines else 0):
+        scale = max(w.scale for w, k in zip(ws, lines) if k == ln)
+        out.append(round(px * max(LINE_HEIGHT, scale)))
     return out
 
 
@@ -157,5 +204,17 @@ def plan_motion(beat: KineticBeat, frames: int, fps: int, hold_to_end: bool) -> 
         timings.append(WordTiming(in_from=in_from, in_frames=anim, out_from=out_from, out_frames=out_frames,
                                   treat_from=treat_from, treat_frames=treat_frames))
 
+    lines = break_into_lines(beat, ws)
+    px = ROLE_PX[beat.role]
+    for i, w in enumerate(ws):
+        if w.treatment != "whip":
+            continue
+        push = (timings[i].treat_from, timings[i].treat_frames, round(WHIP_PUSH_EM * px * w.scale))
+        for j in range(i + 1, n):
+            if lines[j] == lines[i]:
+                timings[j] = replace(timings[j], pushes=timings[j].pushes + (push,))
+
     drift = -DRIFT_PX if beat.align == "right" else DRIFT_PX
-    return BeatMotion(words=ws, timings=timings, reveal_frames=reveal, exit_frames=exit_f, drift_px=drift)
+    heights = line_heights(beat, ws, lines)
+    return BeatMotion(words=ws, timings=timings, reveal_frames=reveal, exit_frames=exit_f, drift_px=drift,
+                      lines=lines, line_heights=heights, block_height=sum(heights))

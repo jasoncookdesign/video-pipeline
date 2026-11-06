@@ -133,7 +133,8 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 90,
-              "pattern": "\\S"
+              "pattern": "\\S",
+              "description": "The words on screen. A newline is a line break the author chose: when present, every line is shown exactly as written (and must fit the measure); when absent, the line breaker chooses."
             },
             "role": {
               "enum": [

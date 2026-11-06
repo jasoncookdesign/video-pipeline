@@ -112,11 +112,11 @@ const demoWords = (text: string, outFrom: number, outFrames: number): WordPlan[]
   text.split(" ").map((t, i) => ({
     text: t, family: "display", weight: i % 2 ? 400 : 700, italic: false, scale: 1, color: "text",
     treatment: "none", keep: false, inFrom: i * 6, inFrames: 15, outFrom, outFrames,
-    treatFrom: i * 6 + 15, treatFrames: 0,
+    treatFrom: i * 6 + 15, treatFrames: 0, line: 0, pushes: [],
   }));
 
 const defaultKineticProps: KineticProps = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   kind: "kinetic",
   reelId: "PREVIEW",
   fps: 30,
@@ -125,6 +125,7 @@ const defaultKineticProps: KineticProps = {
   safeBox: { x: 35, y: 250, width: 880, height: 1220 },
   titleBox: { x: 35, y: 250, width: 880, height: 360 },
   bodyBox: { x: 35, y: 650, width: 880, height: 820 },
+  bodyContainer: { x: 63, y: 1360, width: 824, height: 82 },
   style: {
     ground: "#191919", surface: "#202020", surface_2: "#262626", line: "#343434", line_2: "#454545",
     text: "#EDEDED", text_2: "#9C9CA0", accent: "#9C97F4", accent_ink: "#141318", warm: "#E8B27C",
@@ -138,11 +139,11 @@ const defaultKineticProps: KineticProps = {
   beats: [
     { id: "B01", kind: "text", from: 0, durationInFrames: 150, holdToEnd: false,
       text: "I used to play on the corner.", role: "statement", motion: "slide", slot: "middle",
-      align: "center", sizePx: 60, revealFrames: 80, exitFrames: 12, driftPx: 40,
+      align: "center", sizePx: 60, revealFrames: 80, exitFrames: 12, driftPx: 40, lineHeights: [72], blockHeight: 72,
       words: demoWords("I used to play on the corner.", 138, 12) },
     { id: "B02", kind: "text", from: 150, durationInFrames: 120, holdToEnd: true,
       text: "Where would your attention go?", role: "question", motion: "resolve", slot: "middle",
-      align: "center", sizePx: 68, revealFrames: 60, exitFrames: 0, driftPx: 40,
+      align: "center", sizePx: 68, revealFrames: 60, exitFrames: 0, driftPx: 40, lineHeights: [82], blockHeight: 82,
       words: demoWords("Where would your attention go?", 120, 0) },
   ],
 };
