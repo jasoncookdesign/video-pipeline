@@ -138,11 +138,11 @@ const defaultKineticProps: KineticProps = {
   titlePx: 120,
   beats: [
     { id: "B01", kind: "text", from: 0, durationInFrames: 150, holdToEnd: false,
-      text: "I used to play on the corner.", role: "statement", motion: "slide", slot: "middle",
+      text: "I used to play on the corner.", role: "statement", motion: "slide", exitMotion: "fade", slot: "middle",
       align: "center", sizePx: 60, revealFrames: 80, exitFrames: 12, driftPx: 40, lineHeights: [72], blockHeight: 72,
       words: demoWords("I used to play on the corner.", 138, 12) },
     { id: "B02", kind: "text", from: 150, durationInFrames: 120, holdToEnd: true,
-      text: "Where would your attention go?", role: "question", motion: "resolve", slot: "middle",
+      text: "Where would your attention go?", role: "question", motion: "resolve", exitMotion: "fade", slot: "middle",
       align: "center", sizePx: 68, revealFrames: 60, exitFrames: 0, driftPx: 40, lineHeights: [82], blockHeight: 82,
       words: demoWords("Where would your attention go?", 120, 0) },
   ],

@@ -46,7 +46,7 @@ def kinetic_to_remotion_props(spec: KineticSpec, style: VisualStyle) -> dict:
         if b.kind == "text":
             plan = plan_motion(b, end - start, fps, entry["holdToEnd"])
             entry.update(
-                text=b.text, role=b.role, motion=b.motion, slot=b.slot, align=b.align,
+                text=b.text, role=b.role, motion=b.motion, exitMotion=b.exit.motion, slot=b.slot, align=b.align,
                 sizePx=ROLE_PX[b.role], revealFrames=plan.reveal_frames,
                 exitFrames=plan.exit_frames, driftPx=plan.drift_px,
                 lineHeights=plan.line_heights, blockHeight=plan.block_height,

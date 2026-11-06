@@ -8,7 +8,8 @@
 //   - the whole line drifts sideways while it reveals, counterbalancing the words
 //     that appear one after another, and slides on as it leaves;
 //   - an accent word gets a follow-up move once it has arrived (whip, bloom, swell);
-//   - words leave clause by clause, accelerating.
+//   - words leave clause by clause, accelerating (fade), or, for a scatter exit, gradually:
+//     each line drifts to its own side, blurring and softening, one clause after another.
 // Word motions: resolve (blur to sharp), rise, slide, mask (up from a baseline
 // clip), gather (in from the sides), diminish (rise, then the line softens).
 // DH signature easing for entrances; no bounce, spring, or overshoot.
@@ -30,6 +31,7 @@ const SHADOW = "0 2px 22px rgba(0,0,0,0.6), 0 0 3px rgba(0,0,0,0.55)";
 
 const DRIFT_EASE = Easing.bezier(0.05, 0.8, 0.15, 1); // steep deceleration
 const LEAVE = Easing.in(Easing.quad); // exits accelerate
+const LEAVE_GRADUAL = Easing.inOut(Easing.cubic); // a scatter exit eases out of stillness and settles away
 
 const JUSTIFY = { top: "flex-start", middle: "center", bottom: "flex-end" } as const;
 const ITEMS = { left: "flex-start", center: "center", right: "flex-end" } as const;
@@ -77,15 +79,17 @@ const Title: React.FC<{ p: KineticProps }> = ({ p }) => {
   );
 };
 
-const WordSpan: React.FC<{ w: WordPlan; i: number; motion: TextBeat["motion"]; s: VisualStyle }> = ({
-  w,
-  i,
-  motion,
-  s,
-}) => {
+const WordSpan: React.FC<{
+  w: WordPlan;
+  i: number;
+  motion: TextBeat["motion"];
+  exitMotion: TextBeat["exitMotion"];
+  s: VisualStyle;
+}> = ({ w, i, motion, exitMotion, s }) => {
   const frame = useCurrentFrame();
   const pIn = prog(frame, w.inFrom, w.inFrames);
-  const pOut = w.outFrames > 0 ? prog(frame, w.outFrom, w.outFrames - 1, LEAVE) : 0; // 1 on the last frame
+  const scatter = exitMotion === "scatter";
+  const pOut = w.outFrames > 0 ? prog(frame, w.outFrom, w.outFrames - 1, scatter ? LEAVE_GRADUAL : LEAVE) : 0; // 1 on the last frame
   const pT = w.treatFrames > 0 ? prog(frame, w.treatFrom, w.treatFrames) : 0;
   const dir = i % 2 === 0 ? -1 : 1;
 
@@ -122,6 +126,16 @@ const WordSpan: React.FC<{ w: WordPlan; i: number; motion: TextBeat["motion"]; s
       break;
   }
 
+  // scatter exit: each line drifts away to its own side (alternating, like the gather in reverse),
+  // softening and swelling slightly as it goes, so the line dissolves instead of switching off
+  if (scatter) {
+    const side = w.line % 2 === 0 ? -1 : 1;
+    tx += side * pOut * (w.color !== "text" ? 150 : 90);
+    ty -= pOut * 14;
+    blur += pOut * 9;
+    scale *= 1 + 0.05 * pOut;
+  }
+
   // accent treatment, after the word has arrived
   let skew = 0;
   let color = colorOf(w.color, s);
@@ -151,7 +165,7 @@ const WordSpan: React.FC<{ w: WordPlan; i: number; motion: TextBeat["motion"]; s
     // mask reveal: the word rises from below a clip edge at its baseline box; the
     // accent treatment (scale, skew) stays on the outer word so it still plays
     return (
-      <span style={{ ...style, transform: lean, clipPath: "inset(-40px -40px 0px -40px)", verticalAlign: "bottom" }}>
+      <span style={{ ...style, transform: `translate(${tx}px, ${ty}px) ${lean}`, clipPath: "inset(-40px -40px 0px -40px)", verticalAlign: "bottom" }}>
         <span style={{ display: "inline-block", ...inner }}>{w.text}</span>
       </span>
     );
@@ -216,7 +230,7 @@ const BodyBeat: React.FC<{ p: KineticProps; beat: TextBeat }> = ({ p, beat }) =>
           <div key={ln} style={{ height: beat.lineHeights[ln], whiteSpace: "nowrap", lineHeight: 1 }}>
             {idxs.map((i, k) => (
               <React.Fragment key={i}>
-                <WordSpan w={beat.words[i]} i={i} motion={beat.motion} s={s} />
+                <WordSpan w={beat.words[i]} i={i} motion={beat.motion} exitMotion={beat.exitMotion} s={s} />
                 {k < idxs.length - 1 ? " " : null}
               </React.Fragment>
             ))}

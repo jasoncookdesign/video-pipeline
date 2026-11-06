@@ -200,6 +200,31 @@ class SpecTests(unittest.TestCase):
         d["beats"][0]["accents"] = [{"text": "played the", "weight": 900}]
         self.assertIn("beats/0/accents/0", message_for(d))
 
+    def test_a_beat_leaves_with_a_quick_fade_unless_it_says_otherwise(self):
+        b = parse_kinetic(sample_dict()).beats[0]
+        self.assertEqual((b.exit.motion, b.exit.duration_s, b.exit.linger_s), ("fade", 0.4, 0.0))
+
+    def test_a_scatter_exit_and_linger_extend_the_beat_by_exactly_that_much(self):
+        d = sample_dict()
+        base = parse_kinetic(d).beats[0].duration_s
+        d["beats"][0]["exit"] = {"motion": "scatter", "duration_s": 2.4, "linger_s": 1.5}
+        b = parse_kinetic(d).beats[0]
+        self.assertEqual((b.exit.motion, b.exit.duration_s, b.exit.linger_s), ("scatter", 2.4, 1.5))
+        self.assertAlmostEqual(b.duration_s, base + (2.4 - 0.4) + 1.5)
+
+    def test_an_explicit_duration_still_wins_over_the_exit_extension(self):
+        d = sample_dict()
+        d["beats"][0]["exit"] = {"motion": "scatter", "duration_s": 2.0}
+        d["beats"][0]["duration_s"] = 9
+        self.assertEqual(parse_kinetic(d).beats[0].duration_s, 9)
+
+    def test_exit_values_are_bounded_and_named(self):
+        for bad in ({"motion": "explode"}, {"duration_s": 0.2}, {"duration_s": 4.5}, {"linger_s": -1},
+                    {"linger_s": 6.5}, {"colour": "red"}):
+            d = sample_dict()
+            d["beats"][0]["exit"] = bad
+            self.assertIn("beats/0/exit", message_for(d), bad)
+
     def test_every_documented_motion_is_accepted_and_others_name_their_path(self):
         for motion in ("resolve", "rise", "slide", "mask", "gather", "diminish"):
             d = sample_dict()
@@ -723,6 +748,42 @@ class MotionPlanTests(unittest.TestCase):
     def test_plan_is_deterministic(self):
         self.assertEqual(self.plan("two_phrases", 30)[2], self.plan("two_phrases", 30)[2])
 
+    # -- a gradual exit: clauses leave in turn, the line lingers first --
+    SCATTER = {"motion": "scatter", "duration_s": 2.4, "linger_s": 1.5}
+
+    def scatter_plan(self, fps=30, text="There was no stage show. The spectacle was each other."):
+        b = text_beat(text, exit=self.SCATTER)
+        return b, round(b.duration_s * fps), voice.plan_motion(b, round(b.duration_s * fps), fps, False)
+
+    def test_scatter_clauses_leave_in_turn_over_the_exit_and_the_last_ends_with_the_beat(self):
+        for fps in FPS_SET:
+            b, frames, m = self.scatter_plan(fps)
+            self.assertEqual(m.exit_frames, round(2.4 * fps))
+            starts, ends = {}, {}
+            for w, t in zip(m.words, m.timings):
+                starts[w.phrase] = t.out_from
+                ends[w.phrase] = t.out_from + t.out_frames
+            order = sorted(starts)
+            self.assertEqual(starts[order[0]], frames - m.exit_frames)
+            self.assertEqual(ends[order[-1]], frames)
+            self.assertEqual([starts[k] for k in order], sorted(set(starts.values())), "strictly in turn")
+            for k in order:
+                self.assertGreaterEqual(ends[k] - starts[k], 0.5 * m.exit_frames, "each leaves gradually")
+
+    def test_the_line_lingers_before_it_leaves_and_the_reveal_keeps_its_normal_pace(self):
+        for fps in FPS_SET:
+            b, frames, m = self.scatter_plan(fps)
+            plain = text_beat("There was no stage show. The spectacle was each other.")
+            pm = voice.plan_motion(plain, round(plain.duration_s * fps), fps, False)
+            self.assertEqual(m.reveal_frames, pm.reveal_frames, "the extra time is linger and exit, not a slower reveal")
+            hold = frames - m.exit_frames - m.reveal_frames
+            self.assertGreaterEqual(hold, round(1.5 * fps))
+
+    def test_a_single_clause_scatter_leaves_over_the_whole_exit(self):
+        b = text_beat("Hello there friend", exit=self.SCATTER)
+        m = voice.plan_motion(b, round(b.duration_s * 30), 30, False)
+        self.assertEqual({(t.out_from, t.out_frames) for t in m.timings}, {(round(b.duration_s * 30) - m.exit_frames, m.exit_frames)})
+
     # -- a whip leans over its neighbour: the rest of the line makes room --
     def test_the_words_after_a_whip_on_its_line_slide_over_in_step_with_the_lean(self):
         acc = [{"text": "ask", "weight": 800, "treatment": "whip"}]
@@ -860,6 +921,7 @@ class PropsTests(unittest.TestCase):
             self.assertEqual(entry["revealFrames"], plan.reveal_frames)
             self.assertEqual(entry["exitFrames"], plan.exit_frames)
             self.assertEqual(entry["driftPx"], plan.drift_px)
+            self.assertEqual(entry["exitMotion"], beat.exit.motion)
             for got, w, t, ln in zip(entry["words"], plan.words, plan.timings, plan.lines):
                 self.assertEqual(
                     got,
@@ -1338,6 +1400,25 @@ class RemotionAcceptanceTests(unittest.TestCase):
         ink_bottom = bb[3] + self.BODY_TOP  # the probe is cropped at the top of the body area
         self.assertLessEqual(ink_bottom, bottom)
         self.assertGreaterEqual(ink_bottom, bottom - 50)
+
+    def test_a_scatter_exit_lingers_then_dissolves_gradually_and_spreads_the_lines(self):
+        spec, _, _ = self.renders["defaults"]
+        b, pb = self._beat("defaults", "X1")
+        fps = spec.fps
+        end = pb["durationInFrames"]
+        exit_start = end - pb["exitFrames"]
+        settled = self._body("defaults", self._settled("defaults", "X1"))
+        full = int(settled.sum())
+        linger = self._body("defaults", b.start_s + (exit_start - 3) / fps)
+        self.assertGreaterEqual(int(linger.sum()), 0.97 * full, "the finished line lingers untouched")
+        masses = [int(self._body("defaults", b.start_s + (exit_start + pb["exitFrames"] * f) / fps).sum())
+                  for f in (0.25, 0.5, 0.75)]
+        self.assertTrue(all(0.05 * full < m < 0.97 * full for m in masses), (masses, full))
+        self.assertEqual(masses, sorted(masses, reverse=True), "it fades away gradually, not in one step")
+        self.assertFalse(self._body("defaults", b.start_s + (end - 1.5) / fps).any(), "gone by the beat's end")
+        w0 = self._bbox(settled)
+        w1 = self._bbox(self._body("defaults", b.start_s + (exit_start + pb["exitFrames"] * 0.2) / fps))
+        self.assertGreater(w1[2] - w1[0], (w0[2] - w0[0]) + 8, "the leaving lines drift apart while the rest still holds")
 
     def test_the_rest_of_a_line_slides_over_when_a_word_whips(self):
         spec, _, props = self.renders["defaults"]

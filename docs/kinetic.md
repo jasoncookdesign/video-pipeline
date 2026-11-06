@@ -31,7 +31,7 @@ express, and errors name the JSON path (`beats/3/accents/0/text`).
 | `beats` | 1–40 beats, in order |
 
 A **text beat** has `id`, `kind: "text"`, `text` (≤ 90 characters, no word over 18 characters or wider than a line), `role`,
-`motion`, and optionally `slot`, `align`, `voice`, `accents`, `duration_s`:
+`motion`, and optionally `slot`, `align`, `voice`, `accents`, `exit`, `duration_s`:
 
 | Field | Values |
 |---|---|
@@ -41,6 +41,7 @@ A **text beat** has `id`, `kind: "text"`, `text` (≤ 90 characters, no word ove
 | `align` | `left` (default), `center`, `right`. Left is the rule; the others are deliberate choices |
 | `voice` | `contrast` (default): function words light, content words heavy. `even`: one weight throughout |
 | `accents` | Up to 4 per-word treatments, below |
+| `exit` | How the beat leaves, below. Default: a quick fade |
 | `duration_s` | Optional override, 1.5–30 s, and no faster than twice the reading-pace duration |
 
 An **accent** is `{text, weight?, italic?, scale?, color?, treatment?}` with at least one
@@ -55,6 +56,18 @@ not overlap. The words of one accent never break across lines.
 | `scale` | 0.8–1.4 times the line's size. The accent's words, which never break across lines, must fit one line at that scale. Fit is measured from the bundled fonts' real glyph widths (the widest weight and style), so wide capitals count for more than narrow letters: for example 12 capital W fit a statement line, and `extraordinarily` fits a question line up to scale 1.3 |
 | `color` | `accent`, `warm`, `dim` (the style layer's colors) |
 | `treatment` | A follow-up move once the word has arrived: `whip` (the word leans into an italic, and the words after it on its line slide over by 0.15 of its size, in step with the lean, so it never touches them; not combined with `italic: true`), `bloom` (color shifts to the accent), `swell` (grows 10%), or `none` |
+
+An **exit** is `{motion?, duration_s?, linger_s?}`:
+
+| Field | Meaning |
+|---|---|
+| `motion` | `fade` (default): clauses fade out quickly in turn over 0.4 s. `scatter`: gradual. Clauses leave in turn, each taking most of the exit and the next starting before it ends; each line drifts to its own side (alternating, like `gather` in reverse), rising a little, blurring, swelling 5%, and softening, so the line dissolves instead of switching off |
+| `duration_s` | Length of the exit, 0.4–4 s (`fade` 0.4, `scatter` 2.0) |
+| `linger_s` | Extra hold of the finished line before the exit starts, 0–6 s (default 0) |
+
+A longer exit and any linger add to the beat's computed length, and the reveal keeps its
+reading pace; an explicit `duration_s` on the beat still wins. A final text beat holds to the end
+of the layer and never exits.
 
 A **space beat** (`id`, `kind: "space"`, `duration_s` 0.5–6) shows no text: the footage is
 left alone.
@@ -74,7 +87,7 @@ is set (`video_pipeline.kinetic.timing`). Inside that time (`video_pipeline.kine
   text) with a steep deceleration, counterbalancing the words that appear one after
   another, and keeps moving the way it came as it leaves.
 - The full line then holds for at least 0.6 s.
-- Words leave over 0.4 s, clause by clause, accelerating, and are gone by the beat's last
+- Words leave over the exit (0.4 s for `fade`), clause by clause, accelerating, and are gone by the beat's last
   frame. The final text beat, when it is the last beat, holds to the end of the layer.
 
 At that pace a 30–60 second layer carries roughly 60–130 words including pauses.
@@ -188,7 +201,7 @@ VP_REMOTION_ACCEPTANCE=1 python -m pytest tests/test_kinetic.py -k Acceptance
 It renders three fixtures and checks pixels: the clip's size and alpha; that nothing is
 drawn outside the safe rectangle or in the gap under the title at four points of every
 beat; that the title is visible from the first frame and never changes; that clauses arrive
-progressively and not as a block; that default blocks share a first-line height and left edge; that lines leave inside their beat and the final line
+progressively and not as a block; that default blocks share a first-line height and left edge; that a scatter exit lingers, then dissolves gradually while the lines drift apart; that lines leave inside their beat and the final line
 holds; that `slot`, `align`, and accent color take effect; that accent phrases stay on one
 line; and that the longest legal word and the fastest legal gather render completely.
 Needs Node, FFmpeg, Pillow, and NumPy.

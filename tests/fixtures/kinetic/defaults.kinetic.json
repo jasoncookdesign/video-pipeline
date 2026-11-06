@@ -56,6 +56,35 @@
           "treatment": "whip"
         }
       ]
+    },
+    {
+      "id": "SP4",
+      "kind": "space",
+      "duration_s": 0.5
+    },
+    {
+      "id": "X1",
+      "kind": "text",
+      "text": "Nobody looks\nat the booth.\nEveryone looks\nat each other.",
+      "role": "statement",
+      "motion": "gather",
+      "exit": {
+        "motion": "scatter",
+        "duration_s": 2.4,
+        "linger_s": 1.5
+      }
+    },
+    {
+      "id": "SP5",
+      "kind": "space",
+      "duration_s": 0.5
+    },
+    {
+      "id": "E1",
+      "kind": "text",
+      "text": "The last line holds.",
+      "role": "statement",
+      "motion": "rise"
     }
   ]
 }

@@ -9,6 +9,7 @@ export type Motion = "resolve" | "rise" | "slide" | "mask" | "gather" | "diminis
 export type Slot = "top" | "middle" | "bottom";
 export type Align = "left" | "center" | "right";
 export type WordColor = "text" | "accent" | "warm" | "dim";
+export type ExitMotion = "fade" | "scatter";
 export type Treatment = "none" | "whip" | "bloom" | "swell";
 
 export type WordPlan = {
@@ -39,6 +40,7 @@ export type TextBeat = {
   text: string;
   role: Role;
   motion: Motion;
+  exitMotion: ExitMotion;
   slot: Slot;
   align: Align;
   sizePx: number;

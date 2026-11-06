@@ -184,6 +184,16 @@
               "default": "contrast",
               "description": "contrast: function words light, content words heavy. even: one weight throughout."
             },
+            "exit": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "How the beat leaves. fade (default): quick, clause by clause. scatter: gradual; clauses drift apart in turn. duration_s is the length of the exit (fade 0.4, scatter 2.0 by default); linger_s holds the finished line before it starts. Both add to the beat's computed length (an explicit duration_s on the beat still wins).",
+              "properties": {
+                "motion": { "enum": ["fade", "scatter"], "default": "fade" },
+                "duration_s": { "type": "number", "minimum": 0.4, "maximum": 4 },
+                "linger_s": { "type": "number", "minimum": 0, "maximum": 6, "default": 0 }
+              }
+            },
             "accents": {
               "type": "array",
               "maxItems": 4,

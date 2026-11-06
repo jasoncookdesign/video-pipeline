@@ -21,7 +21,7 @@ from typing import List, Optional, Tuple
 from .caption import check_caption
 from .layout import FAMILY_FOR_ROLE, ROLE_PX, fit_title, fits_line, line_width, text_width_em
 from .text import authored_lines, phrase_span, words
-from .timing import MAX_TOTAL_S, beat_duration_s
+from .timing import EXIT_DEFAULT_S, SCATTER_DEFAULT_S, MAX_TOTAL_S, beat_duration_s
 
 SCHEMA_PATH = Path(__file__).resolve().parents[3] / "schema" / "kinetic.schema.json"
 
@@ -49,6 +49,16 @@ class Accent:
 
 
 @dataclass(frozen=True)
+class ExitSpec:
+    """How a beat leaves: ``fade`` (quick, clause by clause) or ``scatter`` (gradual: clauses
+    drift apart in turn); ``duration_s`` is the length of the exit and ``linger_s`` an extra
+    hold of the finished line before it starts."""
+    motion: str = "fade"
+    duration_s: float = EXIT_DEFAULT_S
+    linger_s: float = 0.0
+
+
+@dataclass(frozen=True)
 class KineticBeat:
     id: str
     kind: str                      # "text" | "space"
@@ -61,6 +71,7 @@ class KineticBeat:
     align: str = "left"
     voice: str = "contrast"
     accents: Tuple[Accent, ...] = ()
+    exit: ExitSpec = ExitSpec()
 
 
 @dataclass
@@ -111,12 +122,17 @@ def _resolve_beats(data: dict) -> List[KineticBeat]:
     t = 0.0
     for b in data["beats"]:
         if b["kind"] == "text":
-            dur = beat_duration_s(b["text"], b.get("duration_s"))
+            ex = b.get("exit", {})
+            exit_ = ExitSpec(motion=ex.get("motion", "fade"),
+                             duration_s=ex.get("duration_s", EXIT_DEFAULT_S if ex.get("motion", "fade") == "fade" else SCATTER_DEFAULT_S),
+                             linger_s=ex.get("linger_s", 0.0))
+            dur = beat_duration_s(b["text"], b.get("duration_s"),
+                                  extra_s=(exit_.duration_s - EXIT_DEFAULT_S) + exit_.linger_s)
             beat = KineticBeat(
                 id=b["id"], kind="text", start_s=t, duration_s=dur, text=b["text"],
                 role=b["role"], motion=b["motion"], slot=b.get("slot", "top"),
                 align=b.get("align", "left"), voice=b.get("voice", "contrast"),
-                accents=_accents(b.get("accents", ())),
+                accents=_accents(b.get("accents", ())), exit=exit_,
             )
         else:
             dur = float(b["duration_s"])

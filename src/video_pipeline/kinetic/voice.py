@@ -38,6 +38,8 @@ DRIFT_PX = 40
 # A whip leans its word over the next one; the words after it on the line slide over
 # by this share of the leaning word's size so the lean never touches them.
 WHIP_PUSH_EM = 0.15
+# Share of a scatter clause's exit that the next clause overlaps.
+SCATTER_OVERLAP = 0.6
 TREATMENT_S = {"whip": 0.27, "bloom": 0.47, "swell": 0.4}
 
 # role -> (family, content weight, function weight, even weight)
@@ -165,11 +167,16 @@ def plan_motion(beat: KineticBeat, frames: int, fps: int, hold_to_end: bool) -> 
     """
     ws = style_words(beat)
     n = len(ws)
-    exit_f = 0 if hold_to_end else max(MIN_ANIM_FRAMES, min(round(EXIT_S * fps), frames // 4))
+    gradual = beat.exit.motion == "scatter" and not hold_to_end
+    default_exit = max(MIN_ANIM_FRAMES, min(round(EXIT_S * fps), frames // 4))
+    exit_f = 0 if hold_to_end else (round(beat.exit.duration_s * fps) if gradual else default_exit)
+    # time added by a longer exit and a linger is not reveal time: the reveal keeps its reading pace
+    extra = (exit_f - default_exit + round(beat.exit.linger_s * fps)) if gradual else 0
+    reading_frames = frames - extra
     anim = max(MIN_ANIM_FRAMES, round(WORD_ANIM_S * fps))
     min_hold = round(MIN_HOLD_S * fps)
 
-    reveal = max(round(REVEAL_FRACTION * frames), anim + n - 1)
+    reveal = max(round(REVEAL_FRACTION * reading_frames), anim + n - 1)
     reveal = min(reveal, frames - exit_f - min_hold)
     reveal = max(reveal, MIN_ANIM_FRAMES + n - 1)           # never less than a word each frame
     anim = max(MIN_ANIM_FRAMES, min(anim, reveal - (n - 1)))
@@ -186,12 +193,18 @@ def plan_motion(beat: KineticBeat, frames: int, fps: int, hold_to_end: bool) -> 
 
     # exit: phrase by phrase, each word fading over what is left of the exit window
     xs = min(round(EXIT_PHRASE_STEP_S * fps), max(0, (exit_f - MIN_EXIT_WORD_FRAMES) // max(1, n_phrases - 1)))
+    # gradual exit: each clause takes most of the exit and the next begins before it ends
+    scatter_win = round(exit_f / ((n_phrases - 1) * SCATTER_OVERLAP + 1)) if gradual else 0
+    scatter_step = (exit_f - scatter_win) / (n_phrases - 1) if gradual and n_phrases > 1 else 0.0
 
     timings: List[WordTiming] = []
     for i, w in enumerate(ws):
         in_from = clause_start[w.phrase]
         if hold_to_end:
             out_from, out_frames = frames, 0
+        elif gradual:
+            out_from = frames - exit_f + round(w.phrase * scatter_step)
+            out_frames = frames - out_from if w.phrase == n_phrases - 1 else scatter_win
         else:
             out_from = frames - exit_f + w.phrase * xs
             out_frames = max(MIN_EXIT_WORD_FRAMES, exit_f - w.phrase * xs)
