@@ -4,10 +4,12 @@ Python resolves everything the composition needs per word — weight, italic, si
 factor, color, entrance and exit frames, accent treatment — so the composition
 renders what it is given and does no text analysis or timing arithmetic.
 
-The plan follows three ideas: a line is revealed word by word (phrases separated
-by a short pause) instead of arriving as one block; the whole line drifts a little
-while it reveals, counterbalancing the words that appear one after another; and an
-accent word gets its own follow-up move once it has arrived.
+The plan follows three ideas: a line is revealed clause by clause (every word of a
+clause arrives together, so the eye takes in a unit of meaning) instead of arriving
+as one block or one word at a time; the whole line drifts a little while it reveals,
+counterbalancing the clauses that appear one after another; and an accent word gets
+its own follow-up move once it has arrived. A clause is a run of words ending at
+clause punctuation; the ``phrase`` field numbers them.
 """
 
 from __future__ import annotations
@@ -18,13 +20,10 @@ from typing import List
 from .spec import KineticBeat
 from .text import STOPWORDS, norm_token, phrase_indices, phrase_span, words
 
-# Word entrance length (s), the share of the beat spent revealing, the pause
-# between phrases, the longest gap between two words, the shortest fully visible
-# hold, and the exit length.
+# Clause entrance length (s), the share of the beat spent revealing, the shortest
+# fully visible hold, and the exit length.
 WORD_ANIM_S = 0.5
 REVEAL_FRACTION = 0.55
-PHRASE_PAUSE_S = 0.2
-MAX_STEP_S = 0.3
 MIN_HOLD_S = 0.6
 EXIT_S = 0.4
 # Phrase-to-phrase offset of the exit (s), at most.
@@ -129,19 +128,21 @@ def plan_motion(beat: KineticBeat, frames: int, fps: int, hold_to_end: bool) -> 
     anim = max(MIN_ANIM_FRAMES, min(anim, reveal - (n - 1)))
 
     n_phrases = ws[-1].phrase + 1 if ws else 1
-    budget = reveal - anim                                  # span over which words may start
-    pause = round(PHRASE_PAUSE_S * fps) if n_phrases > 1 else 0
-    pauses_total = min(pause * (n_phrases - 1), budget // 4)
-    pause = pauses_total // (n_phrases - 1) if n_phrases > 1 else 0
-    span = budget - pause * (n_phrases - 1)
-    step = min(span / (n - 1), round(MAX_STEP_S * fps)) if n > 1 else 0.0
+    budget = reveal - anim                                  # span over which clauses may start
+    # a clause starts after the words before it have had their share of the budget,
+    # so a longer clause gets proportionally longer to be read
+    before = [0] * n_phrases
+    for w in ws:
+        for k in range(w.phrase + 1, n_phrases):
+            before[k] += 1
+    clause_start = [round(budget * before[k] / n) for k in range(n_phrases)]
 
     # exit: phrase by phrase, each word fading over what is left of the exit window
     xs = min(round(EXIT_PHRASE_STEP_S * fps), max(0, (exit_f - MIN_EXIT_WORD_FRAMES) // max(1, n_phrases - 1)))
 
     timings: List[WordTiming] = []
     for i, w in enumerate(ws):
-        in_from = round(i * step + pause * w.phrase)
+        in_from = clause_start[w.phrase]
         if hold_to_end:
             out_from, out_frames = frames, 0
         else:

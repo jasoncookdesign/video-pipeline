@@ -1,14 +1,14 @@
 // KineticText — one continuous, transparent overlay layer: a static title held in
 // the top of the safe zone for the whole clip, and kinetic text beneath it that
-// reveals word by word at reading pace. Nothing is drawn outside the safe box.
+// reveals clause by clause at reading pace. Nothing is drawn outside the safe box.
 //
 // How a line moves:
-//   - each word has its own entrance, staggered across the reveal, with a short
-//     pause between phrases (the line is never animated as one block);
+//   - each clause has its own entrance, staggered across the reveal; the words of
+//     a clause arrive together (the line is never animated as one block);
 //   - the whole line drifts sideways while it reveals, counterbalancing the words
 //     that appear one after another, and slides on as it leaves;
 //   - an accent word gets a follow-up move once it has arrived (whip, bloom, swell);
-//   - words leave phrase by phrase, accelerating.
+//   - words leave clause by clause, accelerating.
 // Word motions: resolve (blur to sharp), rise, slide, mask (up from a baseline
 // clip), gather (in from the sides), diminish (rise, then the line softens).
 // DH signature easing for entrances; no bounce, spring, or overshoot.

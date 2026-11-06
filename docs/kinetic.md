@@ -3,8 +3,9 @@
 A `kinetic.json` spec describes one continuous, transparent overlay layer for a
 1080×1920 vertical video: a **static title** held in the top of the safe zone from the
 first frame to the last, and a sequence of **kinetic text beats** beneath it. Each beat
-reveals **word by word, phrase by phrase**, at reading pace; it is never animated as one
-block. The layer is rendered once and laid over any footage; it does not depend on what
+reveals **clause by clause** at reading pace: the words of a clause arrive together, so the
+reader takes in a unit of meaning at a time. It is never animated as one block or one word
+at a time. The layer is rendered once and laid over any footage; it does not depend on what
 the footage contains.
 
 ```
@@ -35,9 +36,9 @@ A **text beat** has `id`, `kind: "text"`, `text` (≤ 90 characters, no word ove
 | Field | Values |
 |---|---|
 | `role` | `statement` (display type, 60 px), `aside` (body type, 50 px), `question` (display type, 68 px) |
-| `motion` | How each word arrives: `resolve` (blur to sharp), `rise`, `slide` (in from the right), `mask` (up from a clipped baseline), `gather` (in from alternating sides), `diminish` (rise, then the whole line shrinks, loosens, and softens while held) |
-| `slot` | Vertical position in the body area: `top`, `middle` (default), `bottom` |
-| `align` | `left`, `center` (default), `right` |
+| `motion` | How each clause's words arrive: `resolve` (blur to sharp), `rise`, `slide` (in from the right), `mask` (up from a clipped baseline), `gather` (in from alternating sides), `diminish` (rise, then the whole line shrinks, loosens, and softens while held) |
+| `slot` | Vertical position in the body area: `top` (default), `middle`, `bottom`. The default puts the first line of every block at the same height; the others are deliberate choices |
+| `align` | `left` (default), `center`, `right`. Left is the rule; the others are deliberate choices |
 | `voice` | `contrast` (default): function words light, content words heavy. `even`: one weight throughout |
 | `accents` | Up to 4 per-word treatments, below |
 | `duration_s` | Optional override, 1.5–30 s, and no faster than twice the reading-pace duration |
@@ -65,15 +66,15 @@ Beat ids must be unique ignoring case. The total length is at most 60 seconds.
 A text beat stays on screen for `max(2.0, 0.5 + words / 2.5)` seconds unless `duration_s`
 is set (`video_pipeline.kinetic.timing`). Inside that time (`video_pipeline.kinetic.voice`):
 
-- About 55% of the beat reveals the line. Words start one after another, evenly spaced
-  (at most 0.3 s apart), each taking 0.5 s to arrive. A phrase ends after a word that ends
-  in `, ; : . ! ? — – …`; a 0.2 s pause separates phrases, so a clause lands before the
-  next begins.
+- About 55% of the beat reveals the line. A **clause** is a run of words ending at
+  `, ; : . ! ? — – …`. All words of a clause start together and take 0.5 s to arrive.
+  Clauses start one after another, each after the words before it have had their share of
+  the reveal, so a longer clause gets proportionally longer to be read.
 - The whole line drifts 40 px sideways while it reveals (the other way for right-aligned
   text) with a steep deceleration, counterbalancing the words that appear one after
   another, and keeps moving the way it came as it leaves.
 - The full line then holds for at least 0.6 s.
-- Words leave over 0.4 s, phrase by phrase, accelerating, and are gone by the beat's last
+- Words leave over 0.4 s, clause by clause, accelerating, and are gone by the beat's last
   frame. The final text beat, when it is the last beat, holds to the end of the layer.
 
 At that pace a 30–60 second layer carries roughly 60–130 words including pauses.
@@ -161,8 +162,8 @@ VP_REMOTION_ACCEPTANCE=1 python -m pytest tests/test_kinetic.py -k Acceptance
 
 It renders three fixtures and checks pixels: the clip's size and alpha; that nothing is
 drawn outside the safe rectangle or in the gap under the title at four points of every
-beat; that the title is visible from the first frame and never changes; that words arrive
-progressively and not as a block; that lines leave inside their beat and the final line
+beat; that the title is visible from the first frame and never changes; that clauses arrive
+progressively and not as a block; that default blocks share a first-line height and left edge; that lines leave inside their beat and the final line
 holds; that `slot`, `align`, and accent color take effect; that accent phrases stay on one
 line; and that the longest legal word and the fastest legal gather render completely.
 Needs Node, FFmpeg, Pillow, and NumPy.

@@ -47,6 +47,7 @@ FIX = REPO_ROOT / "tests" / "fixtures" / "kinetic"
 SAMPLE = FIX / "sample.kinetic.json"
 LAYOUT = FIX / "layout.kinetic.json"
 STRESS = FIX / "stress.kinetic.json"
+DEFAULTS = FIX / "defaults.kinetic.json"
 FPS_SET = (24, 25, 30, 60)
 
 
@@ -175,10 +176,10 @@ class SpecTests(unittest.TestCase):
         self.assertEqual(b4.voice, "contrast")
         self.assertEqual([b.id for b in spec.text_beats()], ["B01", "B02", "B04", "B05"])
 
-    def test_defaults_slot_middle_align_center(self):
+    def test_defaults_are_top_anchored_and_left_aligned(self):
         beats = load_kinetic(SAMPLE).beats
-        self.assertEqual((beats[0].slot, beats[0].align), ("middle", "center"))
-        self.assertEqual((beats[1].slot, beats[1].align), ("bottom", "right"))
+        self.assertEqual((beats[0].slot, beats[0].align), ("top", "left"))
+        self.assertEqual((beats[1].slot, beats[1].align), ("bottom", "right"))  # deliberate overrides survive
 
     def test_every_documented_motion_is_accepted_and_others_name_their_path(self):
         for motion in ("resolve", "rise", "slide", "mask", "gather", "diminish"):
@@ -381,7 +382,7 @@ class SpecTests(unittest.TestCase):
             validate_kinetic_dict([1, 2])
 
     def test_the_acceptance_fixtures_are_valid_specs(self):
-        for f in (LAYOUT, STRESS):
+        for f in (LAYOUT, STRESS, DEFAULTS):
             load_kinetic(f)
 
 
@@ -541,9 +542,10 @@ class VoiceTests(unittest.TestCase):
 class MotionPlanTests(unittest.TestCase):
     TEXTS = {
         "one": "Hello",
-        "two_phrases": "In the 90s, I'd walk into a rave and look for the DJ booth.",
+        "two_phrases": "At raves in the 90s, I'd always look for the DJ booth.",
         "one_phrase_15": " ".join(["word"] * 15),
         "four_phrases": "One two, three four, five six, seven eight.",
+        "clauses_uneven": "One two three four, five six, seven eight nine ten eleven twelve.",
     }
 
     def plan(self, key, fps, hold=False, accents=(), **kw):
@@ -560,14 +562,22 @@ class MotionPlanTests(unittest.TestCase):
                     for v in (t.in_from, t.in_frames, t.out_from, t.out_frames, t.treat_from, t.treat_frames):
                         self.assertIsInstance(v, int)
 
-    def test_words_arrive_one_after_another_starting_at_frame_zero(self):
+    def test_the_words_of_a_clause_arrive_together_and_clauses_arrive_in_order(self):
+        for fps in FPS_SET:
+            _, _, m = self.plan("four_phrases", fps)
+            by_clause = {}
+            for w, t in zip(m.words, m.timings):
+                by_clause.setdefault(w.phrase, set()).add(t.in_from)
+            self.assertEqual(len(by_clause), 4)
+            self.assertTrue(all(len(v) == 1 for v in by_clause.values()), "one start per clause")
+            starts = [next(iter(by_clause[k])) for k in sorted(by_clause)]
+            self.assertEqual(starts[0], 0)
+            self.assertEqual(starts, sorted(set(starts)), "clauses start strictly one after another")
+
+    def test_a_single_clause_arrives_as_one_unit(self):
         for fps in FPS_SET:
             _, _, m = self.plan("one_phrase_15", fps)
-            starts = [t.in_from for t in m.timings]
-            self.assertEqual(starts[0], 0)
-            self.assertEqual(starts, sorted(starts))
-            self.assertGreater(starts[-1], starts[0])
-            self.assertGreater(len(set(starts)), len(starts) // 2)  # genuinely staggered, not one block
+            self.assertEqual({t.in_from for t in m.timings}, {0})
 
     def test_every_word_finishes_arriving_by_the_reveal_and_the_line_then_holds(self):
         for fps in FPS_SET:
@@ -578,20 +588,13 @@ class MotionPlanTests(unittest.TestCase):
                 hold = frames - m.exit_frames - m.reveal_frames
                 self.assertGreaterEqual(hold, round(voice.MIN_HOLD_S * fps) - 1, (key, fps))
 
-    def test_a_pause_separates_phrases(self):
-        _, _, m = self.plan("two_phrases", 30)
-        starts = [t.in_from for t in m.timings]
-        phrases = [w.phrase for w in m.words]
-        boundary = phrases.index(1)
-        gap = starts[boundary] - starts[boundary - 1]
-        within = [starts[i + 1] - starts[i] for i in range(boundary, len(starts) - 1)]
-        self.assertGreater(gap, max(within))
-
-    def test_a_single_phrase_has_no_pause_gap(self):
-        _, _, m = self.plan("one_phrase_15", 30)
-        starts = [t.in_from for t in m.timings]
-        gaps = {b - a for a, b in zip(starts, starts[1:])}
-        self.assertLessEqual(max(gaps) - min(gaps), 1)  # even stagger, differing by rounding only
+    def test_a_clause_gets_dwell_time_in_proportion_to_its_words(self):
+        _, _, m = self.plan("clauses_uneven", 30)
+        starts = sorted({t.in_from for t in m.timings})
+        counts = [sum(1 for w in m.words if w.phrase == k) for k in range(len(starts))]
+        gaps = [b - a for a, b in zip(starts, starts[1:])]
+        per_word = [g / c for g, c in zip(gaps, counts)]
+        self.assertLessEqual(max(per_word) - min(per_word), 1.0)  # rounding only
 
     def test_exit_stays_inside_the_beat_and_words_fade_in_phrase_order(self):
         for fps in FPS_SET:
@@ -615,8 +618,8 @@ class MotionPlanTests(unittest.TestCase):
     def test_treatments_start_when_the_word_has_arrived_and_finish_before_it_leaves(self):
         for fps in FPS_SET:
             for hold in (False, True):
-                acc = [{"text": "walk", "weight": 900, "treatment": "whip"},
-                       {"text": "rave", "color": "accent", "treatment": "bloom"},
+                acc = [{"text": "always", "weight": 900, "treatment": "whip"},
+                       {"text": "raves", "color": "accent", "treatment": "bloom"},
                        {"text": "DJ", "treatment": "swell"}]
                 b, frames, m = self.plan("two_phrases", fps, hold=hold, accents=acc)
                 treated = 0
@@ -757,8 +760,8 @@ class PropsTests(unittest.TestCase):
         self.assertEqual(FULL_SAFE, (pinned["x"], pinned["y"], pinned["w"], pinned["h"]))
 
     def test_frame_counts_at_each_supported_fps(self):
-        # 16.3 s of beats: 4.5 + 2.9 + 2 + 2.9 + 4
-        for fps, frames in ((24, 391), (30, 489), (60, 978)):
+        # 15.1 s of beats: 3.3 + 2.9 + 2 + 2.9 + 4
+        for fps, frames in ((24, 362), (30, 453), (60, 906)):
             d = sample_dict()
             d["canvas"]["fps"] = fps
             props = kinetic_to_remotion_props(parse_kinetic(d), self.style)
@@ -979,7 +982,7 @@ class RemotionAcceptanceTests(unittest.TestCase):
         cls.root = Path(os.environ.get("VP_ACCEPTANCE_DIR", REPO_ROOT / "review" / "kinetic-acceptance"))
         cls.style = load_visual_style(CONFIG, "dyson-hope")
         cls.renders = {}
-        for name, path in (("sample", SAMPLE), ("layout", LAYOUT), ("stress", STRESS)):
+        for name, path in (("sample", SAMPLE), ("layout", LAYOUT), ("stress", STRESS), ("defaults", DEFAULTS)):
             spec = load_kinetic(path)
             res = render_kinetic(spec, cls.root / name / "layers", cls.style)
             props = json.loads(Path(res["props"]).read_text(encoding="utf-8"))
@@ -1084,16 +1087,18 @@ class RemotionAcceptanceTests(unittest.TestCase):
                 cur = self._rgba("layout", min(t, spec.total_s - 0.05))[lo:hi]
                 self.assertTrue(np.array_equal(ref, cur), f"title changed during {b.id} at {t:.2f}s")
 
-    # -- word by word: the animation is divided up, not applied to the line as a block --
-    def test_words_arrive_progressively_rather_than_as_a_block(self):
+    # -- clause by clause: the animation is divided up, not applied to the line as a block --
+    def test_clauses_arrive_progressively_rather_than_as_a_block(self):
         spec, _, _ = self.renders["sample"]
         b, pb = self._beat("sample", "B01")
         fps = spec.fps
         mass = [int(self._body("sample", b.start_s + int(pb["revealFrames"] * f) / fps).sum())
                 for f in (0.2, 0.45, 0.7, 1.0)]
         final = int(self._body("sample", self._settled("sample", "B01")).sum())
-        self.assertEqual(mass, sorted(mass), "text mass must grow as words arrive")
-        self.assertLess(mass[0], 0.5 * final, "early in the reveal most words are still absent")
+        for earlier, later in zip(mass, mass[1:]):
+            self.assertGreaterEqual(later, 0.98 * earlier, "text mass must grow as clauses arrive")  # settling jitter only
+        self.assertGreater(mass[1], mass[0] * 1.5, "the second clause adds visible mass")
+        self.assertLess(mass[0], 0.5 * final, "early in the reveal most clauses are still absent")
         self.assertGreater(mass[2], mass[0] * 1.5)
         self.assertGreater(final, 500)
 
@@ -1119,6 +1124,17 @@ class RemotionAcceptanceTests(unittest.TestCase):
             ys[bid] = (bb[1] + bb[3]) / 2
         self.assertLess(ys["T1"] + 120, ys["M1"])
         self.assertLess(ys["M1"] + 120, ys["U1"])
+
+    def test_default_blocks_share_one_first_line_position_and_left_edge(self):
+        tops, lefts = [], []
+        for bid in ("P1", "P2"):
+            bb = self._bbox(self._body("defaults", self._settled("defaults", bid)))
+            self.assertIsNotNone(bb, bid)
+            tops.append(bb[1])
+            lefts.append(bb[0])
+        self.assertLessEqual(abs(tops[0] - tops[1]), 6, "first lines start at the same height")
+        self.assertLessEqual(abs(lefts[0] - lefts[1]), 40, "left-aligned blocks share a left edge")
+        self.assertLessEqual(tops[0], self.BODY_TOP + 40, "the shared position is the top of the body area")
 
     def test_align_moves_the_text_horizontally(self):
         edges = {bid: self._bbox(self._body("layout", self._settled("layout", bid))) for bid in ("L1", "M1", "R1")}

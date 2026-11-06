@@ -57,8 +57,8 @@ class KineticBeat:
     text: str = ""
     role: str = ""
     motion: str = ""
-    slot: str = "middle"
-    align: str = "center"
+    slot: str = "top"
+    align: str = "left"
     voice: str = "contrast"
     accents: Tuple[Accent, ...] = ()
 
@@ -114,8 +114,8 @@ def _resolve_beats(data: dict) -> List[KineticBeat]:
             dur = beat_duration_s(b["text"], b.get("duration_s"))
             beat = KineticBeat(
                 id=b["id"], kind="text", start_s=t, duration_s=dur, text=b["text"],
-                role=b["role"], motion=b["motion"], slot=b.get("slot", "middle"),
-                align=b.get("align", "center"), voice=b.get("voice", "contrast"),
+                role=b["role"], motion=b["motion"], slot=b.get("slot", "top"),
+                align=b.get("align", "left"), voice=b.get("voice", "contrast"),
                 accents=_accents(b.get("accents", ())),
             )
         else:
