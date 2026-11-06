@@ -19,7 +19,10 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 
 from .caption import check_caption
-from .layout import BODY_MAX_BLOCK_H, FAMILY_FOR_ROLE, ROLE_PX, fit_title, fits_line, line_width, text_width_em
+from .layout import (
+    BODY_MAX_BLOCK_H, FAMILY_FOR_ROLE, MIN_PX, ROLE_PX, fit_px, fit_title, fits_line, line_height_px, line_width,
+    text_width_em,
+)
 from .text import authored_lines, phrase_span, words
 from .timing import EXIT_DEFAULT_S, SCATTER_DEFAULT_S, MAX_TOTAL_S, SOFT_TOTAL_S, beat_duration_s
 
@@ -72,6 +75,7 @@ class KineticBeat:
     voice: str = "contrast"
     accents: Tuple[Accent, ...] = ()
     exit: ExitSpec = ExitSpec()
+    size_px: int = 0               # resolved: the type size of a text beat (the role's, or smaller to keep authored lines)
 
 
 @dataclass
@@ -99,6 +103,11 @@ class KineticSpec:
 
     def text_beats(self) -> List[KineticBeat]:
         return [b for b in self.beats if b.kind == "text"]
+
+    def size_notes(self) -> List[str]:
+        """One note per beat set smaller than its role's size to keep its authored line breaks."""
+        return [f"{b.id} set at {b.size_px} px to keep its line breaks"
+                for b in self.text_beats() if b.size_px < ROLE_PX[b.role]]
 
 
 @lru_cache(maxsize=1)
@@ -139,7 +148,7 @@ def _resolve_beats(data: dict) -> List[KineticBeat]:
                 id=b["id"], kind="text", start_s=t, duration_s=dur, text=b["text"],
                 role=b["role"], motion=b["motion"], slot=b.get("slot", "top"),
                 align=b.get("align", "left"), voice=b.get("voice", "contrast"),
-                accents=_accents(b.get("accents", ())), exit=exit_,
+                accents=_accents(b.get("accents", ())), exit=exit_, size_px=_beat_px(b),
             )
         else:
             dur = float(b["duration_s"])
@@ -149,17 +158,44 @@ def _resolve_beats(data: dict) -> List[KineticBeat]:
     return beats
 
 
+def _authored_metrics(b: dict) -> Optional[List[Tuple[float, float]]]:
+    """``(width in em, largest accent scale)`` of each line the author broke with newlines, or
+    ``None`` when the text has no authored breaks. Accented words count at their scale."""
+    lines = authored_lines(b["text"])
+    if lines is None:
+        return None
+    scale_of = {}
+    for accent in b.get("accents", ()):
+        span = phrase_span(b["text"], accent["text"])
+        if span is not None:
+            for k in range(*span):
+                scale_of[k] = accent.get("scale", 1.0)
+    family = FAMILY_FOR_ROLE[b["role"]]
+    space = text_width_em(" ", family)
+    out, first = [], 0
+    for line in lines:
+        scales = [scale_of.get(first + k, 1.0) for k in range(len(line))]
+        em = sum(text_width_em(t, family) * sc for t, sc in zip(line, scales)) + space * (len(line) - 1)
+        out.append((em, max(scales)))
+        first += len(line)
+    return out
+
+
+def _beat_px(b: dict) -> int:
+    """The type size of a text beat: the role's, or, when the author broke its lines, the
+    largest size at which every line fits the measure and the block fits the body container."""
+    metrics = _authored_metrics(b)
+    if metrics is None:
+        return ROLE_PX[b["role"]]
+    return fit_px(b["role"], metrics) or MIN_PX     # validated before this runs: the fallback is unreachable
+
+
 def _check_authored_lines(i: int, b: dict, spans: list) -> None:
-    """Lines the author broke with newlines must each fit the measure, and no accent may cross a break."""
+    """Lines the author broke with newlines must fit the measure and the body container at a size no
+    smaller than the minimum, and no accent may cross a break."""
     lines = authored_lines(b["text"])
     if lines is None:
         return
-    scale_of = {}
-    for j, span in spans:
-        for k in range(*span):
-            scale_of[k] = b["accents"][j].get("scale", 1.0)
-    family, px, measure = FAMILY_FOR_ROLE[b["role"]], ROLE_PX[b["role"]], line_width(b["role"])
-    space = text_width_em(" ", family) * px
     first = 0
     for n, line in enumerate(lines, 1):
         last = first + len(line) - 1
@@ -168,13 +204,20 @@ def _check_authored_lines(i: int, b: dict, spans: list) -> None:
                 raise KineticSpecError(
                     f"beats/{i}/accents/{j}: the accent's words cross the line break after line {n}; "
                     "an accent's words stay on one line")
-        width = sum(text_width_em(t, family) * px * scale_of.get(first + k, 1.0) for k, t in enumerate(line))
-        width += space * (len(line) - 1)
-        if width > measure:
-            raise KineticSpecError(
-                f"beats/{i}/text: line {n} ({' '.join(line)!r}) is {width:.0f} px wide and the measure is "
-                f"{measure:.0f} px; break it into shorter lines")
         first = last + 1
+    metrics = _authored_metrics(b)
+    if fit_px(b["role"], metrics) is not None:
+        return
+    measure = line_width(b["role"])
+    n, (em, _) = max(enumerate(metrics, 1), key=lambda m: m[1][0])
+    if em * MIN_PX > measure:
+        raise KineticSpecError(
+            f"beats/{i}/text: line {n} ({' '.join(lines[n - 1])!r}) is {em * MIN_PX:.0f} px wide at the minimum "
+            f"size of {MIN_PX} px and the measure is {measure:.0f} px; break it into shorter lines")
+    height = sum(line_height_px(MIN_PX, scale) for _, scale in metrics)
+    raise KineticSpecError(
+        f"beats/{i}/text: the laid-out block is {height} px tall at the minimum size of {MIN_PX} px and the "
+        f"body container holds {BODY_MAX_BLOCK_H} px; shorten the text")
 
 
 def _check_text_beat(i: int, b: dict) -> None:

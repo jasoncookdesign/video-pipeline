@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import math
 import re
-from typing import Optional
+from typing import Optional, Sequence, Tuple
 
 # Where content may sit: the shared full-frame safe rect (x, y, w, h). The visual
 # track pins the same rect as ``full_safe``; a test asserts they agree.
@@ -19,6 +20,8 @@ PAD = 28
 # The tallest text block that fits the body container: from PAD below the title block's
 # gap to PAD above the bottom of the safe rect.
 BODY_MAX_BLOCK_H = FULL_SAFE[3] - PAD - (TITLE_BLOCK_H + TITLE_GAP + PAD)
+# The smallest size a beat is shrunk to when its authored lines would not fit at the role size.
+MIN_PX = 36
 LINE_SHARE = {"statement": 0.9, "aside": 0.78, "question": 0.9}
 # Title block internals: text, then a gap, then an accent bar, each inset by PAD.
 BAR_GAP = 28
@@ -95,6 +98,28 @@ def line_width(role: str) -> float:
 def fits_line(role: str, text: str, scale: float = 1.0) -> bool:
     """Whether text set at scale times the role's size fits on one line."""
     return text_width_em(text, FAMILY_FOR_ROLE[role]) * ROLE_PX[role] * scale <= line_width(role)
+
+
+def line_height_px(px: int, scale: float = 1.0) -> int:
+    """Height of a line set at px whose largest accent is scale times that size."""
+    return round(px * max(LINE_HEIGHT, scale))
+
+
+def fit_px(role: str, lines: Sequence[Tuple[float, float]]) -> Optional[int]:
+    """Largest size (an integer, at most the role's size) at which every line fits the measure
+    and the block fits the body container, or ``None`` when even :data:`MIN_PX` does not fit.
+
+    Each line is ``(width, scale)``: its width in em at scale 1 for the unscaled words and
+    scaled for accented ones (spaces included), and the largest accent scale on it. Widths grow
+    linearly with the size, so the width limit is computed directly.
+    """
+    px = ROLE_PX[role]
+    widest = max((em for em, _ in lines), default=0.0)
+    if widest > 0:
+        px = min(px, math.floor(line_width(role) / widest * (1 + 1e-12)))
+    while px >= MIN_PX and sum(line_height_px(px, scale) for _, scale in lines) > BODY_MAX_BLOCK_H:
+        px -= 1
+    return px if px >= MIN_PX else None
 
 
 def title_text_height() -> int:

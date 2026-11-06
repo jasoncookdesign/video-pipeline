@@ -35,7 +35,7 @@ A **text beat** has `id`, `kind: "text"`, `text` (≤ 150 characters, no word ov
 
 | Field | Values |
 |---|---|
-| `role` | `statement` (display type, 60 px), `aside` (body type, 50 px), `question` (display type, 68 px) |
+| `role` | `statement` (display type, 60 px), `aside` (body type, 50 px), `question` (display type, 68 px). These are the sizes a beat is set at; a beat with authored line breaks may be set smaller to keep them (see *Line breaks*) |
 | `motion` | How each clause's words arrive: `resolve` (blur to sharp), `rise`, `slide` (in from the right), `mask` (up from a clipped baseline), `gather` (in from alternating sides), `diminish` (rise, then the whole line shrinks, loosens, and softens while held) |
 | `slot` | Vertical position inside the body container (below): `top` (default), `middle`, `bottom`. The default puts the first line of every block at the same height; the others are deliberate choices |
 | `align` | `left` (default), `center`, `right`. Left is the rule; the others are deliberate choices |
@@ -76,7 +76,7 @@ Beat ids must be unique ignoring case. The total length should stay within 60 se
 limit) is accepted, and `kinetic-check` and `kinetic-render` print a warning that the reel
 is over 60 s. Beyond 120 seconds is an error. A text beat's laid-out block must also fit
 the body container (764 px tall, about 10 lines of statement type); a longer block is an error
-naming the beat.
+naming the beat. A block with authored line breaks is first set smaller to fit (see *Line breaks*).
 
 ## Timing
 
@@ -127,8 +127,17 @@ lines of all blocks share one height.
 Lines are chosen, like the lines of a stanza; the composition draws the lines it is given.
 
 **Authored.** A newline in a beat's `text` is a line break the author chose. When a beat
-has any, every line is shown exactly as written (a one-word line is allowed), each line
-must fit the measure, and no accent's words may cross a break. Errors name the line.
+has any, every line is shown exactly as written (a one-word line is allowed), and no
+accent's words may cross a break.
+
+Each such beat is set at the largest whole-pixel size, no bigger than its role's size and no
+smaller than 36 px, at which every line fits the measure (accented words count at their
+`scale`) and the laid-out block fits the body container. A beat whose lines already fit keeps
+its role's size exactly, and a beat with no authored breaks always does. Line pitch, whip
+pushes, and every word's width follow the beat's size. Only a beat that does not fit even at
+36 px is an error, naming the line (or the block height) and the minimum size. `kinetic-check`
+lists each beat that was set smaller, for example `note: B05 set at 46 px to keep its line
+breaks`. The size used is the beat's `sizePx` in the props JSON.
 
 **Automatic.** A beat with no newline is broken in Python
 (`video_pipeline.kinetic.linebreak`) for the whole block at once, from the bundled fonts'
@@ -140,7 +149,7 @@ measured widths. The rules, in order of weight:
   ending a line on a function word (`the`, `I'd`) costs a little more.
 - The fewest lines the rules above allow. An accent's words never split across lines.
 
-A line is as tall as the role's type size × 1.2, or as its largest accent if taller.
+A line is as tall as the beat's type size × 1.2, or as its largest accent if taller.
 
 ## Caption rules
 
@@ -182,7 +191,7 @@ video-pipeline kinetic-render episode.kinetic.json --project . --stills
 | `--config-root DIR` | Config directory holding `visual-styles/` |
 | `--dry-run` | Print the Remotion plan; write and spawn nothing |
 
-`kinetic-check` exits 2 with a message on an invalid spec or caption. `kinetic-render` also
+`kinetic-check` prints a `note:` line for each beat set smaller than its role's size to keep its authored line breaks. It exits 2 with a message on an invalid spec or caption. `kinetic-render` also
 exits 2 on an unknown identity, a missing destination, or a missing Remotion project.
 
 ## Output
@@ -202,10 +211,10 @@ real render is the local acceptance check:
 VP_REMOTION_ACCEPTANCE=1 python -m pytest tests/test_kinetic.py -k Acceptance
 ```
 
-It renders three fixtures and checks pixels: the clip's size and alpha; that nothing is
+It renders the fixtures and checks pixels: the clip's size and alpha; that nothing is
 drawn outside the safe rectangle or in the gap under the title at four points of every
 beat; that the title is visible from the first frame and never changes; that clauses arrive
 progressively and not as a block; that default blocks share a first-line height and left edge; that a scatter exit lingers, then dissolves gradually while the lines drift apart; that lines leave inside their beat and the final line
 holds; that `slot`, `align`, and accent color take effect; that accent phrases stay on one
-line; and that the longest legal word and the fastest legal gather render completely.
+line; that a beat with a long authored line is set smaller and its text stays inside the measure; and that the longest legal word and the fastest legal gather render completely.
 Needs Node, FFmpeg, Pillow, and NumPy.

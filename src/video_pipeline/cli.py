@@ -1074,6 +1074,8 @@ def _cmd_kinetic_check(args: argparse.Namespace) -> int:
                   f"{b.role:<9} {b.motion:<9} {b.text!r}")
         else:
             print(f"  {b.id:<6} {b.start_s:5.1f}s {b.duration_s:4.1f}s  space")
+    for note in spec.size_notes():
+        print(f"note: {note}")
     if spec.caption:
         print(f"caption: ok ({len(spec.topic_terms)} topic terms) {spec.caption!r}")
     else:

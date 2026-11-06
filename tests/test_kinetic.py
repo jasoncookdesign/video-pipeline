@@ -48,6 +48,7 @@ SAMPLE = FIX / "sample.kinetic.json"
 LAYOUT = FIX / "layout.kinetic.json"
 STRESS = FIX / "stress.kinetic.json"
 DEFAULTS = FIX / "defaults.kinetic.json"
+SHRINK = FIX / "shrink.kinetic.json"
 FPS_SET = (24, 25, 30, 60)
 
 
@@ -270,12 +271,13 @@ class SpecTests(unittest.TestCase):
         c, body = props["bodyContainer"], props["bodyBox"]
         self.assertGreaterEqual(c["y"], body["y"] + layout.PAD)
 
-    def test_a_block_too_tall_for_the_body_container_is_rejected(self):
+    def test_a_block_too_tall_for_the_body_container_at_the_smallest_size_is_rejected(self):
         d = sample_dict()
-        d["beats"][0].update(text="\n".join(["Word"] * 11), role="question", accents=[])  # 11 authored lines
+        d["beats"][0].update(text="\n".join(["Word"] * 18), role="question", accents=[])  # 18 authored lines
         msg = message_for(d)
         self.assertIn("beats/0/text", msg)
         self.assertIn("body", msg)
+        self.assertIn(str(layout.MIN_PX), msg)
         d["beats"][0]["text"] = "\n".join(["Word"] * 8)
         validate_kinetic_dict(d)
 
@@ -1165,6 +1167,129 @@ class RenderTests(unittest.TestCase):
                 render_kinetic(self.spec, tmp, self.style, run=FakeRun(), remotion_dir=str(Path(tmp) / "nope"))
 
 
+class SizeResolverTests(unittest.TestCase):
+    """A beat with authored line breaks is set at the largest size at which its lines fit."""
+
+    MEASURE = layout.line_width("statement")
+
+    @staticmethod
+    def beat(text, role="statement", accents=(), **kw):
+        return text_beat(text, role=role, accents=list(accents), **kw)
+
+    def test_lines_that_fit_at_the_role_size_keep_it_exactly(self):
+        for role in ("statement", "aside", "question"):
+            b = self.beat("A quiet one\nand another", role=role)
+            self.assertEqual(b.size_px, ROLE_PX[role], role)
+
+    def test_a_beat_without_authored_breaks_keeps_the_role_size(self):
+        b = self.beat("Nobody asked where the booth was tonight and nobody wanted to say")
+        self.assertEqual(b.size_px, ROLE_PX["statement"])
+
+    def test_fit_px_returns_the_role_size_when_the_lines_fit(self):
+        self.assertEqual(layout.fit_px("statement", [(5.0, 1.0), (7.0, 1.0)]), 60)
+
+    def test_fit_px_is_exact_at_the_boundary(self):
+        em = self.MEASURE / 45                       # exactly 45 px wide at 45 px
+        self.assertEqual(layout.fit_px("statement", [(em, 1.0)]), 45)
+        self.assertEqual(layout.fit_px("statement", [(em * 1.001, 1.0)]), 44)
+        self.assertEqual(layout.fit_px("statement", [(em * 0.999, 1.0)]), 45)
+
+    def test_the_widest_line_sets_the_size(self):
+        em = self.MEASURE / 50
+        self.assertEqual(layout.fit_px("statement", [(em / 2, 1.0), (em, 1.0), (em / 3, 1.0)]), 50)
+
+    def test_fit_px_gives_none_when_even_the_floor_does_not_fit(self):
+        em = self.MEASURE / (layout.MIN_PX - 1)
+        self.assertIsNone(layout.fit_px("statement", [(em, 1.0)]))
+        self.assertEqual(layout.fit_px("statement", [(self.MEASURE / layout.MIN_PX, 1.0)]), layout.MIN_PX)
+
+    def test_a_long_authored_line_shrinks_the_beat_to_the_exact_fit(self):
+        line = "Nobody asked where the booth was"
+        em = layout.text_width_em(line, "display")
+        b = self.beat(line + "\nand that was fine")
+        self.assertEqual(b.size_px, int(self.MEASURE // em))
+        self.assertLess(b.size_px, ROLE_PX["statement"])
+        self.assertLessEqual(em * b.size_px, self.MEASURE)
+        self.assertGreater(em * (b.size_px + 1), self.MEASURE)
+
+    def test_a_larger_accent_on_the_widest_line_counts_at_its_scale(self):
+        line = "Nobody asked where the booth was"
+        plain = self.beat(line + "\nand that was fine")
+        scaled = self.beat(line + "\nand that was fine", accents=[{"text": "booth", "scale": 1.4}])
+        em = layout.text_width_em(line, "display") + layout.text_width_em("booth", "display") * 0.4
+        self.assertLess(scaled.size_px, plain.size_px)
+        self.assertEqual(scaled.size_px, int(self.MEASURE // em))
+
+    def test_an_accent_on_a_shorter_line_does_not_shrink_the_beat(self):
+        line = "Nobody asked where the booth was"
+        plain = self.beat(line + "\nand that was fine")
+        other = self.beat(line + "\nand that was fine", accents=[{"text": "fine", "scale": 1.2}])
+        self.assertEqual(other.size_px, plain.size_px)
+
+    def test_a_tall_block_shrinks_until_its_height_fits_the_body_container(self):
+        b = self.beat("\n".join(["Word"] * 11), role="question")
+        want = max(px for px in range(layout.MIN_PX, ROLE_PX["question"] + 1)
+                   if 11 * round(px * layout.LINE_HEIGHT) <= layout.BODY_MAX_BLOCK_H)
+        self.assertEqual(b.size_px, want)
+        self.assertLess(want, ROLE_PX["question"])
+        m = voice.plan_motion(b, 150, 30, False)
+        self.assertLessEqual(m.block_height, layout.BODY_MAX_BLOCK_H)
+        self.assertGreater(11 * round((want + 1) * layout.LINE_HEIGHT), layout.BODY_MAX_BLOCK_H)
+
+    def test_a_line_too_wide_at_the_smallest_size_is_rejected_naming_the_line_and_the_size(self):
+        d = sample_dict()
+        d["beats"][0]["text"] = "Short\nNobody asked where the booth was tonight\nend"
+        d["beats"][0]["accents"] = []
+        msg = message_for(d)
+        self.assertIn("beats/0/text", msg)
+        self.assertIn("line 2", msg)
+        self.assertIn("Nobody asked where the booth was tonight", msg)
+        self.assertIn(f"{layout.MIN_PX} px", msg)
+
+    def test_an_accent_still_cannot_cross_a_break_in_a_shrunk_beat(self):
+        d = sample_dict()
+        d["beats"][0]["text"] = "Nobody asked where\nthe booth was"
+        d["beats"][0]["accents"] = [{"text": "where the", "weight": 900}]
+        self.assertIn("beats/0/accents/0", message_for(d))
+
+    def test_the_plan_uses_the_beat_size_for_line_heights_and_whip_pushes(self):
+        acc = [{"text": "booth", "treatment": "whip"}]
+        b = self.beat("Nobody asked where the booth was\nand that was fine", accents=acc)
+        m = voice.plan_motion(b, 150, 30, False)
+        self.assertEqual(m.line_heights, [round(b.size_px * layout.LINE_HEIGHT)] * 2)
+        self.assertEqual(m.block_height, sum(m.line_heights))
+        pushes = [t.pushes for w, t in zip(m.words, m.timings) if w.text == "was"]
+        self.assertEqual(pushes[0][0][2], round(voice.WHIP_PUSH_EM * b.size_px))
+
+    def test_line_heights_follow_a_large_accent_at_the_beat_size(self):
+        b = self.beat("Nobody asked where the booth was\nand that was fine",
+                      accents=[{"text": "fine", "scale": 1.3}])
+        m = voice.plan_motion(b, 150, 30, False)
+        self.assertEqual(m.line_heights, [round(b.size_px * layout.LINE_HEIGHT),
+                                          round(b.size_px * 1.3)])
+
+    def test_the_resolved_size_is_in_the_props_of_that_beat_only(self):
+        d = sample_dict()
+        d["beats"][0].update(text="Nobody asked where the booth was\nand that was fine", accents=[])
+        spec = parse_kinetic(d)
+        props = kinetic_to_remotion_props(spec, load_visual_style(CONFIG, "dyson-hope"))
+        by_id = {b["id"]: b for b in props["beats"]}
+        first = by_id[spec.beats[0].id]
+        self.assertEqual(first["sizePx"], spec.beats[0].size_px)
+        self.assertLess(first["sizePx"], ROLE_PX["statement"])
+        self.assertEqual(first["lineHeights"], [round(first["sizePx"] * layout.LINE_HEIGHT)] * 2)
+        for b in spec.text_beats()[1:]:
+            self.assertEqual(by_id[b.id]["sizePx"], ROLE_PX[b.role])
+
+    def test_the_shrink_note_lists_only_beats_that_were_shrunk(self):
+        d = sample_dict()
+        d["beats"][0].update(text="Nobody asked where the booth was\nand that was fine", accents=[])
+        spec = parse_kinetic(d)
+        notes = spec.size_notes()
+        self.assertEqual(notes, [f"{spec.beats[0].id} set at {spec.beats[0].size_px} px to keep its line breaks"])
+        self.assertEqual(parse_kinetic(sample_dict()).size_notes(), [])
+
+
 class CliTests(unittest.TestCase):
     def _run(self, *argv):
         from video_pipeline.cli import main
@@ -1225,6 +1350,33 @@ class CliTests(unittest.TestCase):
             code, _, err = self._run("kinetic-check", str(bad))
             self.assertEqual(code, 2)
             self.assertIn("caption", err)
+
+    def test_check_notes_each_beat_set_smaller_to_keep_its_line_breaks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            f = Path(tmp) / "shrink.kinetic.json"
+            d = sample_dict()
+            d["beats"][0].update(text="Nobody asked where the booth was\nand that was fine", accents=[])
+            f.write_text(json.dumps(d), encoding="utf-8")
+            code, out, err = self._run("kinetic-check", str(f))
+            self.assertEqual(code, 0, err)
+            px = parse_kinetic(d).beats[0].size_px
+            self.assertIn(f"note: {d['beats'][0]['id']} set at {px} px to keep its line breaks", out)
+            self.assertEqual(out.count("note:"), 1)
+
+    def test_check_prints_no_note_when_every_beat_keeps_its_role_size(self):
+        code, out, err = self._run("kinetic-check", str(SAMPLE))
+        self.assertNotIn("note:", out + err)
+
+    def test_check_a_line_too_wide_at_the_smallest_size_exits_2_naming_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            f = Path(tmp) / "wide.kinetic.json"
+            d = sample_dict()
+            d["beats"][0].update(text="Nobody asked where the booth was tonight\nend", accents=[])
+            f.write_text(json.dumps(d), encoding="utf-8")
+            code, _, err = self._run("kinetic-check", str(f))
+            self.assertEqual(code, 2)
+            self.assertIn("line 1", err)
+            self.assertIn(f"{layout.MIN_PX} px", err)
 
     def test_render_dry_run_against_a_project_writes_nothing(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1294,7 +1446,8 @@ class RemotionAcceptanceTests(unittest.TestCase):
         cls.root = Path(os.environ.get("VP_ACCEPTANCE_DIR", REPO_ROOT / "review" / "kinetic-acceptance"))
         cls.style = load_visual_style(CONFIG, "dyson-hope")
         cls.renders = {}
-        for name, path in (("sample", SAMPLE), ("layout", LAYOUT), ("stress", STRESS), ("defaults", DEFAULTS)):
+        for name, path in (("sample", SAMPLE), ("layout", LAYOUT), ("stress", STRESS), ("defaults", DEFAULTS),
+                           ("shrink", SHRINK)):
             spec = load_kinetic(path)
             res = render_kinetic(spec, cls.root / name / "layers", cls.style)
             props = json.loads(Path(res["props"]).read_text(encoding="utf-8"))
@@ -1547,6 +1700,20 @@ class RemotionAcceptanceTests(unittest.TestCase):
             b = self._body("layout", b_0.start_s + offset)
             self.assertGreater(int(np.logical_xor(a, b).sum()), 150,
                                f"{treated} looks the same as {twin}: its treatments were dropped")
+
+    def test_a_long_authored_line_is_set_smaller_and_stays_inside_the_measure(self):
+        _, long_ = self._beat("shrink", "L1")
+        _, short = self._beat("shrink", "L2")
+        self.assertLess(long_["sizePx"], ROLE_PX["statement"])
+        self.assertEqual(short["sizePx"], ROLE_PX["statement"])
+        left = FULL_SAFE[0] + layout.PAD
+        measure = layout.line_width("statement")
+        bb = self._bbox(self._body("shrink", self._settled("shrink", "L1")))
+        self.assertIsNotNone(bb)
+        self.assertGreaterEqual(bb[0], FULL_SAFE[0])
+        self.assertLessEqual(bb[2], left + measure + 30, "the longest line stays inside the measure (plus the glow)")
+        self.assertGreater(bb[2] - bb[0], 0.8 * measure, "the longest line is set as large as the measure allows")
+        self.assertGreaterEqual(bb[3] - bb[1], long_["lineHeights"][0], "both authored lines are drawn")
 
     def test_the_whole_line_drifts_while_it_reveals(self):
         spec = self.renders["layout"][0]

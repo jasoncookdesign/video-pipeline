@@ -17,7 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from typing import List, Tuple
 
-from .layout import FAMILY_FOR_ROLE, LINE_HEIGHT, ROLE_PX, line_width, text_width_em
+from .layout import FAMILY_FOR_ROLE, line_height_px, line_width, text_width_em
 from .linebreak import Unit, break_units
 from .spec import KineticBeat
 from .text import STOPWORDS, authored_lines, is_function_word, norm_token, phrase_indices, phrase_span, words
@@ -129,7 +129,7 @@ def break_into_lines(beat: KineticBeat, ws: List[Word]) -> List[int]:
     authored = authored_lines(beat.text)
     if authored is not None:    # the author broke the lines: keep them exactly
         return [n for n, line in enumerate(authored) for _ in line]
-    px = ROLE_PX[beat.role]
+    px = beat.size_px
     space = text_width_em(" ", FAMILY_FOR_ROLE[beat.role]) * px
     units: List[Unit] = []
     members: List[int] = []     # first word of each unit
@@ -150,13 +150,9 @@ def break_into_lines(beat: KineticBeat, ws: List[Word]) -> List[int]:
 
 
 def line_heights(beat: KineticBeat, ws: List[Word], lines: List[int]) -> List[int]:
-    """Height of each line in px: the role's pitch, or the biggest accent on the line if taller."""
-    px = ROLE_PX[beat.role]
-    out = []
-    for ln in range(max(lines) + 1 if lines else 0):
-        scale = max(w.scale for w, k in zip(ws, lines) if k == ln)
-        out.append(round(px * max(LINE_HEIGHT, scale)))
-    return out
+    """Height of each line in px: the beat's pitch, or the biggest accent on the line if taller."""
+    return [line_height_px(beat.size_px, max(w.scale for w, k in zip(ws, lines) if k == ln))
+            for ln in range(max(lines) + 1 if lines else 0)]
 
 
 def plan_motion(beat: KineticBeat, frames: int, fps: int, hold_to_end: bool) -> BeatMotion:
@@ -218,7 +214,7 @@ def plan_motion(beat: KineticBeat, frames: int, fps: int, hold_to_end: bool) -> 
                                   treat_from=treat_from, treat_frames=treat_frames))
 
     lines = break_into_lines(beat, ws)
-    px = ROLE_PX[beat.role]
+    px = beat.size_px
     for i, w in enumerate(ws):
         if w.treatment != "whip":
             continue
