@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "reel_id": "STRESS-01",
+  "title": "WWWWWWWWWWW WWWWWWWWWWW WWWWWWWWWWW",
+  "canvas": {
+    "w": 1080,
+    "h": 1920,
+    "fps": 24
+  },
+  "beats": [
+    {
+      "id": "Q1",
+      "kind": "text",
+      "text": "Why is it extraordinarily loud tonight?",
+      "role": "question",
+      "motion": "resolve",
+      "slot": "middle",
+      "align": "center",
+      "accents": [
+        {
+          "text": "extraordinarily",
+          "weight": 900,
+          "italic": true,
+          "scale": 1.3,
+          "color": "accent"
+        }
+      ]
+    },
+    {
+      "id": "S1",
+      "kind": "space",
+      "duration_s": 0.5
+    },
+    {
+      "id": "G1",
+      "kind": "text",
+      "text": "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen",
+      "role": "statement",
+      "motion": "gather",
+      "slot": "middle",
+      "align": "center",
+      "duration_s": 3.5
+    },
+    {
+      "id": "S2",
+      "kind": "space",
+      "duration_s": 0.5
+    },
+    {
+      "id": "R1",
+      "kind": "text",
+      "text": "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen",
+      "role": "statement",
+      "motion": "rise",
+      "slot": "middle",
+      "align": "center",
+      "duration_s": 3.5
+    },
+    {
+      "id": "S3",
+      "kind": "space",
+      "duration_s": 0.5
+    },
+    {
+      "id": "X1",
+      "kind": "text",
+      "text": "WWWWWWWWWWWW fits",
+      "role": "statement",
+      "motion": "rise",
+      "slot": "middle",
+      "align": "center",
+      "accents": [
+        {
+          "text": "WWWWWWWWWWWW",
+          "weight": 900,
+          "italic": true
+        }
+      ]
+    },
+    {
+      "id": "S4",
+      "kind": "space",
+      "duration_s": 0.5
+    },
+    {
+      "id": "X2",
+      "kind": "text",
+      "text": "Long accent phrase fits",
+      "role": "statement",
+      "motion": "rise",
+      "slot": "middle",
+      "align": "center",
+      "accents": [
+        {
+          "text": "Long accent phrase",
+          "weight": 900,
+          "italic": true
+        }
+      ]
+    }
+  ]
+}

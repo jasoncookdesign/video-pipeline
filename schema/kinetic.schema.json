@@ -1,0 +1,278 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://video-pipeline.invalid/kinetic.schema.json",
+  "title": "kinetic.json — a kinetic-text overlay spec",
+  "description": "One continuous overlay layer for a 1080x1920 vertical video: a static title held from the first frame to the last, and a sequence of kinetic text beats beneath it. Each beat reveals clause by clause at reading pace, every word of a clause arriving together. Beat durations are computed from word count unless a beat sets duration_s. Rules JSON Schema cannot express (beat ids unique ignoring case, accent text matching whole words, word length, override pace, total length at most 120 s (over 60 s draws a warning), block height within the body container, caption rules) are enforced at the Python boundary in video_pipeline.kinetic.spec.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "reel_id",
+    "canvas",
+    "title",
+    "beats"
+  ],
+  "dependencies": {
+    "caption": [
+      "topic_terms"
+    ],
+    "topic_terms": [
+      "caption"
+    ]
+  },
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "reel_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+      "description": "Filename-safe id. The rendered layer is '<reel_id>-kinetic.mov'."
+    },
+    "identity": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "Optional style identity (config/visual-styles/identities/<identity>.yml)."
+    },
+    "canvas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "w",
+        "h",
+        "fps"
+      ],
+      "properties": {
+        "w": {
+          "const": 1080
+        },
+        "h": {
+          "const": 1920
+        },
+        "fps": {
+          "type": "integer",
+          "enum": [
+            24,
+            25,
+            30,
+            60
+          ]
+        }
+      }
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 36,
+      "description": "Static hook shown at the top of the safe zone for the whole layer. It never animates, so any frame can serve as the cover.",
+      "pattern": "\\S"
+    },
+    "caption": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 220,
+      "description": "The post caption. One sentence, no hashtags, naming the topic, and not repeating the title or any beat text."
+    },
+    "topic_terms": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": {
+        "type": "string",
+        "minLength": 2,
+        "maxLength": 32
+      },
+      "description": "Words that tell a recommendation system what the video is about. The caption must contain at least min(3, len(topic_terms)) of them."
+    },
+    "beats": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 40,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "text",
+              "space"
+            ]
+          }
+        },
+        "if": {
+          "properties": {
+            "kind": {
+              "const": "text"
+            }
+          },
+          "required": [
+            "kind"
+          ]
+        },
+        "then": {
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "kind",
+            "text",
+            "role",
+            "motion"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,16}$"
+            },
+            "kind": {
+              "const": "text"
+            },
+            "text": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 150,
+              "pattern": "\\S",
+              "description": "The words on screen. A newline is a line break the author chose: when present, every line is shown exactly as written (and must fit the measure); when absent, the line breaker chooses."
+            },
+            "role": {
+              "enum": [
+                "statement",
+                "aside",
+                "question"
+              ]
+            },
+            "motion": {
+              "enum": [
+                "resolve",
+                "rise",
+                "slide",
+                "mask",
+                "gather",
+                "diminish"
+              ]
+            },
+            "slot": {
+              "enum": [
+                "top",
+                "middle",
+                "bottom"
+              ],
+              "default": "top",
+              "description": "Vertical position in the body area. top (default) puts the first line of every block at the same height; middle and bottom are deliberate alternatives."
+            },
+            "align": {
+              "enum": [
+                "left",
+                "center",
+                "right"
+              ],
+              "default": "left",
+              "description": "Text alignment. left (default) is the rule; center and right are deliberate alternatives."
+            },
+            "duration_s": {
+              "type": "number",
+              "minimum": 1.5,
+              "maximum": 30
+            },
+            "voice": {
+              "enum": [
+                "contrast",
+                "even"
+              ],
+              "default": "contrast",
+              "description": "contrast: function words light, content words heavy. even: one weight throughout."
+            },
+            "exit": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "How the beat leaves. fade (default): quick, clause by clause. scatter: gradual; clauses drift apart in turn. duration_s is the length of the exit (fade 0.4, scatter 2.0 by default); linger_s holds the finished line before it starts. Both add to the beat's computed length (an explicit duration_s on the beat still wins).",
+              "properties": {
+                "motion": { "enum": ["fade", "scatter"], "default": "fade" },
+                "duration_s": { "type": "number", "minimum": 0.4, "maximum": 4 },
+                "linger_s": { "type": "number", "minimum": 0, "maximum": 6, "default": 0 }
+              }
+            },
+            "accents": {
+              "type": "array",
+              "maxItems": 4,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "text"
+                ],
+                "minProperties": 2,
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 40,
+                    "pattern": "\\S"
+                  },
+                  "weight": {
+                    "enum": [
+                      300,
+                      400,
+                      500,
+                      600,
+                      700,
+                      800,
+                      900
+                    ]
+                  },
+                  "italic": {
+                    "type": "boolean"
+                  },
+                  "scale": {
+                    "type": "number",
+                    "minimum": 0.8,
+                    "maximum": 1.4
+                  },
+                  "color": {
+                    "enum": [
+                      "accent",
+                      "warm",
+                      "dim"
+                    ]
+                  },
+                  "treatment": {
+                    "enum": [
+                      "none",
+                      "whip",
+                      "bloom",
+                      "swell"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "else": {
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "kind",
+            "duration_s"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{1,16}$"
+            },
+            "kind": {
+              "const": "space"
+            },
+            "duration_s": {
+              "type": "number",
+              "minimum": 0.5,
+              "maximum": 6
+            }
+          }
+        }
+      }
+    }
+  }
+}

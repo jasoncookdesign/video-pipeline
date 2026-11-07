@@ -2,6 +2,8 @@ import React from "react";
 import { Composition } from "remotion";
 import { Captions } from "./Captions";
 import { Card } from "./Card";
+import { KineticText } from "./kinetic/Kinetic";
+import type { KineticProps, WordPlan } from "./kinetic/types";
 import { VisualCompositions } from "./visuals/Visuals";
 import type { CaptionProps, CardProps } from "./types";
 
@@ -103,6 +105,49 @@ const defaultCardProps: CardProps = {
   },
 };
 
+// Studio fallback props for the kinetic-text overlay. Real renders pass --props
+// from video_pipeline.kinetic.props.kinetic_to_remotion_props.
+// A staggered word plan so the Studio preview shows text without a --props file.
+const demoWords = (text: string, outFrom: number, outFrames: number): WordPlan[] =>
+  text.split(" ").map((t, i) => ({
+    text: t, family: "display", weight: i % 2 ? 400 : 700, italic: false, scale: 1, color: "text",
+    treatment: "none", keep: false, inFrom: i * 6, inFrames: 15, outFrom, outFrames,
+    treatFrom: i * 6 + 15, treatFrames: 0, line: 0, pushes: [],
+  }));
+
+const defaultKineticProps: KineticProps = {
+  schemaVersion: 3,
+  kind: "kinetic",
+  reelId: "PREVIEW",
+  fps: 30,
+  durationInFrames: 270,
+  dimensions: { width: 1080, height: 1920 },
+  safeBox: { x: 35, y: 250, width: 880, height: 1220 },
+  titleBox: { x: 35, y: 250, width: 880, height: 360 },
+  bodyBox: { x: 35, y: 650, width: 880, height: 820 },
+  bodyContainer: { x: 63, y: 1360, width: 824, height: 82 },
+  style: {
+    ground: "#191919", surface: "#202020", surface_2: "#262626", line: "#343434", line_2: "#454545",
+    text: "#EDEDED", text_2: "#9C9CA0", accent: "#9C97F4", accent_ink: "#141318", warm: "#E8B27C",
+    alert: "#FF6B5A", display_font: "Archivo", body_font: "Inter", mono_font: "IBM Plex Mono",
+    label_px: 30, body_px: 44, heading_px: 64, title_px: 112, parody_label: "PARODY",
+    brand_label: "DYSON HOPE",
+  },
+  minType: { label_px: 28, body_px: 40, heading_px: 56, title_px: 72 },
+  title: "Where is the stage?",
+  titlePx: 120,
+  beats: [
+    { id: "B01", kind: "text", from: 0, durationInFrames: 150, holdToEnd: false,
+      text: "I used to play on the corner.", role: "statement", motion: "slide", exitMotion: "fade", slot: "middle",
+      align: "center", sizePx: 60, revealFrames: 80, exitFrames: 12, driftPx: 40, lineHeights: [72], blockHeight: 72,
+      words: demoWords("I used to play on the corner.", 138, 12) },
+    { id: "B02", kind: "text", from: 150, durationInFrames: 120, holdToEnd: true,
+      text: "Where would your attention go?", role: "question", motion: "resolve", exitMotion: "fade", slot: "middle",
+      align: "center", sizePx: 68, revealFrames: 60, exitFrames: 0, driftPx: 40, lineHeights: [82], blockHeight: 82,
+      words: demoWords("Where would your attention go?", 120, 0) },
+  ],
+};
+
 export const RemotionRoot: React.FC = () => {
   return (
     <>
@@ -143,6 +188,21 @@ export const RemotionRoot: React.FC = () => {
             height: props.dimensions.height,
           };
         }}
+      />
+      <Composition
+        id="KineticText"
+        component={KineticText}
+        durationInFrames={defaultKineticProps.durationInFrames}
+        fps={30}
+        width={1080}
+        height={1920}
+        defaultProps={defaultKineticProps}
+        calculateMetadata={({ props }) => ({
+          durationInFrames: Math.max(1, props.durationInFrames),
+          fps: props.fps,
+          width: props.dimensions.width,
+          height: props.dimensions.height,
+        })}
       />
       {/* Comedy-forward visual templates (#62): one composition per template. */}
       <VisualCompositions />

@@ -55,3 +55,11 @@ composition sized by `calculateMetadata` from its props (`dimensions`,
 `durationInFrames`). Props mirror `video_pipeline.visuals.props.beat_to_remotion_props`
 (`src/visuals/types.ts`); `video-pipeline visuals-render` builds and renders them.
 See `docs/visuals.md`.
+
+## Kinetic text
+
+`src/kinetic/Kinetic.tsx` registers the `KineticText` composition: one transparent,
+canvas-sized layer with a static title and reading-pace text beats, clipped to the
+safe rectangle. Props mirror `video_pipeline.kinetic.props.kinetic_to_remotion_props`
+(`src/kinetic/types.ts`); `video-pipeline kinetic-render` builds and renders them.
+See `docs/kinetic.md`.
