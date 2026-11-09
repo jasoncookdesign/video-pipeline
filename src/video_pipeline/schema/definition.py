@@ -935,7 +935,7 @@ def build_schema() -> Schema:
              "FCPXML 1.10 for Final Cut Pro and DaVinci Resolve.",
         params=[
             _export_fps,
-            Param("event", "string", flag="--event", default="JasonOS",
+            Param("event", "string", flag="--event", default="video-pipeline",
                   hint="FCPXML event name.",
                   ui=UI(label="Event name", group="Sequence")),
         ],

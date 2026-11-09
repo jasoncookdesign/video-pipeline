@@ -214,5 +214,15 @@ class TestGlossary(unittest.TestCase):
         self.assertIn("FFmpeg", fixed)
 
 
+    def test_shipped_jcd_glossary_has_only_brand_vocabulary(self):
+        g = load_glossary(self.CONFIG, "jason-cook-design")
+        self.assertIn("Jason Cook Design", g.terms)
+        for unwanted in ("JasonOS", "Claude Code"):
+            self.assertNotIn(unwanted, g.terms)
+            self.assertNotIn(unwanted, g.corrections.values())
+        self.assertEqual(g.apply_corrections("welcome to jason o s"),
+                         "welcome to jason o s")
+
+
 if __name__ == "__main__":
     unittest.main()
