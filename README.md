@@ -247,7 +247,7 @@ Settings come from two places, low to high precedence:
 
 The full, authoritative list of keys and types is `schema/project.schema.json`;
 `config/glossary/README.md` and `config/caption-styles/README.md` document the
-layered files. The commonly-tuned settings:
+layered files. Rough-cut filler and safe-zone QC keys are described below. The commonly-tuned settings:
 
 ```yaml
 # project.yml — lives in each project folder
@@ -304,6 +304,49 @@ video-pipeline captions <clip> -o review/captions.yml --identity <identity> \
 video-pipeline captions <clip> -o review/captions.yml --identity <identity> \
     --min-words 2 --max-words 4 --karaoke   # phrase groups + karaoke highlight
 ```
+
+### Rough-cut filler settings
+
+Two further `rough_cut:` keys tune what the rough cut drops:
+
+| Key | Type | Default | Meaning |
+|---|---|---|---|
+| `detect_false_starts` | boolean | `true` | Drop a word that is immediately repeated (a stutter or restart). The first, abandoned instance is cut and the clean repeat is kept. Words are compared case-insensitively with punctuation ignored, and only repeats less than 0.5 s apart count. |
+| `extra_filler_words` | list of strings | `[]` | Extra filler words to drop on top of the built-in list ("um", "uh", "er", and similar), for example `["basically"]`. Matching ignores case and punctuation. |
+
+### Safe-zone QC settings
+
+The `qc` command reads thresholds and fixed overlay elements from the optional
+`qc:` block of `project.yml` when you pass `--project`. Unset keys use the defaults
+below. `--occlusion-frac`, `--face-danger-frac` and `--intrusion-frac` override the
+project values for a single run.
+
+```yaml
+qc:
+  occlusion_frac: 0.10
+  face_danger_frac: 0.20
+  intrusion_frac: 0.0
+  elements:
+    - {kind: logo, x: 40, y: 60, width: 120, height: 120, label: brand}
+```
+
+| Key | Type | Default | Meaning |
+|---|---|---|---|
+| `occlusion_frac` | number, 0 to 1 | `0.1` | A caption is flagged as covering a face when more than this fraction of the caption box overlaps a detected face. |
+| `face_danger_frac` | number, 0 to 1 | `0.2` | A face is flagged when more than this fraction of it sits in the danger region (outside the safe polygon, including the corner notch). |
+| `intrusion_frac` | number, 0 to 1 | `0.0` | Tolerated fraction of a protected element (caption, logo, call to action, text, graphic) inside the danger region. `0` flags any intrusion. |
+| `check_caption_over_face` | boolean | `true` | Enables the caption-over-face check. |
+| `check_face_in_danger` | boolean | `true` | Enables the face-in-danger check. |
+| `elements` | list | `[]` | Fixed overlay marks checked on every run, such as a logo or call to action. |
+
+The two `check_*` keys are accepted in `project.yml`, but the `qc` command
+currently takes its switch from the command line only: `--no-face-check` turns off
+face detection and with it both face checks.
+
+Each entry in `elements` needs `kind` (`caption`, `logo`, `cta`, `text` or
+`graphic`), `x` and `y` (the top-left corner) and `width` and `height` (greater
+than 0), all in pixels of the output frame with the origin at the top left. An
+optional `label` names the element in the report.
 
 ## Test
 
