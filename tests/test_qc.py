@@ -349,5 +349,94 @@ class RunnerElementGatheringTests(unittest.TestCase):
         self.assertAlmostEqual(els[1].t_end, 4.0)
 
 
+class QcCommandFaceSwitchTests(unittest.TestCase):
+    """`qc` honors check_caption_over_face / check_face_in_danger from project.yml.
+
+    Drives the real entry point and the real validator; only face detection (which
+    needs native deps and footage) is replaced by one face that both overlaps the
+    caption and sits partly outside the safe area.
+    """
+
+    BOTH = {"caption-over-face", "face-in-danger"}
+
+    def _run(self, qc_block=None, flags=(), project=True):
+        import contextlib
+        import io
+        from unittest import mock
+
+        from video_pipeline.cli import main
+
+        with tempfile.TemporaryDirectory() as tmp:
+            spec_path = os.path.join(tmp, "spec.json")
+            with open(spec_path, "w", encoding="utf-8") as fh:
+                fh.write(make_spec().to_json())
+            props_path = os.path.join(tmp, "props.json")
+            with open(props_path, "w", encoding="utf-8") as fh:
+                json.dump({
+                    "fps": 30,
+                    "safeBox": {"x": 50, "y": 1300, "width": 300, "height": 200},
+                    "cues": [{"text": "hello", "from": 0, "durationInFrames": 30}],
+                }, fh)
+            report_path = os.path.join(tmp, "report.json")
+            argv = ["qc", os.path.join(tmp, "in.mp4"), "--safezone", spec_path,
+                    "--props", props_path, "--report", report_path, "--dry-run",
+                    *flags]
+            if project:
+                with open(os.path.join(tmp, "project.yml"), "w", encoding="utf-8") as fh:
+                    fh.write("identity: dyson-hope\nprofile: reels-9x16\n")
+                    if qc_block:
+                        fh.write("qc:\n")
+                        for k, v in qc_block.items():
+                            fh.write(f"  {k}: {str(v).lower()}\n")
+                argv += ["--project", tmp]
+            face = QCElement(kind="face", rect=Rect(0, 1300, 300, 1500))
+            with mock.patch("video_pipeline.qc.runner._detect_faces",
+                            return_value=[face]) as detect, \
+                    contextlib.redirect_stdout(io.StringIO()):
+                code = main(argv)
+            with open(report_path, encoding="utf-8") as fh:
+                report = json.load(fh)
+        self.assertEqual(code, 0)
+        kinds = {v["kind"] for v in report["violations"]} & self.BOTH
+        return kinds, detect.called
+
+    def test_both_default_true_keeps_both_checks(self):
+        self.assertEqual(self._run({}), (self.BOTH, True))
+        self.assertEqual(self._run(None, project=False), (self.BOTH, True))
+
+    def test_caption_over_face_false_skips_only_that_check(self):
+        kinds, _ = self._run({"check_caption_over_face": False})
+        self.assertEqual(kinds, {"face-in-danger"})
+
+    def test_face_in_danger_false_skips_only_that_check(self):
+        kinds, _ = self._run({"check_face_in_danger": False})
+        self.assertEqual(kinds, {"caption-over-face"})
+
+    def test_both_false_runs_neither_and_skips_detection(self):
+        kinds, detected = self._run({"check_caption_over_face": False,
+                                     "check_face_in_danger": False})
+        self.assertEqual(kinds, set())
+        self.assertFalse(detected)
+
+    def test_no_face_check_flag_still_disables_both(self):
+        for qc_block in (None, {}, {"check_caption_over_face": True,
+                                    "check_face_in_danger": True}):
+            with self.subTest(qc=qc_block):
+                kinds, detected = self._run(qc_block, flags=["--no-face-check"])
+                self.assertEqual(kinds, set())
+                self.assertFalse(detected)
+
+    def test_flag_and_keys_combine(self):
+        # the flag wins over keys that would enable a check; keys that disable a
+        # check stay disabled when the flag is absent
+        kinds, detected = self._run({"check_face_in_danger": False},
+                                    flags=["--no-face-check"])
+        self.assertEqual(kinds, set())
+        self.assertFalse(detected)
+        kinds, _ = self._run({"check_face_in_danger": False,
+                              "check_caption_over_face": True})
+        self.assertEqual(kinds, {"caption-over-face"})
+
+
 if __name__ == "__main__":
     unittest.main()
