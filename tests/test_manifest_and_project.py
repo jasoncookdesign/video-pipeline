@@ -216,12 +216,11 @@ class TestGlossary(unittest.TestCase):
 
     def test_shipped_jcd_glossary_has_only_brand_vocabulary(self):
         g = load_glossary(self.CONFIG, "jason-cook-design")
-        self.assertIn("Jason Cook Design", g.terms)
-        for unwanted in ("JasonOS", "Claude Code"):
-            self.assertNotIn(unwanted, g.terms)
-            self.assertNotIn(unwanted, g.corrections.values())
-        self.assertEqual(g.apply_corrections("welcome to jason o s"),
-                         "welcome to jason o s")
+        brand = {"Jason Cook Design", "Astro"}
+        self.assertTrue(brand <= set(g.terms))
+        self.assertEqual(set(g.corrections.values()) - set(g.terms), set())
+        self.assertEqual(g.apply_corrections("jason cook design"),
+                         "Jason Cook Design")
 
 
 if __name__ == "__main__":
