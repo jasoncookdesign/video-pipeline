@@ -531,7 +531,7 @@ def build_schema() -> Schema:
         ],
         hint="Transcribe + propose an editable cut decision file.",
         help="Produces the decision file (one scannable line per segment) you can "
-             "hand-edit before rendering. Daily driver transcribes with mlx-whisper "
+             "hand-edit before rendering. The local machine transcribes with mlx-whisper "
              "unless a --transcript is supplied.",
         params=[
             Param("no_trim_filler", "bool", arity="switch", flag="--no-trim-filler",
