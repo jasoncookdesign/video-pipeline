@@ -314,7 +314,7 @@ def assemble_fcpxml(
     width: int = 1080,
     height: int = 1920,
     fps: int = 30,
-    event_name: str = "JasonOS",
+    event_name: str = "video-pipeline",
     project_name: Optional[str] = None,
     reframed_name: Optional[str] = None,
     visuals: Optional[list] = None,

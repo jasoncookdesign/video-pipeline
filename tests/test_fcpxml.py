@@ -278,5 +278,37 @@ class DocumentTests(unittest.TestCase):
         self.assertEqual(cut.kept(), [])
 
 
+class TestDefaultEventName(unittest.TestCase):
+    """The FCPXML event name defaults to the neutral "video-pipeline" everywhere."""
+
+    EXPECTED = "video-pipeline"
+
+    def test_assembled_document_uses_neutral_event(self):
+        xml, _ = assemble_fcpxml(
+            make_decision(TWO_CUT), None,
+            reframed_src="/Video/work/clip-9x16.mp4", fps=FPS,
+        )
+        root = ET.fromstring(xml.split("<!DOCTYPE fcpxml>")[1])
+        self.assertEqual(root.find("./library/event").attrib["name"], self.EXPECTED)
+
+    def test_runner_default(self):
+        import inspect
+        from video_pipeline.fcpxml import runner
+        params = inspect.signature(runner.assemble_project).parameters
+        self.assertEqual(params["event_name"].default, self.EXPECTED)
+
+    def test_cli_event_flag_default(self):
+        from video_pipeline.cli import build_parser
+        for argv in (["fcpxml"], ["export", "fcpxml"]):
+            with self.subTest(argv=argv):
+                self.assertEqual(build_parser().parse_args(argv).event, self.EXPECTED)
+
+    def test_schema_event_param_default(self):
+        from video_pipeline import schema as S
+        task = next(t for t in S.build_schema().tasks if t.id == "export.fcpx")
+        event = next(p for p in task.params if p.key == "event")
+        self.assertEqual(event.default, self.EXPECTED)
+
+
 if __name__ == "__main__":
     unittest.main()

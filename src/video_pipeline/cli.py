@@ -1002,7 +1002,7 @@ def _add_handoff_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--transcript", default=None,
                         help="word-level transcript JSON; aligns visual beats to where their "
                              "lines are spoken (else planned durations are used as cut time)")
-    parser.add_argument("--event", default="JasonOS", help="FCPXML event name (fcpxml only)")
+    parser.add_argument("--event", default="video-pipeline", help="FCPXML event name (fcpxml only)")
     parser.add_argument("--project-name", default=None,
                         help="project/sequence name (default: the decision file's source)")
 

@@ -52,7 +52,7 @@ def assemble_project(
     width: int = 1080,
     height: int = 1920,
     fps: int = 30,
-    event_name: str = "JasonOS",
+    event_name: str = "video-pipeline",
     project_name: Optional[str] = None,
     visuals_path: Optional[str] = None,
     visuals_dir: Optional[str] = None,
