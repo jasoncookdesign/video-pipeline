@@ -1,4 +1,4 @@
-"""Source-card producer (INI-089 Phase B) — pure logic: content round-trip,
+"""Source-card producer — pure logic: content round-trip,
 capture→content structuring, props + overlay.def wiring + render argv."""
 
 import json

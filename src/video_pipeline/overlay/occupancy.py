@@ -1,4 +1,4 @@
-"""overlay.occupancy — the cross-layer descriptor (INI-089 Phase A). Pure.
+"""overlay.occupancy — the cross-layer descriptor. Pure.
 
 An overlay occupies a rectangle of the frame for a window of time. The compositor
 needs that rect to *place* the overlay; caption placement and safe-zone QC need it

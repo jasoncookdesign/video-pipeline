@@ -9,7 +9,7 @@ is transparent."
 
 These proxies are GUI-only — they are never bundled into an editor export. Pure
 ffmpeg-argv assembly (:func:`ffmpeg_proxy_command`) + a thin runner, like the
-other renderers. The actual render is a daily-driver seam (real ffmpeg).
+other renderers. The actual render is a local seam (real ffmpeg).
 """
 
 from __future__ import annotations

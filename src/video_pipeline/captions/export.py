@@ -12,7 +12,7 @@ Two outputs, both derived from a :class:`~video_pipeline.captions.cue.CaptionTra
     the styled caption overlay: resolved style, the safe-zone caption box (px),
     frame dimensions/fps, and each kept cue with frame-accurate in/out points and
     its emphasis word indices. This is the seam between the (pure, tested) Python
-    timing/placement layer and the (Node/React, daily-driver) Remotion renderer.
+    timing/placement layer and the (Node/React, local) Remotion renderer.
 
 Only kept cues cross either boundary; ``source/`` is never touched.
 """
@@ -103,7 +103,7 @@ def track_to_remotion_props(
     least 1 so a very short cue still renders. ``box`` (from
     :func:`~video_pipeline.captions.placement.caption_box`) is the track-level
     default placement. ``cue_boxes`` (optional, keyed by cue index) overrides the
-    box for individual cues that must dodge an overlay (INI-089 caption-dodge); a
+    box for individual cues that must dodge an overlay; a
     cue with an entry emits its own ``box`` and the renderer prefers it over
     ``safeBox``. ``karaoke`` adds the top-level flag; ``wordTimings`` (per-word
     frame windows relative to each cue) is always emitted so the renderer can
@@ -130,8 +130,8 @@ def track_to_remotion_props(
         out_cues.append(out_cue)
 
     return {
-        # v3 (INI-089 caption-dodge): cues may carry an optional per-cue `box` that
-        # overrides safeBox to clear an overlay. v2 (INI-088 Phase 2): style adds
+        # v3: cues may carry an optional per-cue `box` that
+        # overrides safeBox to clear an overlay. v2: style adds
         # the background-plate trio. Older consumers ignore the new keys.
         "schemaVersion": 3,
         "source": track.source,
@@ -171,7 +171,7 @@ def build_props_from_safezone(
     defaults to the style's horizontal placement; ``karaoke`` defaults to
     ``style.karaoke``.
 
-    ``avoid_windows`` (INI-089 caption-dodge) is an optional list of
+    ``avoid_windows`` is an optional list of
     ``(x, y, w, h, start, end)`` overlay footprints (from
     ``overlay.occupancy.avoid_windows``). When given, each cue whose time window
     overlaps an overlay gets a relocated ``box`` that clears it; cues with no

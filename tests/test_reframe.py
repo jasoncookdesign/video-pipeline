@@ -1,8 +1,8 @@
 """TDD for the reframe crop-plan and FFmpeg command assembly.
 
 The pure logic — geometry, clamping, smoothing, command building — is fully
-tested here. The MediaPipe tracking + real-footage render is the daily-driver
-(Ono-Sendai) acceptance step and is intentionally out of the sandbox suite.
+tested here. The MediaPipe tracking + real-footage render is the local
+acceptance step and is intentionally out of the pure-logic suite.
 """
 
 import statistics

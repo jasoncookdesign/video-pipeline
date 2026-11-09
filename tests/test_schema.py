@@ -1,4 +1,4 @@
-"""Tests for the control-tower schema contract (INI-087, GUI Phase 1).
+"""Tests for the control-tower schema contract (GUI Phase 1).
 
 These cover the pipeline side of the contract only — no GUI dependency (the
 one-way-dependency invariant). The GUI repo's contract test reaches the other
@@ -68,7 +68,7 @@ def test_every_consumed_channel_has_a_producer():
 def test_base_channel_has_the_expected_writer_chain():
     # project.init -> reframe.render -> roughcut.render all write `base` (SADD §3.2).
     # The reframe step's base writer is now its *render* half (the propose half writes
-    # the reframe.def, not the clip) after the two-task split (INI-091).
+    # the reframe.def, not the clip) after the two-task split.
     sch = S.build_schema()
     assert sch.writers_of("base") == [
         "project.init", "reframe.render", "roughcut.render",
@@ -85,7 +85,7 @@ def test_export_subcommands_are_real_cli_invocations():
 # --- argv assembly (the process contract) ---------------------------------
 
 def test_resolve_argv_reframe_propose_is_runnable():
-    # The reframe step is two tasks now (INI-091): propose writes the reframe.def +
+    # The reframe step is two tasks now: propose writes the reframe.def +
     # subject track, render consumes the def. Propose carries the framing controls.
     sch = S.build_schema()
     argv = S.resolve_argv(
@@ -158,7 +158,7 @@ def test_resolve_argv_orders_positionals_and_wires_io_flags():
 def test_resolve_argv_raises_on_missing_required():
     sch = S.build_schema()
     # project.init needs the `name` positional (required). (safezone.gen's template is
-    # optional since INI-091 — only `custom` mode needs it — so it can no longer stand
+    # optional now — only `custom` mode needs it — so it can no longer stand
     # in for the missing-required case.)
     try:
         S.resolve_argv(sch, "project.init", {}, {"base": "work/base.mp4"})
@@ -175,7 +175,7 @@ def test_new_task_surfaces_in_emit_without_code_change():
     document and stays conformant — the observable proof of tenet 4 (no GUI
     recompile needed to gain a step)."""
     # Uses a still-hypothetical "watermark" step (the once-hypothetical "overlay"
-    # is now a real part of the schema — INI-089 — so it would collide here).
+    # is now a real part of the schema, so it would collide here).
     base = S.build_schema()
     new_step = Step("watermark", "Watermark", order=45)
     new_art = Artifact("watermark", kind="layer", path="layers/watermark.mov",

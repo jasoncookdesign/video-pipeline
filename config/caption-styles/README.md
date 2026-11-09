@@ -1,4 +1,4 @@
-# Caption styles — the style layer (INI-085 Phase 3)
+# Caption styles — the style layer
 
 Captions are **two layers, kept separate** (shaping brief §3.3):
 

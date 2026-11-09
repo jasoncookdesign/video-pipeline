@@ -82,16 +82,16 @@ slotted into the schema as new **content** in `definition.py` — no grammar cha
 no GUI recompile. They are the working proof that the single-source-of-truth model
 holds as the pipeline grows.
 
-**Overlay subsystem (INI-089) — shipped.** The dedicated overlay step the
+**Overlay subsystem — shipped.** The dedicated overlay step the
 architecture document sketched now exists. `definition.py` emits `overlay.define`
 (author the editable `overlay.def`), `overlay.card` (capture a source card), and
 `overlay.render` (composite the timed/placed overlays and emit the
 `overlay.occupancy` descriptor). The occupancy descriptor is the thin cross-branch
 edge: caption placement and safe-zone QC read *where* an overlay sits (bounding
 regions / coverage), never its pixels. Captions are no longer the only overlay
-layer — see [`ini-089-overlay.md`](ini-089-overlay.md).
+layer.
 
-**Reframe split (INI-090/091) — shipped.** The reframe step is no longer a single
+**Reframe split — shipped.** The reframe step is no longer a single
 portrait-only task. `definition.py` emits `reframe.propose` (track the subject →
 editable `reframe.def`) and `reframe.render` (replay the def → reframed clip),
 mirroring the caption define/render pattern, and surfaces the target-format,

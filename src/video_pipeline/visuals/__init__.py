@@ -1,1 +1,1 @@
-"""Comedy-forward visual track (#62 part A): visuals.json -> Remotion clips -> V2."""
+"""Comedy-forward visual track: visuals.json -> Remotion clips -> V2."""

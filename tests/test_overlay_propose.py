@@ -1,4 +1,4 @@
-"""Transcript→window proposer (INI-089) — pure matching logic."""
+"""Transcript→window proposer — pure matching logic."""
 
 import unittest
 

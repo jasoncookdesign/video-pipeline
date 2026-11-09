@@ -88,7 +88,7 @@ class TestManifestValidation(unittest.TestCase):
 
 
 class TestManifestTarget(unittest.TestCase):
-    """The project-level Target (INI-091): explicit target wins; profile is a
+    """The project-level Target: explicit target wins; profile is a
     tolerant fallback; either one satisfies the schema."""
 
     def test_legacy_profile_only_derives_a_target(self):

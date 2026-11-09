@@ -8,15 +8,15 @@ Two real implementations ship:
 
   - ``MLXWhisperTranscriber`` — Apple-Silicon (MLX) Whisper with word-level
     timestamps. The chosen primary transcriber: local-first, native fit for the
-    M4 Pro daily driver, no per-minute cost, nothing leaves the machine. Lazy
-    import; daily-driver only (the ``[roughcut]`` extra). WhisperX / ElevenLabs
+    local Apple-Silicon machine, no per-minute cost, nothing leaves the machine. Lazy
+    import; local only (the ``[roughcut]`` extra). WhisperX / ElevenLabs
     Scribe are deferred alternatives that would slot in behind this same seam.
 
   - ``SilenceTranscriber`` — an offline fallback with NO ASR: FFmpeg
     ``silencedetect`` gives speech/silence boundaries, emitted as one marker word
     per speech region. The proposer then trims **dead air only** (filler /
     false-start detection needs real words). Runs anywhere with an FFmpeg binary
-    — including the JasonOS sandbox, where mlx-whisper is unavailable.
+    — including a restricted environment, where mlx-whisper is unavailable.
 
 Tests use ``FixedTranscriber`` and need no native build. ``transcript_from_
 whisper_dict`` parses any Whisper-shaped result (segments[].words[]) so a
@@ -159,12 +159,12 @@ def transcript_from_speech_regions(
 class SilenceTranscriber:
     """Offline, ASR-free fallback transcriber via FFmpeg ``silencedetect``.
 
-    No model, no network — runs anywhere with FFmpeg/ffprobe (incl. the JasonOS
-    sandbox, where mlx-whisper is unavailable). Returns one marker word per
+    No model, no network — runs anywhere with FFmpeg/ffprobe (incl. a restricted
+    test environment, where mlx-whisper is unavailable). Returns one marker word per
     detected speech region, so the proposer trims **dead air only**; filler and
     false-start removal still require a real word-level transcript (mlx-whisper
-    on the daily driver). The pure parsing/region helpers are unit-tested; only
-    the FFmpeg/ffprobe calls here are daily-driver/binary-bound.
+    on the local machine). The pure parsing/region helpers are unit-tested; only
+    the FFmpeg/ffprobe calls here are local/binary-bound.
     """
 
     def __init__(
@@ -238,8 +238,8 @@ def transcript_from_whisper_dict(data: dict) -> Transcript:
 class MLXWhisperTranscriber:
     """Local Apple-Silicon Whisper (MLX) with word-level timestamps.
 
-    Daily-driver only — needs ``mlx-whisper`` (the ``[roughcut]`` extra) and an
-    Apple-Silicon machine. Lazy import keeps the sandbox suite free of native
+    Local only — needs ``mlx-whisper`` (the ``[roughcut]`` extra) and an
+    Apple-Silicon machine. Lazy import keeps the pure-logic suite free of native
     deps; ``transcript_from_whisper_dict`` does the shared parsing.
 
     Network behaviour: ``offline`` (default True) sets ``HF_HUB_OFFLINE=1`` before

@@ -1,4 +1,4 @@
-"""FCPXML runner — assembles the handoff project. Daily-driver glue.
+"""FCPXML runner — assembles the handoff project. Local glue.
 
 Wires the pure pieces into the Phase-5 flow:
 
@@ -133,7 +133,7 @@ def assemble_project(
         cut_track.write(cut_path)
         result["cut_captions"] = str(cut_path)
 
-    # Write the cut-time overlay file (INI-089). Overlays are authored in source
+    # Write the cut-time overlay file. Overlays are authored in source
     # time; remapped onto the cut they composite/place at the right offsets. The
     # editor renders/places overlays from this cut-aligned decision file — the
     # analogue of the cut-time caption file above.
@@ -152,7 +152,7 @@ def assemble_project(
 
 
 def _visual_placements(visuals_path, decision, *, fps, clips_dir, transcript_path=None):
-    """Load a visuals.json, time its beats on the cut, and build V2 placements (#62).
+    """Load a visuals.json, time its beats on the cut, and build V2 placements.
 
     Timing: with a transcript, beats align to where their lines are spoken (source
     time, remapped through the decision file like overlays); otherwise the planned

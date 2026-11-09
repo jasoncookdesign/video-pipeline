@@ -20,7 +20,7 @@ key collisions. `identity` comes from `project.yml`.
 
 ## Seeding
 
-These files are **seeds**, to be expanded from the JasonOS KB identity docs
+These files are **seeds**, to be expanded from the project's identity docs
 (`knowledge/clients/dyson-hope-family/`, etc.) as real transcripts surface
 recurring mishears. Add a correction the first time the pipeline mis-spells a
 proper noun; it then lands right on the first pass for every later project.

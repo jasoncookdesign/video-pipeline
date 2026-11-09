@@ -1,11 +1,11 @@
-"""Reframe probe runner — daily-driver (Ono-Sendai) entry point.
+"""Reframe probe runner — local entry point.
 
 Glues real subject tracking (MediaPipe) + FFmpeg into the trust-model probe:
 
     raw landscape clip  ->  track subject  ->  crop plan  ->  reframed 9:16 mp4
 
-This is the run the CEO accepts or rejects on real footage. It needs MediaPipe,
-OpenCV, and an FFmpeg binary, so it does NOT execute in the JasonOS sandbox; the
+This is the run the editor accepts or rejects on real footage. It needs MediaPipe,
+OpenCV, and an FFmpeg binary, so it does NOT execute in a restricted environment; the
 pure pieces it calls (``build_crop_plan``, ``ffmpeg_crop_command``) are tested
 there instead.
 """
@@ -66,14 +66,14 @@ def reframe(
     ``"opencv"`` (default — bundled Haar cascade, no model download) or
     ``"mediapipe"`` (Tasks API; downloads a model on first use).
 
-    Target format (INI-090): when ``aspect`` is given, (out_w, out_h) are resolved
+    Target format: when ``aspect`` is given, (out_w, out_h) are resolved
     from the aspect preset + ``resolution`` (``"auto"`` or a tier) against the source;
     otherwise the explicit ``out_w/out_h`` are used (legacy ``--profile`` path).
     ``scale`` / ``subject_y_frac`` apply the framing crop. If ``occupancy_out`` is set,
     the subject's footprint in the reframed frame is written there for the caption
     layer to dodge.
 
-    ``lock`` (INI-091 Phase 5) engages the dynamic Composition Lock ("none" | "x" | "y"
+    ``lock`` engages the dynamic Composition Lock ("none" | "x" | "y"
     | "both"); ``pan_x``/``pan_y`` are the set box (the relative-placement anchor) the
     lock holds. They thread straight through to :func:`plan.build_crop_plan`.
     """

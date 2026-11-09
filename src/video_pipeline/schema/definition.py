@@ -1,4 +1,4 @@
-"""The JasonOS video-pipeline control-tower schema instance.
+"""The video-pipeline control-tower schema instance.
 
 This is the single source of truth the GUI consumes (SADD §3). It is authored
 to mirror the *real* CLI surface in ``video_pipeline.cli`` so the resolved argv
@@ -70,7 +70,7 @@ def _known_identities() -> list[str]:
 
 _IDENTITIES = _known_identities()
 
-# Safe-zone modes surfaced as the safezone.gen `mode` dropdown (INI-091). Pulled
+# Safe-zone modes surfaced as the safezone.gen `mode` dropdown. Pulled
 # from the Python boundary so the options/default match exactly what the CLI +
 # the normalized safe-zone builder accept.
 from ..safezone.normalized import DEFAULT_MODE as _SAFE_ZONE_DEFAULT_MODE  # noqa: E402
@@ -120,7 +120,7 @@ def _profile_param(*, required: bool, default: str | None = "reels-9x16") -> Par
 
 
 def _format_params() -> list[Param]:
-    """Target-format selectors for the reframe step (INI-090): aspect shape +
+    """Target-format selectors for the reframe step: aspect shape +
     resolution tier + optional framing intent. Options come straight from the Python
     boundary (``target_format`` / ``framing``) so the dropdowns match exactly what the
     resolver accepts. Aspect + resolution always emit (format is mandatory); framing is
@@ -156,13 +156,13 @@ def _format_params() -> list[Param]:
 
 
 def _caption_style_params() -> list[Param]:
-    """The five per-run caption-style controls (INI-088), shared by the caption
+    """The five per-run caption-style controls, shared by the caption
     *define* and *render* tasks so the GUI surfaces an identical Style group on
     both and the two argv paths cannot drift. Options/caps come straight from the
     Python boundary (``CaptionStyle``) so the dropdown/slider bounds are exactly
     what ``__post_init__`` enforces. Defaults match the built-in CaptionStyle —
     these are per-run flags with sensible defaults (identity-encoded defaults are
-    deferred, INI-088 out of scope), so a GUI run emits them explicitly."""
+    deferred, out of scope), so a GUI run emits them explicitly."""
     from ..captions.style import (
         BG_RADIUS_MAX,
         BG_RADIUS_MIN,
@@ -179,7 +179,7 @@ def _caption_style_params() -> list[Param]:
               hint="Caption font family.",
               help="The font the captions render in. Curated allowlist (the same set "
                    "the pipeline accepts); Remotion falls back to Helvetica until font "
-                   "loading lands (INI-088 Phase 4).",
+                   "loading lands.",
               ui=UI(label="Font", control="dropdown", group="Style")),
         Param("font_size", "number", flag="--font-size",
               min=FONT_SIZE_MIN, max=FONT_SIZE_MAX, step=2, default=96,
@@ -202,7 +202,7 @@ def _caption_style_params() -> list[Param]:
               help="Outline thickness in px; 0 disables the stroke. Capped at the "
                    "Python boundary.",
               ui=UI(label="Stroke width (px)", control="slider", group="Style")),
-        # Background-plate trio (INI-088 Phase 2). bg_color/bg_radius depend on the
+        # Background-plate trio. bg_color/bg_radius depend on the
         # bg_enabled toggle — the GUI hides them until the plate is switched on.
         Param("bg_enabled", "bool", arity="switch", flag="--bg", default=False,
               hint="Draw a background plate behind the captions.",
@@ -220,7 +220,7 @@ def _caption_style_params() -> list[Param]:
               help="Rounded-corner radius of the plate in px; 0 = square corners.",
               ui=UI(label="Plate corner radius (px)", control="slider", group="Style",
                     depends_on_key="bg_enabled", depends_on_equals=True)),
-        # Horizontal placement (INI-088 Phase 3).
+        # Horizontal placement.
         Param("h_offset", "enum", flag="--h-offset",
               options=["clear-notch", "center"], default="clear-notch",
               hint="Horizontal placement of the caption block.",
@@ -366,12 +366,12 @@ def build_schema() -> Schema:
             IOBinding(artifact="safezone.def", role="output", via="flag", flag="-o"),
         ],
         hint="Derive the safe-zone spec (none / generic / custom).",
-        help="Builds the safe-zone spec consumed downstream. INI-091 modes: none "
+        help="Builds the safe-zone spec consumed downstream. Modes: none "
              "(full frame is safe), generic (per-aspect conservative insets, the "
              "default), or custom (trace a design template PNG where the danger "
              "region is marked by alpha or a key color).",
         params=[
-            # INI-091 safe-zone mode. Options/default come from the Python boundary
+            # Safe-zone mode. Options/default come from the Python boundary
             # (normalized.SAFE_ZONE_MODES / DEFAULT_MODE) so the dropdown matches what
             # the CLI accepts. The template + region-key controls are conditional on
             # mode=custom (the only mode that reads a PNG).
@@ -424,7 +424,7 @@ def build_schema() -> Schema:
              "subject-derived centre + framing intent into the editable reframe.def "
              "(scale / pan / aspect / resolution) and persists the subject track so "
              "Render replays the geometry without re-tracking. Static holds one crop; "
-             "dynamic follows the subject. Daily-driver path needs MediaPipe.",
+             "dynamic follows the subject. Local path needs MediaPipe.",
         params=[
             *_format_params(),
             Param("mode", "enum", flag="--mode", options=["static", "dynamic"],
@@ -437,7 +437,7 @@ def build_schema() -> Schema:
                   default="opencv",
                   hint="Subject detector backend.",
                   help="opencv is dependency-light; mediapipe is the higher-quality "
-                       "daily-driver face/pose tracker.",
+                       "local face/pose tracker.",
                   ui=UI(label="Tracker", control="dropdown", group="Crop")),
             Param("scale", "number", flag="--scale", min=1.0, max=2.5, step=0.05,
                   hint="Punch-in override (optional).",
@@ -452,7 +452,7 @@ def build_schema() -> Schema:
                        "+1 = bottom. Only bites when there is vertical slack (punched "
                        "in, or a source taller than the target). Unset = let Framing decide.",
                   ui=UI(label="Subject Y (override)", control="slider", group="Framing")),
-            # INI-091 Phase 5: set-box pan anchor + composition lock. pan_x/pan_y are
+            # set-box pan anchor + composition lock. pan_x/pan_y are
             # the relative crop placement (0..1) the lock holds; lock=none keeps the
             # legacy auto-tracked crop.
             Param("pan_x", "number", flag="--pan-x", min=0.0, max=1.0, step=0.01,
@@ -489,7 +489,7 @@ def build_schema() -> Schema:
     # *render* half (mirrors caption.render / roughcut-render). Consumes the (possibly
     # hand-edited) reframe.def + its persisted track, replays the exact geometry, and
     # renders the clip. NO tracking/framing knobs — those live on Propose. Occupancy
-    # recomputes from the FINAL edited crop at render (per the INI-091 spec).
+    # recomputes from the FINAL edited crop at render (per the spec).
     tasks.append(Task(
         id="reframe.render", step="reframe", label="Render reframe",
         subcommand="reframe-render", optional=True,
@@ -647,7 +647,7 @@ def build_schema() -> Schema:
         hint="Render the styled caption overlay layer (alpha .mov).",
         help="Rebuilds props from the (possibly hand-edited) caption file + style/safe-"
              "zone config and renders the transparent caption overlay via Remotion "
-             "(daily driver). This is the previewable caption layer the NLE stacks on top.",
+             "(local machine). This is the previewable caption layer the NLE stacks on top.",
         params=[
             _identity_param(required=False,
                   hint="Override the identity style.",
@@ -656,7 +656,7 @@ def build_schema() -> Schema:
                   path=PathSpec(kind="file", extensions=["json"]),
                   hint="Subject occupancy from reframe (optional) — captions dodge it.",
                   help="Point at the reframe step's occupancy file (work/reframe."
-                       "occupancy.json, INI-090 Phase 2). When set, captions relocate "
+                       "occupancy.json). When set, captions relocate "
                        "off the subject; absent or missing, captions render normally.",
                   ui=UI(label="Subject occupancy", control="picker", group="Placement")),
             Param("position", "enum", flag="--position",
@@ -728,7 +728,7 @@ def build_schema() -> Schema:
     ))
 
     # overlay.define: author the editable overlay decision file (overlay.def).
-    # The product the CEO edits; windows can be proposed from the transcript.
+    # The product the editor edits; windows can be proposed from the transcript.
     tasks.append(Task(
         id="overlay.define", step="overlay", label="Build overlay file",
         subcommand="overlay", optional=True,
@@ -812,7 +812,7 @@ def build_schema() -> Schema:
             IOBinding(artifact="card.content", role="output", via="flag", flag="-o"),
         ],
         hint="Capture an article/page into editable card content.",
-        help="Fetches a URL (Chrome / Jina, daily-driver) and structures it into a "
+        help="Fetches a URL (Chrome / Jina, local) and structures it into a "
              "reviewable card.content JSON (heading/body/footer/image/citation) you "
              "edit before rendering the card overlay.",
         params=[
@@ -979,14 +979,14 @@ def build_schema() -> Schema:
         Artifact("subject.occupancy", kind="descriptor", path="work/reframe.occupancy.json",
                  previewable=False,
                  hint="The subject's footprint in the reframed frame.",
-                 help="Written by reframe.render (INI-090): the tracked subject's box "
+                 help="Written by reframe.render: the tracked subject's box "
                       "projected into the target frame, as caption avoid-windows, "
                       "recomputed from the FINAL edited crop. The caption render "
                       "optionally consumes it so captions dodge the subject."),
         Artifact("reframe.def", kind="descriptor", path="work/reframe.json",
                  previewable=False,
                  hint="Editable reframe decision file (the product).",
-                 help="The reframe-decision file (INI-091): aspect/resolution target + "
+                 help="The reframe-decision file: aspect/resolution target + "
                       "the framing model {scale, pan_x, pan_y} + mode/lock + the subject-"
                       "track reference. Written by reframe.propose, hand-editable, and "
                       "consumed by reframe.render — which resolves it to the EXACT pixel "

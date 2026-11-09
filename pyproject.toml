@@ -15,8 +15,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Daily-driver (Ono-Sendai) runtime extras for the reframe probe + transcription.
-# Not installable in the JasonOS sandbox; the pure logic is tested without them.
+# Local runtime extras for the reframe probe + transcription.
+# Not installable in a restricted environment; the pure logic is tested without them.
 reframe = [
     "mediapipe>=0.10",
     "opencv-python>=4.8",

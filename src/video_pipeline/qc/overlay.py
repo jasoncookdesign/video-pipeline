@@ -9,7 +9,7 @@ Two seams, mirroring the rest of the pipeline:
   - :func:`build_preview_command` / :func:`build_clean_command` build the FFmpeg
     argv that burns the overlay onto the source (the **danger-zone preview**) and
     stream-copies the source untouched (the **clean render**). Pure argv; the
-    actual FFmpeg invocation runs on the daily driver (see :mod:`runner`).
+    actual FFmpeg invocation runs on the local machine (see :mod:`runner`).
 """
 
 from __future__ import annotations
@@ -109,7 +109,7 @@ def render_overlay_png(
     return path
 
 
-# ── FFmpeg argv (the daily-driver seam) ────────────────────────────────────────
+# ── FFmpeg argv (the local seam) ────────────────────────────────────────
 
 def build_preview_command(
     input_video: str,

@@ -1,4 +1,4 @@
-"""Wiring tests: CLI flags + probe resolver + occupancy rescale (INI-090 integration)."""
+"""Wiring tests: CLI flags + probe resolver + occupancy rescale."""
 
 import unittest
 

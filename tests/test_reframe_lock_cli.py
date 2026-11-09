@@ -1,6 +1,6 @@
-"""CLI + schema wiring for INI-091 Phase 5 reframe controls (pan + composition lock).
+"""CLI + schema wiring for reframe controls (pan + composition lock).
 
-The reframe parser already carried --scale (INI-090); INI-091 adds --pan-x / --pan-y
+The reframe parser already carried --scale; this revision adds --pan-x / --pan-y
 / --lock and threads them into the reframe call. The pure lock engine is covered by
 test_reframe_lock.py; this is the CLI surface + schema-param + reference-assembler
 seam only (no tracking / ffmpeg).
@@ -43,7 +43,7 @@ class TestReframeLockSchema(unittest.TestCase):
     def setUp(self):
         self.sch = S.build_schema()
         # The framing/pan/lock controls live on the *propose* task after the
-        # two-task reframe split (INI-091); render just consumes the def.
+        # two-task reframe split; render just consumes the def.
         self.task = next(t for t in self.sch.tasks if t.id == "reframe.propose")
 
     def _param(self, key):

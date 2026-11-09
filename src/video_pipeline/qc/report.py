@@ -91,7 +91,7 @@ class Rect:
 # checks rather than danger-intrusion.
 PROTECTED_KINDS = ("caption", "logo", "cta", "text", "graphic")
 FACE_KIND = "face"
-# Overlay footprints (INI-089). Like FACE, an overlay is not "protected" — it is a
+# Overlay footprints. Like FACE, an overlay is not "protected" — it is a
 # region a caption should not sit on; checked via caption-over-overlay, never
 # flagged for danger-intrusion (a full-bleed overlay covers the danger zone by
 # design).

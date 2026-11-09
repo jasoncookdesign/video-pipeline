@@ -1,4 +1,4 @@
-"""Framing intents — target-relative composition presets for the reframe (INI-090 C).
+"""Framing intents — target-relative composition presets for the reframe.
 
 A framing intent is the *human composition decision* the bare subject-tracker lacks.
 It is expressed relative to the target frame (fractions, not pixels), so the same

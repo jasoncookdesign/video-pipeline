@@ -1,4 +1,4 @@
-"""Overlay runner (INI-089) — pure resolution + occupancy emission + dry-run argv."""
+"""Overlay runner — pure resolution + occupancy emission + dry-run argv."""
 
 import json
 import os

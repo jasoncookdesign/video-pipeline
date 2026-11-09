@@ -1433,7 +1433,7 @@ ACCENT_RGB = (0x9C, 0x97, 0xF4)
 
 
 @unittest.skipUnless(os.environ.get("VP_REMOTION_ACCEPTANCE") == "1",
-                     "real Remotion render — set VP_REMOTION_ACCEPTANCE=1 on the daily driver")
+                     "real Remotion render — set VP_REMOTION_ACCEPTANCE=1 on the local machine")
 class RemotionAcceptanceTests(unittest.TestCase):
     """Renders fixtures for real and inspects pixels."""
 

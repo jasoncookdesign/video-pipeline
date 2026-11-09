@@ -1,15 +1,14 @@
-# Remotion caption renderer — the style layer (INI-085 Phase 3)
+# Remotion caption renderer — the style layer
 
 This is the **style layer** of the captions phase. The Python pipeline owns
 *timing* (word-level transcript → 2–4-word cues, glossary-corrected) and *placement*
 (a safe-zone-derived caption box); this Remotion project owns *look* (font, colour,
 stroke, emphasis, casing, animation) and renders a transparent caption overlay.
 
-It is Node/React and runs on the **daily driver (Ono-Sendai)** — not in the JasonOS
-sandbox, exactly like mlx-whisper. The Python side is fully unit-tested; the props
+It is Node/React and runs on the **local machine** — not in the pure-Python test suite, exactly like mlx-whisper. The Python side is fully unit-tested; the props
 contract it emits is the seam.
 
-## One-time setup (daily driver)
+## One-time setup (local machine)
 
 ```sh
 cd remotion
@@ -47,7 +46,7 @@ the resolved `style`, and `cues` (frame-accurate `from` / `durationInFrames` +
 IBM Plex Mono / Inter per identity) system-wide, or add `@remotion/google-fonts`
 loading in `Captions.tsx` if you prefer bundled web fonts.
 
-## Visual templates (#62)
+## Visual templates
 
 `src/visuals/` holds the comedy-forward template library — `TextCard`, `GameHud`,
 `StoreCard`, `StatDashboard`, `ProgressBar`, `Timeline`, `Flowchart` — each a

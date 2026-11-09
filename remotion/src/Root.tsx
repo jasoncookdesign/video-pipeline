@@ -204,7 +204,7 @@ export const RemotionRoot: React.FC = () => {
           height: props.dimensions.height,
         })}
       />
-      {/* Comedy-forward visual templates (#62): one composition per template. */}
+      {/* Comedy-forward visual templates: one composition per template. */}
       <VisualCompositions />
     </>
   );

@@ -11,7 +11,7 @@ the seams that carry it:
   - :func:`build_card_overlay_item` — turns a rendered card into a ``kind=card``
     entry in ``overlay.def`` so the Phase-A primitive places and windows it.
   - :func:`card_render_command` — the ``npx remotion render`` argv for the card
-    (pure; the subprocess runs on the daily driver).
+    (pure; the subprocess runs on the local machine).
 """
 
 from __future__ import annotations

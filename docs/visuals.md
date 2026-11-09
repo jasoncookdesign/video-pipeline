@@ -1,9 +1,9 @@
-# Visual track — comedy-forward Reels (#62 part A)
+# Visual track — comedy-forward Reels
 
 A per-Reel **visual spec** (`visuals.json`) drives a library of DH-framed Remotion
 templates and lands the rendered clips on the editor timeline, placed in the
 graphic panel and timed per beat. The spec is written upstream (the `reels`
-plugin, #62 part B) or by hand; this repo owns its contract.
+plugin) or by hand; this repo owns its contract.
 
 ```
 visuals.json ──validate──► visuals-render ──► layers/visuals/<reel_id>-<beat_id>.mov (+ stills)

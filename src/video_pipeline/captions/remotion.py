@@ -1,11 +1,11 @@
-"""Remotion render seam — the style-layer renderer (daily-driver / Node only).
+"""Remotion render seam — the style-layer renderer (local / Node only).
 
 Remotion is a Node/React renderer; it owns caption *look*. The pipeline's job is
 to hand it a correct props JSON (built by :mod:`video_pipeline.captions.export`)
 and shell out to ``npx remotion render`` against the bundled ``remotion/`` project.
 This is the exact analogue of the mlx-whisper seam: native toolchain, exercised on
-Ono-Sendai, not in the JasonOS sandbox. The argv builder (:func:`remotion_render_
-command`) is pure and unit-tested; the subprocess call is daily-driver-bound.
+local machine, not in the pure-Python test suite. The argv builder (:func:`remotion_render_
+command`) is pure and unit-tested; the subprocess call is local-bound.
 
 The bundled composition id is ``Captions``; it reads ``--props`` and renders a
 transparent caption overlay (``.mov``, ProRes 4444 — alpha preserved) sized to the
@@ -54,7 +54,7 @@ def remotion_render_command(
     ]
 
 
-def render_overlay(  # pragma: no cover - daily-driver: needs Node + Remotion
+def render_overlay(  # pragma: no cover - local: needs Node + Remotion
     props_path: str,
     output_path: str,
     composition: str = DEFAULT_COMPOSITION,
@@ -64,12 +64,12 @@ def render_overlay(  # pragma: no cover - daily-driver: needs Node + Remotion
     """Render the styled caption overlay via Remotion. Returns the argv.
 
     Requires Node + an installed ``remotion/`` project (``npm install`` run once
-    on the daily driver). Raises a clear error if the project is missing.
+    on the local machine). Raises a clear error if the project is missing.
     """
     rdir = Path(remotion_dir) if remotion_dir else REMOTION_DIR
     if not (rdir / "package.json").exists():
         raise RuntimeError(
-            f"Remotion project not found at {rdir}. On the daily driver run "
+            f"Remotion project not found at {rdir}. On the local machine run "
             f"`npm install` in that directory once before rendering captions."
         )
     cmd = remotion_render_command(

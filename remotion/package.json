@@ -2,7 +2,7 @@
   "name": "video-pipeline-captions",
   "version": "0.1.0",
   "private": true,
-  "description": "Remotion caption style-layer renderer for video-pipeline (INI-085 Phase 3). Consumes the props JSON emitted by video_pipeline.captions.export.",
+  "description": "Remotion caption style-layer renderer for video-pipeline. Consumes the props JSON emitted by video_pipeline.captions.export.",
   "scripts": {
     "studio": "remotion studio src/index.ts",
     "render": "remotion render src/index.ts Captions out/captions.mov --codec=prores --prores-profile=4444"

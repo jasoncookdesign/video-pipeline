@@ -1,4 +1,4 @@
-"""Layout-aware handoff (#62 part A): visual clips on V2, placed + timed per beat.
+"""Layout-aware handoff: visual clips on V2, placed + timed per beat.
 
 Both serializers: FCP7 XML (Premiere) and FCPXML (Resolve / Final Cut). Split-
 layout clips are canvas-sized (1080x1920) with the graphic in the top panel;

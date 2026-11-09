@@ -1,4 +1,4 @@
-"""The framing model — one source of truth for the reframe crop (INI-091 Phase 3).
+"""The framing model — one source of truth for the reframe crop.
 
 A reframe crop is described by exactly three numbers::
 

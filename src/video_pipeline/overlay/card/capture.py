@@ -1,4 +1,4 @@
-"""Upstream capture → CardContent (INI-089 Phase B).
+"""Upstream capture → CardContent.
 
 Two layers, split the way the transcriber seam is (``roughcut/transcript.py``):
 
@@ -6,14 +6,14 @@ Two layers, split the way the transcriber seam is (``roughcut/transcript.py``):
     :class:`CapturedPage` of already-extracted fields. Real implementations sit
     behind the Protocol — a Chrome-MCP fetcher (render JS, read the article) and a
     Jina-reader fetcher (``r.jina.ai`` → clean markdown) — and run where the
-    network/daily-driver is, not in the JasonOS sandbox. ``FixedFetcher`` lets the
+    network/local is, not in the pure-Python test suite. ``FixedFetcher`` lets the
     structuring logic be unit-tested with no network.
 
   - **The structuring is pure.** :func:`card_from_page` turns a captured page into
     a :class:`~video_pipeline.overlay.card.content.CardContent` deterministically:
     pick the heading, trim the body to a legible length, derive the citation from
     the domain, carry the lead image. No LLM in this path — the result is a
-    reviewable JSON the CEO edits before render.
+    reviewable JSON the editor edits before render.
 """
 
 from __future__ import annotations
@@ -89,7 +89,7 @@ def card_from_page(
 
     Deterministic: heading from the title (clipped), body from the lead paragraphs
     joined up to ``max_body_chars``, footer from the byline (falling back to the
-    site name), citation from the domain, image from the lead image. The CEO edits
+    site name), citation from the domain, image from the lead image. The editor edits
     the result before render.
     """
     heading = _clip(page.title, max_heading_chars)

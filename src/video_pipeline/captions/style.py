@@ -26,20 +26,20 @@ import yaml
 # Vertical anchors for the caption box inside the safe zone.
 POSITIONS = ("upper-third", "center", "under-center", "lower-third")
 
-# Horizontal placement (INI-088 Phase 3). "clear-notch" fills the widest notch-
+# Horizontal placement. "clear-notch" fills the widest notch-
 # free span (may sit left of frame-center at lower-third, maximizing width);
 # "center" keeps the block symmetric about frame-center, narrowing both sides to
 # clear the lower-right Reels notch. They differ only where the notch intrudes.
 H_OFFSETS = ("clear-notch", "center")
 
-# Curated font allowlist (INI-088). The authoritative set of font families the
+# Curated font allowlist. The authoritative set of font families the
 # style layer accepts — enforced in :meth:`CaptionStyle.__post_init__` and reused
 # verbatim as the GUI font dropdown's options, so the UX guardrail can never offer
 # a font the Python boundary rejects (single source of truth). Includes the brand
-# fonts the identity configs reference (the CEO installs these on the Mac) plus
+# fonts the identity configs reference (the editor installs these on the Mac) plus
 # common system fonts. Matching is case-insensitive.
 #
-# Two tiers (INI-088 Phase 4): the brand fonts are loaded by the Remotion renderer
+# Two tiers: the brand fonts are loaded by the Remotion renderer
 # via @remotion/google-fonts (remotion/src/fonts.ts), so they render in their real
 # typeface — keep these keys in sync with that registry's LOADERS. The remaining
 # entries are common system fonts resolved by name against the (macOS) render host.
@@ -66,12 +66,12 @@ FONT_ALLOWLIST = (
 )
 _FONT_ALLOWLIST_LC = {f.lower() for f in FONT_ALLOWLIST}
 
-# Value caps (INI-088). Enforced authoritatively here (the boundary); the GUI
+# Value caps. Enforced authoritatively here (the boundary); the GUI
 # slider bounds are only a UX guardrail. Sizes/widths are px at the profile's
 # native height (reels = 1920px tall). stroke_width 0 = no stroke (valid).
 FONT_SIZE_MIN, FONT_SIZE_MAX = 24, 240
 STROKE_WIDTH_MIN, STROKE_WIDTH_MAX = 0, 40
-# Background plate corner radius (INI-088 Phase 2). 0 = square corners.
+# Background plate corner radius. 0 = square corners.
 BG_RADIUS_MIN, BG_RADIUS_MAX = 0, 400
 
 
@@ -93,10 +93,10 @@ class CaptionStyle:
     emphasis_color: str = "#FFE14D"
     uppercase: bool = True
     position: str = "lower-third"
-    # Horizontal placement (INI-088 Phase 3); see H_OFFSETS.
+    # Horizontal placement; see H_OFFSETS.
     h_offset: str = "clear-notch"
 
-    # ── background plate (INI-088 Phase 2) ──
+    # ── background plate ──
     # A whole-block rounded rectangle behind the text block. Off by default; when
     # on, the renderer pads it to clear the stroke so the outline is not clipped.
     bg_enabled: bool = False

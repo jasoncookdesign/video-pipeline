@@ -1,15 +1,15 @@
-"""Captions phase (INI-085 Phase 3).
+"""Captions phase.
 
 Captions are **two layers, kept separate** (shaping brief §3.3):
 
   - **Timing layer** — ``chunk``: a word-level transcript (the ``roughcut``
-    ``Transcriber`` seam — mlx-whisper on the daily driver) becomes 2–4-word
+    ``Transcriber`` seam — mlx-whisper on the local machine) becomes 2–4-word
     cues, with glossary mishear->canonical correction applied first so proper
     nouns land right on the first pass (the DoD item). Pure, unit-tested.
   - **Style layer** — ``style`` + ``remotion``: layered repo-resident config
     (``config/caption-styles/`` global + per-identity) resolves the look; the
     bundled Remotion project renders a styled overlay from the props contract.
-    Style is config; rendering is a daily-driver/Node seam (like mlx-whisper).
+    Style is config; rendering is a local/Node seam (like mlx-whisper).
 
 The **caption file** (``cue.CaptionTrack``) is the product — a human-editable
 YAML round-trip; fix ``text:`` and re-render. ``placement`` derives a caption box

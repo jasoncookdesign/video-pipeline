@@ -1,4 +1,4 @@
-"""CLI surface for the two-task reframe split (INI-091): reframe-propose / reframe-render.
+"""CLI surface for the two-task reframe split: reframe-propose / reframe-render.
 
 The reframe step becomes two GUI tasks mirroring the caption define/render pattern:
 

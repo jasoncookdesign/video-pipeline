@@ -1,4 +1,4 @@
-"""Overlay cut-time remap (INI-089) — overlays ride the same source→cut mapping
+"""Overlay cut-time remap — overlays ride the same source→cut mapping
 as caption cues, so the editor handoff opens them at the right cut offsets."""
 
 import os

@@ -1,4 +1,4 @@
-"""Propose -> Render split for the reframe (INI-091 Phase 3).
+"""Propose -> Render split for the reframe.
 
 The reframe is two phases around the ``reframe.def`` artifact:
 
@@ -175,7 +175,7 @@ def crop_plan_from_def(
     (the persisted track) is passed through for occupancy/diagnostics only — it does NOT
     move the crop.
 
-    For a **dynamic def with a composition lock** (INI-091 Phase 5) the framing model's
+    For a **dynamic def with a composition lock** the framing model's
     ``pan_x``/``pan_y`` are the *set box* (the relative-placement anchor) and the
     persisted ``subjects`` track drives the follow on the locked axis/axes. The def's
     geometry is still authoritative — the box and the track are exactly what Propose

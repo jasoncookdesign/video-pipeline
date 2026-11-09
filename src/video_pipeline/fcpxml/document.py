@@ -11,7 +11,7 @@ Layout (two labeled tracks):
 
   - **Base Cut** — the decision file's KEEP segments laid end-to-end on the
     ``<spine>``, each a separate ``asset-clip`` referencing the **reframed**
-    vertical clip (the reframe is baked in — the CEO already accepted it on real
+    vertical clip (the reframe is baked in — the editor already accepted it on real
     footage — so no lossy FCPXML transform). Separate clips = the editor can drop
     a transition between cuts.
   - **Captions** — the styled Remotion overlay as one connected ``asset-clip``
@@ -181,7 +181,7 @@ def build_document(
     if composite is not None:
         _asset_el(composite)
 
-    # Visual clips (#62): each needs its own format (its region's pixel size).
+    # Visual clips: each needs its own format (its region's pixel size).
     visuals = visuals or []
     vis_fmt = {}
     for vp in visuals:

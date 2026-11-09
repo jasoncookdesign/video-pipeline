@@ -1,4 +1,4 @@
-"""Beat windows → V2 placements (#62 part A). Pure; consumed by both serializers.
+"""Beat windows → V2 placements. Pure; consumed by both serializers.
 
 A :class:`VisualPlacement` is everything a serializer needs to drop one rendered
 clip on the visuals track: the media path, its pixel size and length, where it

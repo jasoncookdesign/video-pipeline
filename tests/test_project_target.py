@@ -1,4 +1,4 @@
-"""Tests for the project-level Target + the downstream reset cascade (INI-091).
+"""Tests for the project-level Target + the downstream reset cascade.
 
 The cascade is the testable heart of Phase 1: aspect change vs resolution-only
 change vs no change, the resolution-resets-to-Auto-on-aspect-change rule, and the

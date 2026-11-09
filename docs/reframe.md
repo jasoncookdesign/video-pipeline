@@ -1,8 +1,8 @@
-# Reframe — multi-target + interactive (INI-090 / INI-091)
+# Reframe — multi-target + interactive
 
 The reframe step recomposes a source clip toward a chosen **target format**. It is
-no longer the portrait-only probe of Phase 1: INI-090 generalized it to arbitrary
-aspect/resolution targets, and INI-091 split it into a propose/render pair driven by
+no longer the portrait-only probe of Phase 1: it was generalized to arbitrary
+aspect/resolution targets, and it was split into a propose/render pair driven by
 an **editable `reframe.def`** — the same decision-file model as the rough cut,
 captions, and overlays. The proposal is a starting point; you nudge the crop in the
 def (or, in the GUI, drag the crop box) and re-render. The source is never modified;
@@ -10,7 +10,7 @@ the reframed clip is a regenerable view of the def.
 
 > The `reframe.def` *is the product*. The reframed clip is a render of it.
 
-## Two orthogonal axes: the target format (INI-090)
+## Two orthogonal axes: the target format
 
 The target is two independent choices, kept deliberately separate so the geometry
 math stays integer-exact and the pixel size is a finite, platform-correct ladder
@@ -37,7 +37,7 @@ exact-ratio box inside the crop when even 720p won't fit. The engine never upsca
 past the tolerance unless you opt in (`--allow-upscale`). Examples: 2:3 at 1440p =
 1200×1800; `auto` will not upscale a crop by more than 5%.
 
-## Framing intents (INI-090)
+## Framing intents
 
 A named composition preset seeds the crop's punch-in and vertical anchor so the
 subject and the caption band are designed together
@@ -71,7 +71,7 @@ source: source/clip.mp4
 target: {aspect: full-portrait, resolution: auto}
 mode: static            # static crop | dynamic follow
 lock: none              # composition lock axis: none | x | y | both (dynamic)
-safe_zone_mode: ...     # normalized 3-mode safe-zone selection (INI-091)
+safe_zone_mode: ...     # normalized 3-mode safe-zone selection
 framing_intent: performer
 framing: {scale: 1.0, pan_x: 0.42, pan_y: 0.35}
 ```
@@ -81,7 +81,7 @@ the geometry rendered, no re-derivation — and replays the persisted subject tr
 (`reframe.track.json`) so it needs no native tracker. Audio is stream-copied;
 reframe is spatial-only.
 
-## Composition lock (INI-091 Phase 5)
+## Composition lock
 
 In `dynamic` mode the crop follows the subject. A **composition lock** holds the
 set-box on one or both axes instead of following: `--lock x` / `y` / `both`, with the
@@ -167,7 +167,7 @@ src/video_pipeline/
 ## What runs where
 
 The target-format math, the framing model, the def round-trip, and the crop/argv
-assembly are pure Python and unit-tested in the sandbox with no native deps. The
+assembly are pure Python and unit-tested in the test suite with no native deps. The
 **subject tracker** (OpenCV / MediaPipe) and the **FFmpeg render** need the native
 toolchain, so they run on the editing/render machine — the same local-acceptance
 posture as the rest of the pipeline.

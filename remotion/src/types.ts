@@ -1,6 +1,6 @@
 // Mirrors the props contract emitted by
 // video_pipeline.captions.export.track_to_remotion_props (schemaVersion 2).
-// v2 (INI-088 Phase 2) adds the background-plate trio (bg_enabled/bg_color/
+// v2 adds the background-plate trio (bg_enabled/bg_color/
 // bg_radius); they are optional so a v1 props file still type-checks.
 
 export type CaptionStyle = {
@@ -40,7 +40,7 @@ export type CaptionCue = {
   endSeconds: number;
   // per-word frame windows RELATIVE to the cue start (for the karaoke highlight)
   wordTimings?: WordTiming[];
-  // v3 (INI-089 caption-dodge): a per-cue box that overrides safeBox so this cue
+  // v3: a per-cue box that overrides safeBox so this cue
   // clears an overlay on screen during its window. Absent → use safeBox.
   box?: SafeBox;
 };
@@ -60,7 +60,7 @@ export type CaptionProps = {
   cues: CaptionCue[];
 };
 
-// ── Source card (INI-089 Phase B) ────────────────────────────────────────────
+// ── Source card ────────────────────────────────────────────
 // Mirrors video_pipeline.overlay.card.props.card_to_remotion_props. The card is a
 // static tile rendered at `dimensions` (its placement rect); the on-screen window
 // and fade are applied by the ffmpeg overlay primitive, not here.

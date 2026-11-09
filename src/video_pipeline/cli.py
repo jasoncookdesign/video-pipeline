@@ -8,29 +8,29 @@ Subcommands:
       Scaffold a project's source/work/review/out/render layout + project.yml.
 
   reframe <input.mp4> -o <out.mp4> [--profile reels-9x16] [--mode static|dynamic]
-      Run the landscape->portrait reframe probe (daily driver: needs MediaPipe).
+      Run the landscape->portrait reframe probe (local machine: needs MediaPipe).
 
   roughcut <input.mp4> -o <decision.yml> [--transcript whisper.json] [--render cut.mp4]
-      Propose a rough cut -> editable decision file (daily driver: needs mlx-whisper
+      Propose a rough cut -> editable decision file (local machine: needs mlx-whisper
       unless --transcript is supplied). --no-trim-filler preserves audio continuity.
 
   roughcut-render <decision.yml> -i <input.mp4> -o <cut.mp4>
       Re-render the rough cut from a (possibly hand-edited) decision file.
 
   captions <input.mp4> -o <captions.yml> --identity ID [--transcript whisper.json]
-      Transcribe (daily driver: mlx-whisper unless --transcript) -> glossary-
+      Transcribe (local machine: mlx-whisper unless --transcript) -> glossary-
       corrected 2-4-word cues -> editable caption file. --srt / --props also emit
       a portable SRT and the Remotion style-layer props (the latter needs a
       safe-zone spec via --safezone). --render also renders the styled overlay.
 
   captions-render <captions.yml> -o <overlay.mov> --identity ID --safezone spec.json
       Rebuild props from a (possibly hand-edited) caption file + style/safe-zone
-      config and render the styled caption overlay via Remotion (daily driver).
+      config and render the styled caption overlay via Remotion (local machine).
 
   qc <input.mp4> --safezone spec.json [--props props.json] [--project DIR]
       Safe-zone QC: flag captions/logos/CTAs intruding on the danger polygon
       (notch included) and captions over the speaker's face; write a QC report
-      and a danger-zone preview (daily driver: face detection + FFmpeg burn-in).
+      and a danger-zone preview (local machine: face detection + FFmpeg burn-in).
 
   handoff <decision.yml> -o <out.xml> --reframed <clip.mp4> [--captions cap.yml]
       Assemble the editor project: the decision file's KEEP segments laid over
@@ -40,7 +40,7 @@ Subcommands:
       writes a cut-time caption file to render the aligned overlay (captions-render).
 
   visuals-render <visuals.json> --project DIR [--frames N] [--dry-run]
-      Render each remotion beat of a visuals.json (#62) to a region-sized
+      Render each remotion beat of a visuals.json to a region-sized
       <reel_id>-<beat_id>.mov (ProRes 4444) + still previews. handoff --visuals
       places those clips on V2, timed per beat (planned durations, or aligned
       with --transcript).
@@ -114,7 +114,7 @@ def _resolve_project_paths(
 
 
 # Per-run caption-style override flags shared by `captions` and `captions-render`
-# (INI-088). One helper feeds both so the two style-resolution paths cannot
+#. One helper feeds both so the two style-resolution paths cannot
 # diverge — each command builds its overrides the same way, then both flow through
 # load_caption_style(..., overrides=...). The values are coerced/capped
 # authoritatively in CaptionStyle.__post_init__; these flags are just the surface.
@@ -145,14 +145,14 @@ def _add_caption_style_flags(parser: argparse.ArgumentParser) -> None:
                         help="caption text border/stroke color (hex, e.g. #000000)")
     parser.add_argument("--stroke-width", type=int, default=None, metavar="PX",
                         help="caption text border/stroke thickness in px (0 = none)")
-    # background plate (INI-088 Phase 2)
+    # background plate
     parser.add_argument("--bg", dest="bg_enabled", action="store_true",
                         help="draw a rounded background plate behind the caption block")
     parser.add_argument("--bg-color", default=None, metavar="HEX",
                         help="background plate color (hex; with --bg)")
     parser.add_argument("--bg-radius", type=int, default=None, metavar="PX",
                         help="background plate corner radius in px (with --bg; 0 = square)")
-    # horizontal placement (INI-088 Phase 3)
+    # horizontal placement
     parser.add_argument("--h-offset", default=None, choices=["clear-notch", "center"],
                         help="horizontal placement: clear-notch (widest notch-free span) "
                              "or center (frame-centered, symmetric)")
@@ -173,12 +173,12 @@ def _style_overrides_from_args(args: argparse.Namespace) -> dict:
 
 
 def _resolve_safezone_mode(args: argparse.Namespace) -> str:
-    """Resolve the effective safe-zone mode (INI-091).
+    """Resolve the effective safe-zone mode.
 
     ``--mode`` is honored when set. When it is left unset (terminal back-compat for
     callers that just pass a template positional), the mode is inferred from the
     presence of a template: a template present ⇒ ``custom`` (the legacy PNG path);
-    absent ⇒ ``generic`` (the locked default). This keeps every pre-INI-091 caller
+    absent ⇒ ``generic`` (the locked default). This keeps every earlier caller
     — ``safezone-gen template.png ...`` — behaving exactly as before.
     """
     from .safezone import MODE_CUSTOM, MODE_GENERIC
@@ -190,7 +190,7 @@ def _resolve_safezone_mode(args: argparse.Namespace) -> str:
 
 
 def _safezone_aspect(args: argparse.Namespace, profile: str | None) -> str:
-    """The aspect the generic/none zone is built for (INI-091).
+    """The aspect the generic/none zone is built for.
 
     Precedence: explicit ``--aspect`` → the project Target's aspect (``--project``)
     → the default aspect. The mode-driven (none/generic) write path needs a real
@@ -211,7 +211,7 @@ def _safezone_aspect(args: argparse.Namespace, profile: str | None) -> str:
 def _cmd_safezone_gen(args: argparse.Namespace) -> int:
     from .safezone import MODE_CUSTOM, generate_spec
 
-    # INI-091: when --project is given, the safe zone keys off the SAME project-level
+    # when --project is given, the safe zone keys off the SAME project-level
     # target as the reframe (one target drives both). The spec's profile label is the
     # target's derived profile slug, unless --profile is set explicitly.
     profile = args.profile
@@ -298,7 +298,7 @@ def _cmd_reframe(args: argparse.Namespace) -> int:
         # Bipolar override: -1 = subject at top, 0 = centred, +1 = bottom.
         subject_y_frac = max(0.0, min(1.0, (args.subject_y + 1.0) / 2.0))
 
-    # Target (INI-091): the project-level Target is the source of truth. When
+    # Target: the project-level Target is the source of truth. When
     # --project is given we read it from project.yml; explicit --aspect/--resolution
     # still override (per-run nudge). Falls back to the legacy --profile dims when no
     # aspect is in play at all.
@@ -324,7 +324,7 @@ def _cmd_reframe(args: argparse.Namespace) -> int:
         scale=scale, subject_y_frac=subject_y_frac,
         occupancy_out=getattr(args, "occupancy_out", None),
         caption_position=caption_position,
-        # INI-091 Phase 5: composition lock + set-box pan anchor. Default lock="none"
+        # composition lock + set-box pan anchor. Default lock="none"
         # / pan unset keeps the legacy crop identical.
         lock=getattr(args, "lock", "none"),
         pan_x=getattr(args, "pan_x", None),
@@ -482,7 +482,7 @@ def _cmd_reframe_render(args: argparse.Namespace) -> int:
         args.reframe_def, src_w, src_h, out.width, out.height
     )
 
-    # Occupancy recomputes from the FINAL (edited) crop at render time (INI-091 spec).
+    # Occupancy recomputes from the FINAL (edited) crop at render time.
     occupancy_out = getattr(args, "occupancy_out", None)
     if occupancy_out:
         from .reframe.occupancy import subject_occupancy_windows, write_occupancy
@@ -662,7 +662,7 @@ def _cmd_captions_render(args: argparse.Namespace) -> int:
     # karaoke is on if the style/config, the caption file header, or --karaoke says so.
     karaoke = style.karaoke or track.karaoke or args.karaoke
 
-    # Subject occupancy (INI-090 Phase 2): captions dodge the subject the same way
+    # Subject occupancy: captions dodge the subject the same way
     # they dodge overlays. Rescaled onto the safe-zone spec's frame; the framing
     # intent's paired caption anchor is honored unless --position overrides it.
     avoid_windows = None
@@ -692,8 +692,8 @@ def _cmd_captions_render(args: argparse.Namespace) -> int:
     else:
         print(f"wrote {args.output}")
 
-    # Verification seam (INI-088): grab representative stills off the rendered
-    # overlay, composited over a neutral plate, for Claude to read back.
+    # Verification seam: grab representative stills off the rendered
+    # overlay, composited over a neutral plate, for review.
     if args.preview_frames:
         from .captions.preview import (
             DEFAULT_PREVIEW_BG,
@@ -845,8 +845,8 @@ def _cmd_overlay_card(args: argparse.Namespace) -> int:
 
     if getattr(args, "from_json", None):
         page = CapturedPage(**_json.loads(Path(args.from_json).read_text(encoding="utf-8")))
-    else:  # pragma: no cover - live capture is a daily-driver seam (Chrome MCP / Jina)
-        print("error: live URL capture runs on the daily driver; pass --from-json "
+    else:  # pragma: no cover - live capture is a local seam (Chrome MCP / Jina)
+        print("error: live URL capture runs on the local machine; pass --from-json "
               "<captured-page.json> to structure a card without a live fetch",
               file=sys.stderr)
         return 2
@@ -899,7 +899,7 @@ def _cmd_handoff(args: argparse.Namespace) -> int:
               f"--project <root>", file=sys.stderr)
         return 2
 
-    # Visual track (#62): visuals.json + its rendered clips. With --project the
+    # Visual track: visuals.json + its rendered clips. With --project the
     # spec defaults to work/visuals.json when present, clips to layers/visuals/.
     root = Path(args.project) if args.project else None
     if args.visuals is None and root is not None and (root / _PROJECT_LAYOUT["visuals"]).exists():
@@ -993,7 +993,7 @@ def _add_handoff_args(parser: argparse.ArgumentParser) -> None:
                         help="output profile -> sequence dimensions (default reels-9x16)")
     parser.add_argument("--fps", type=int, default=30, help="sequence frame rate (default 30)")
     parser.add_argument("--visuals", default=None,
-                        help="visuals.json (#62); its rendered remotion clips go on V2, "
+                        help="visuals.json; its rendered remotion clips go on V2, "
                              "placed in their region and timed per beat "
                              "(default with --project: work/visuals.json if present)")
     parser.add_argument("--visuals-dir", default=None,
@@ -1008,7 +1008,7 @@ def _add_handoff_args(parser: argparse.ArgumentParser) -> None:
 
 
 def _cmd_visuals_render(args: argparse.Namespace) -> int:
-    """Render each ``generator: remotion`` beat of a visuals.json (#62)."""
+    """Render each ``generator: remotion`` beat of a visuals.json."""
     from .visuals.render import render_visuals
     from .visuals.spec import VisualsSpecError, load_visuals
     from .visuals.style import load_visual_style
@@ -1182,7 +1182,7 @@ def _cmd_export_capcut(args: argparse.Namespace) -> int:
 
 
 def _cmd_schema(args: argparse.Namespace) -> int:
-    """Emit the control-tower schema (the GUI's single source of truth, INI-087).
+    """Emit the control-tower schema (the GUI's single source of truth).
 
     The GUI discovers every step/flag/layer/export target from this document at
     runtime; nothing about the pipeline is hardcoded in the GUI.
@@ -1218,7 +1218,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="command", required=True)
 
     sc = sub.add_parser("schema",
-                        help="emit the control-tower GUI schema (SSOT, INI-087)")
+                        help="emit the control-tower GUI schema (SSOT)")
     sc.add_argument("--format", default="yaml", choices=["yaml", "json"],
                     help="yaml (authored SSOT, default) or json (Rust-boundary form)")
     sc.add_argument("-o", "--output", default=None, help="write here instead of stdout")
@@ -1228,7 +1228,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     g = sub.add_parser("safezone-gen",
                        help="derive a safe-zone spec (none | generic | custom from a PNG)")
-    # INI-091: the template positional is OPTIONAL now — only `custom` mode reads a
+    # the template positional is OPTIONAL now — only `custom` mode reads a
     # PNG. `none`/`generic` build a resolution-independent per-aspect zone with no
     # template. When --mode is unset the mode is inferred (template ⇒ custom, else
     # generic) so every legacy `safezone-gen template.png` invocation is unchanged.
@@ -1241,11 +1241,11 @@ def build_parser() -> argparse.ArgumentParser:
                         "PNG). Default inferred: a template ⇒ custom, else generic.")
     from .target_format import ASPECT_PRESETS as _SZ_AP
     g.add_argument("--aspect", default=None, choices=sorted(_SZ_AP),
-                   help="aspect the none/generic zone is built for (INI-091); "
+                   help="aspect the none/generic zone is built for; "
                         "defaults to the --project target's aspect, else full-portrait")
     g.add_argument("--project", default=None,
                    help="project root (or project.yml): derive the spec profile + the "
-                        "generic/none aspect from the project-level target (INI-091); "
+                        "generic/none aspect from the project-level target; "
                         "--profile / --aspect override")
     g.add_argument("--profile", default=None)
     g.add_argument("--key", default="auto", choices=["auto", "alpha", "color"])
@@ -1272,14 +1272,14 @@ def build_parser() -> argparse.ArgumentParser:
                         "as the stable editor-handoff source")
     r.add_argument("--project", default=None,
                    help="project root (or project.yml): reads the project-level "
-                        "target (aspect + resolution; INI-091) so the reframe and "
+                        "target (aspect + resolution) so the reframe and "
                         "safezone share one target; explicit --aspect/--resolution win")
     r.add_argument("--profile", default="reels-9x16",
                    help="legacy fixed-dimension profile (used when --aspect is omitted)")
     from .target_format import ASPECT_PRESETS as _AP, TIERS as _TIERS
     from .reframe.framing import FRAMING_INTENTS as _FI
     r.add_argument("--aspect", default=None, choices=sorted(_AP),
-                   help="target aspect preset (INI-090); overrides --profile dims")
+                   help="target aspect preset; overrides --profile dims")
     r.add_argument("--resolution", default="auto", choices=("auto", *_TIERS),
                    help="resolution tier or 'auto' (highest non-upscaling tier)")
     r.add_argument("--framing", default=None, choices=sorted(_FI),
@@ -1288,7 +1288,7 @@ def build_parser() -> argparse.ArgumentParser:
                    help="punch-in override (1.0=widest native full frame; >1 punches in)")
     r.add_argument("--subject-y", type=float, default=None, dest="subject_y",
                    help="vertical anchor override, bipolar (-1=top, 0=centre, +1=bottom)")
-    # INI-091 Phase 5: set-box pan anchor + composition lock. Defaults keep the
+    # set-box pan anchor + composition lock. Defaults keep the
     # legacy auto-tracked crop (lock=none, pan unset) byte-identical.
     r.add_argument("--pan-x", type=float, default=None, dest="pan_x",
                    help="set-box horizontal anchor 0..1 (0=left, 1=right); the "
@@ -1308,7 +1308,7 @@ def build_parser() -> argparse.ArgumentParser:
                    help="print the FFmpeg command without tracking/rendering")
     r.set_defaults(func=_cmd_reframe)
 
-    # reframe-propose / reframe-render: the two-task split (INI-091) mirroring the
+    # reframe-propose / reframe-render: the two-task split mirroring the
     # caption define/render pattern. Propose runs the tracker + writes the editable
     # reframe.def; Render consumes the (hand-editable) def and produces the clip. The
     # single `reframe` command above stays as the one-shot back-compat path.
@@ -1326,7 +1326,7 @@ def build_parser() -> argparse.ArgumentParser:
                     help="project root (or project.yml): reads the project-level "
                          "target (aspect + resolution); explicit --aspect/--resolution win")
     rp.add_argument("--aspect", default=None, choices=sorted(_AP),
-                    help="target aspect preset (INI-090); overrides the project target")
+                    help="target aspect preset; overrides the project target")
     rp.add_argument("--resolution", default="auto", choices=("auto", *_TIERS),
                     help="resolution tier or 'auto' (highest non-upscaling tier)")
     rp.add_argument("--framing", default=None, choices=sorted(_FI),
@@ -1438,7 +1438,7 @@ def build_parser() -> argparse.ArgumentParser:
                    help="safe-zone spec JSON (for --props caption-box placement)")
     c.add_argument("--render", default=None,
                    help="also render the styled overlay here via Remotion "
-                        "(daily driver; requires --props)")
+                        "(local machine; requires --props)")
     c.add_argument("--fps", type=int, default=30, help="frame rate for props (default 30)")
     # words-per-cue range overrides (default: the identity/global caption-style config)
     c.add_argument("--min-words", type=int, default=None,
@@ -1470,7 +1470,7 @@ def build_parser() -> argparse.ArgumentParser:
     cr.add_argument("--safezone", required=True, help="safe-zone spec JSON")
     cr.add_argument("--subject-occupancy", default=None, dest="subject_occupancy",
                     help="subject occupancy JSON from reframe --occupancy-out; "
-                         "captions dodge the subject (INI-090 Phase 2)")
+                         "captions dodge the subject")
     cr.add_argument("--position", default=None,
                     choices=["upper-third", "center", "under-center", "lower-third"],
                     help="caption anchor; overrides the style + any framing-intent hint")
@@ -1482,7 +1482,7 @@ def build_parser() -> argparse.ArgumentParser:
                          "from the caption file / style config)")
     # per-run caption-style overrides (font / size / colors / stroke)
     _add_caption_style_flags(cr)
-    # verification seam (INI-088): render then grab representative stills.
+    # verification seam: render then grab representative stills.
     cr.add_argument("--preview-frames", type=int, default=0, metavar="N",
                     help="after rendering, grab N representative still PNGs "
                          "(composited over a neutral plate) for visual verification")
@@ -1571,7 +1571,7 @@ def build_parser() -> argparse.ArgumentParser:
                      help="heading character budget (default 120)")
     ocd.add_argument("--from-json", default=None, dest="from_json",
                      help="a captured-page JSON (CapturedPage fields) — structure a card "
-                          "without a live fetch (the live fetch runs on the daily driver)")
+                          "without a live fetch (the live fetch runs on the local machine)")
     ocd.set_defaults(func=_cmd_overlay_card)
 
     # overlay-render — composite the placed/timed overlays + emit occupancy.
@@ -1610,7 +1610,7 @@ def build_parser() -> argparse.ArgumentParser:
                     help="print the ffmpeg command without rendering")
     px.set_defaults(func=_cmd_proxy)
 
-    # visuals-render — the comedy-forward visual track (#62): one named clip per
+    # visuals-render — the comedy-forward visual track: one named clip per
     # remotion beat, sized to its region, plus optional still previews.
     vr = sub.add_parser(
         "visuals-render",

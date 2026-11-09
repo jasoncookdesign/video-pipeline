@@ -19,7 +19,7 @@ Pacing, taste, transitions, and music placement stay with the editor.
 | 3 — Captions | Glossary-corrected 2–4-word chunker (timing layer); **editable caption file** (the product); safe-zone-aware placement; SRT export; **Remotion** styled-overlay renderer (style layer) driven by a props contract; layered caption-style config | ✅ accepted on real footage |
 | 4 — Safe-zone QC | Validate a frame layout against the derived safe polygon (notch included): flag captions/logos/CTAs intruding on the danger region, captions over the speaker's face, and faces in the danger region; **QC report** (JSON + printable) + **danger-zone preview** + **clean render** | ✅ built (pure logic tested; face detection + FFmpeg burn-in are the local acceptance gate) |
 | 5 — Editor handoff | Assemble the editor project: the decision file's KEEP segments over the reframed clip on a **Base Cut** track + the caption overlay on a **Captions** track; cues **remapped to cut time** so they line up with the compressed timeline. Two formats — **Premiere-compatible FCP7 XML (default)** and FCPXML 1.10 — so it opens natively in Premiere Pro (which does not read FCPXML), Resolve, or Final Cut | ✅ built (both serializers + remap tested; opening the project + overlay render are the local acceptance gate) |
-| 6 — Overlays | Timed/placed overlay layer — a still image, a video asset, or a generated **source card** — on a transcript-proposed window, as an editable **`overlay.def`**; emits an **`overlay.occupancy`** descriptor so captions **dodge** overlays and QC flags intrusions; overlay windows **remap to cut time** at handoff. See [Overlays](#overlays). | ✅ built (pure logic tested in-sandbox; ffmpeg / Remotion render acceptance on real footage is the local gate) |
+| 6 — Overlays | Timed/placed overlay layer — a still image, a video asset, or a generated **source card** — on a transcript-proposed window, as an editable **`overlay.def`**; emits an **`overlay.occupancy`** descriptor so captions **dodge** overlays and QC flags intrusions; overlay windows **remap to cut time** at handoff. See [Overlays](#overlays). | ✅ built (pure logic tested in-suite; ffmpeg / Remotion render acceptance on real footage is the local gate) |
 
 Captions are **two layers, kept separate**: the pipeline owns *timing* (transcript
 → cues, glossary-corrected) and *placement* (a safe-zone-derived box); **Remotion**
@@ -166,7 +166,7 @@ video-pipeline overlay -o work/overlay.def.yml --profile reels-9x16 \
     --add "kind=video;src=assets/clip.mov;at=the demo;placement=pip-rect;rect=60,1180,420,560;audio=duck"
 
 # 2. (Source card) Capture a URL into an editable card-content JSON. The live fetch
-#    (Chrome / Jina) runs on the daily driver; --from-json structures a saved
+#    (Chrome / Jina) runs on the local machine; --from-json structures a saved
 #    capture without a fetch. Render the card to a layer, then point a kind=card
 #    overlay's src at it.
 video-pipeline overlay-card https://example.com/article -o work/card.content.json
@@ -252,7 +252,7 @@ layered files. The commonly-tuned settings:
 ```yaml
 # project.yml — lives in each project folder
 identity: <identity>     # selects the glossary + caption-style layer
-target:                  # the project-level output target (source of truth; INI-091)
+target:                  # the project-level output target (source of truth)
   aspect: full-portrait  #   shape — one of 7 presets (see docs/reframe.md)
   resolution: auto       #   pixel size — auto | 4k | 1440p | 1080p | 720p
 profile: reels-9x16      # legacy fixed-dimension profile (used when target.aspect absent)
@@ -316,7 +316,7 @@ python -m unittest discover -s tests   # stdlib-only fallback (no pytest needed)
 
 ```
 schema/project.schema.json        project.yml contract (rough_cut + captions + qc blocks)
-schema/visuals.schema.json        visuals.json contract (per-Reel visual track, #62)
+schema/visuals.schema.json        visuals.json contract (per-Reel visual track)
 schema/kinetic.schema.json        kinetic.json contract (kinetic-text overlay layer)
 config/safezone/                  template PNG + generated spec
 config/glossary/                  layered caption vocabulary (global + per-identity)
@@ -338,10 +338,9 @@ src/video_pipeline/
   glossary.py  cli.py
 tests/                            unittest/pytest suite (runs without native deps)
 DOCS.md                           documentation index (which doc covers what)
-docs/phase1.md … phase5.md        what each phase delivers + acceptance steps
-docs/reframe.md                   multi-target + interactive reframe (INI-090/091)
-docs/ini-089-overlay.md           overlay subsystem; docs/gui-schema.md  GUI schema contract
-docs/visuals.md                   comedy-forward visual track (#62)
+docs/reframe.md                   multi-target + interactive reframe
+docs/gui-schema.md                GUI schema contract
+docs/visuals.md                   comedy-forward visual track
 docs/kinetic.md                   kinetic-text overlay layer
 ```
 

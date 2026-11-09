@@ -1,6 +1,6 @@
 """Serialize the control-tower schema to YAML/JSON and self-check it.
 
-The pipeline authors the schema in YAML (human-readable, the SSOT the CEO can
+The pipeline authors the schema in YAML (human-readable, the SSOT the editor can
 read and diff); the GUI's Rust gateway normalizes it to JSON at the boundary.
 This module is the emit path for both forms plus a structural self-check.
 """

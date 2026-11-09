@@ -1,4 +1,4 @@
-"""TDD for the normalized (resolution-independent) safe-zone model — INI-091 P2.
+"""TDD for the normalized (resolution-independent) safe-zone model
 
 Covers: the three modes (none/generic/custom), the two purposes (subject/text),
 the locked per-aspect inset tables, proportional resolution at multiple tiers of

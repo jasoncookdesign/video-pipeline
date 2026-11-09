@@ -1,4 +1,4 @@
-"""Top-bottom region math (#62 part A): derived from the safe-zone spec, versioned.
+"""Top-bottom region math: derived from the safe-zone spec, versioned.
 
 The schema pins the v1 geometry as constants so consumers can copy it; these tests
 prove those constants are what the derivation produces from the committed Reels

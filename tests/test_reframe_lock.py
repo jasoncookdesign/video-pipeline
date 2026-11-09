@@ -1,4 +1,4 @@
-"""TDD for INI-091 Phase 5 — the Dynamic Composition Lock engine.
+"""TDD for — the Dynamic Composition Lock engine.
 
 The set box fixes the subject's relative placement in the crop; a locked axis then
 moves the crop to HOLD that placement as the subject moves (smoothed, velocity-capped,

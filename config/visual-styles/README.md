@@ -1,4 +1,4 @@
-# Visual styles — the template style layer (#62)
+# Visual styles — the template style layer
 
 The Remotion visual templates (`remotion/src/visuals/`) are driven entirely by
 props. This directory is the **style** half of those props: the frame's colors,
