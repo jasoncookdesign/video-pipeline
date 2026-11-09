@@ -114,7 +114,7 @@ def _resolve_project_paths(
 
 
 # Per-run caption-style override flags shared by `captions` and `captions-render`
-#. One helper feeds both so the two style-resolution paths cannot
+# One helper feeds both so the two style-resolution paths cannot
 # diverge — each command builds its overrides the same way, then both flow through
 # load_caption_style(..., overrides=...). The values are coerced/capped
 # authoritatively in CaptionStyle.__post_init__; these flags are just the surface.
