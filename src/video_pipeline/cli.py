@@ -1506,7 +1506,7 @@ def build_parser() -> argparse.ArgumentParser:
     q.add_argument("--props", default=None,
                    help="Remotion caption props JSON (checks each cue's box vs the safe zone)")
     q.add_argument("--project", default=None,
-                   help="project.yml (or its dir): pulls qc: thresholds + static elements")
+                   help="project.yml (or its dir): pulls qc: thresholds, check switches + static elements")
     q.add_argument("--report", default=None, help="write the QC report JSON here")
     q.add_argument("--preview", default=None,
                    help="write the danger-zone preview (overlay burned in) here")
