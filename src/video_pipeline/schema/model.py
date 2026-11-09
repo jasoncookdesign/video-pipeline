@@ -1,7 +1,7 @@
 """Dataclasses for the GUI control-tower schema (the SSOT contract).
 
 This is the *instance* side of the schema contract described in the
-control-tower SADD (INI-087). The pipeline authors a schema document here;
+control-tower SADD. The pipeline authors a schema document here;
 the GUI's Rust validator owns the canonical *grammar* (``schema/meta-schema.json``
 in the video-pipeline-gui repo) and is the deny-by-default enforcement point.
 

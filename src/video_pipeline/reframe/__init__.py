@@ -1,7 +1,7 @@
 """Landscape -> portrait auto-reframe.
 
 This is the de-risking probe (brief §3.4): it deletes the After Effects + Media
-Encoder round-trip and is the cheapest way to test whether the CEO trusts a
+Encoder round-trip and is the cheapest way to test whether the editor trusts a
 machine-produced layer before the full build.
 
 Three layers, kept separate so the taste-bearing parts stay inspectable:
@@ -10,8 +10,8 @@ Three layers, kept separate so the taste-bearing parts stay inspectable:
   - ``plan``     — subject centres -> a stabilised crop window (pure, tested).
   - ``crop``     — a crop plan -> an FFmpeg command (pure string build, tested).
 
-``probe`` glues real MediaPipe + FFmpeg and runs on the daily driver (Ono-Sendai)
-against real footage — that run is the trust-model acceptance, not a sandbox test.
+``probe`` glues real MediaPipe + FFmpeg and runs on the local machine
+against real footage — that run is the trust-model acceptance, not a unit test.
 """
 
 from .tracker import (
@@ -57,7 +57,7 @@ __all__ = [
     "sample_x",
     "sample_y",
     "ffmpeg_crop_command",
-    # INI-091 Phase 3 — framing model + reframe.def + propose/render split
+    # — framing model + reframe.def + propose/render split
     "FramingModel",
     "CropGeometry",
     "ZoomClamp",

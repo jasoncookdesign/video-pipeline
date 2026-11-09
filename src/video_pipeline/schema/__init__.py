@@ -1,7 +1,7 @@
-"""Control-tower schema contract (INI-087).
+"""Control-tower schema contract.
 
 The pipeline authors the GUI's single source of truth here. See ``model`` for
-the grammar dataclasses, ``definition`` for the JasonOS schema instance, and
+the grammar dataclasses, ``definition`` for the schema instance, and
 ``emit`` for serialization + self-check.
 """
 

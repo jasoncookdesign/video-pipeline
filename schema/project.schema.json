@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://jasonos/video-pipeline/project.schema.json",
   "title": "video-pipeline project.yml",
-  "description": "Per-project manifest. Declares identity (-> glossary layer), the project-level target (aspect + resolution; INI-091), and rough-cut behaviour. The legacy 'profile' field is still accepted as a tolerant fallback that maps to a target.",
+  "description": "Per-project manifest. Declares identity (-> glossary layer), the project-level target (aspect + resolution), and rough-cut behaviour. The legacy 'profile' field is still accepted as a tolerant fallback that maps to a target.",
   "type": "object",
   "required": ["identity"],
   "anyOf": [
@@ -24,7 +24,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": ["aspect"],
-      "description": "The project-level output target (INI-091): chosen once, upstream of safezone and reframe. Source of truth over the legacy 'profile'. Changing the aspect resets resolution (-> auto) and invalidates framing + safe zone + captions/QC downstream; changing only resolution invalidates the pixel-dependent downstream (safe zone / captions / QC) but not framing.",
+      "description": "The project-level output target: chosen once, upstream of safezone and reframe. Source of truth over the legacy 'profile'. Changing the aspect resets resolution (-> auto) and invalidates framing + safe zone + captions/QC downstream; changing only resolution invalidates the pixel-dependent downstream (safe zone / captions / QC) but not framing.",
       "properties": {
         "aspect": {
           "type": "string",
@@ -42,7 +42,7 @@
     "profile": {
       "type": "string",
       "pattern": "^[a-z0-9][a-z0-9-]*$",
-      "description": "DEPRECATED (INI-091): legacy output target. Accepted as a tolerant fallback that maps to a target (reels-9x16/story-9x16 -> full-portrait, feed-portrait-4x5 -> wide-portrait, feed-square-1x1 -> square, feed-landscape-16x9 -> widescreen). Selects config/safezone/<profile>.safezone.json. Prefer 'target'."
+      "description": "DEPRECATED: legacy output target. Accepted as a tolerant fallback that maps to a target (reels-9x16/story-9x16 -> full-portrait, feed-portrait-4x5 -> wide-portrait, feed-square-1x1 -> square, feed-landscape-16x9 -> widescreen). Selects config/safezone/<profile>.safezone.json. Prefer 'target'."
     },
     "rough_cut": {
       "type": "object",

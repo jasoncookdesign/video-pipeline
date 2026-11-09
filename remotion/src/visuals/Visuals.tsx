@@ -1,4 +1,4 @@
-// Registers one Remotion composition per visual template (#62). Composition ids
+// Registers one Remotion composition per visual template. Composition ids
 // mirror video_pipeline.visuals.props.TEMPLATE_COMPOSITIONS; calculateMetadata
 // sizes every render to the clip's region and its beat-plus-hold length.
 import React from "react";

@@ -1,4 +1,4 @@
-"""Normalized (resolution-independent) safe-zone model — INI-091 Phase 2.
+"""Normalized (resolution-independent) safe-zone model.
 
 Phase 1 (``target_format.py``) made the project's *Target* (aspect + resolution)
 a first-class, resolution-independent choice. This module makes the **safe zone**
@@ -45,7 +45,7 @@ MODE_NONE = "none"
 MODE_GENERIC = "generic"
 MODE_CUSTOM = "custom"
 SAFE_ZONE_MODES: Tuple[str, ...] = (MODE_NONE, MODE_GENERIC, MODE_CUSTOM)
-DEFAULT_MODE = MODE_GENERIC  # INI-091 locked default
+DEFAULT_MODE = MODE_GENERIC  # fixed default
 
 # ── purposes ────────────────────────────────────────────────────────────────────
 
@@ -54,7 +54,7 @@ PURPOSE_TEXT = "text"
 PURPOSES: Tuple[str, ...] = (PURPOSE_SUBJECT, PURPOSE_TEXT)
 
 
-# ── generic per-aspect inset tables (CEO-locked, INI-091, 2026-06-22) ────────────
+# ── generic per-aspect inset tables (fixed spec) ────────────
 #
 # Insets are fractions of the frame dimension, asymmetric (Top, Right, Bottom,
 # Left). Bottom is the largest on portrait formats (UI chrome / action buttons

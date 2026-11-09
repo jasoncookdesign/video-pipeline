@@ -1,4 +1,4 @@
-"""Overlay CLI surface (INI-089) — overlay / overlay-card / overlay-render, and
+"""Overlay CLI surface — overlay / overlay-card / overlay-render, and
 the schema↔CLI consistency (every overlay task subcommand is a real CLI command,
 and its resolved argv parses)."""
 

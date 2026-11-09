@@ -1,4 +1,4 @@
-"""Caption-dodge (INI-089) — captions consume overlay.occupancy and relocate to
+"""Caption-dodge — captions consume overlay.occupancy and relocate to
 clear an overlay during a cue's window. Pure geometry + props wiring."""
 
 import tempfile

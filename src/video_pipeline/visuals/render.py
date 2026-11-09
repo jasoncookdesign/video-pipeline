@@ -5,7 +5,7 @@ same argv builder the caption overlay uses) → optional still previews grabbed 
 each clip with the caption-preview FFmpeg seam, composited over a neutral plate.
 
 Non-Remotion beats (``real`` / ``higgsfield`` / ``none``) are skipped. The process
-runner is injectable (``run``) so the suite stubs Node/FFmpeg; on the daily driver
+runner is injectable (``run``) so the suite stubs Node/FFmpeg; on the local machine
 it is :func:`subprocess.run`.
 """
 

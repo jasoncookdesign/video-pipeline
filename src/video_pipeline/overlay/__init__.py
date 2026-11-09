@@ -1,4 +1,4 @@
-"""Overlay subsystem (INI-089).
+"""Overlay subsystem.
 
 One primitive — a timed/placed overlay layer — feeding thin producers (still
 image, video asset, generated card, self-commentary composite). The editable

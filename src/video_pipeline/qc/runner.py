@@ -1,4 +1,4 @@
-"""Safe-zone QC runner — daily-driver glue.
+"""Safe-zone QC runner — local glue.
 
 Wires the pure QC pieces into the Phase-4 flow:
 
@@ -12,7 +12,7 @@ Wires the pure QC pieces into the Phase-4 flow:
 The validation/geometry core (:mod:`validate`, :mod:`report`) and the overlay
 PNG / argv builders (:mod:`overlay`) are pure and unit-tested. Face detection
 and the FFmpeg burn-in need native deps + real footage, so the orchestration
-here runs on the daily driver (hence ``pragma: no cover``).
+here runs on the local machine (hence ``pragma: no cover``).
 """
 
 from __future__ import annotations
@@ -34,9 +34,9 @@ def caption_elements_from_props(props: dict) -> List[QCElement]:
     """Caption boxes from a Remotion props object.
 
     The props' ``safeBox`` is the default caption box; a cue that dodged an overlay
-    (INI-089) carries its own ``box`` which takes precedence — QC checks where each
+ carries its own ``box`` which takes precedence — QC checks where each
     cue actually renders. Each kept cue's on-screen span gives the time window, so
-    the report timestamps line up with the cues the CEO sees.
+    the report timestamps line up with the cues the editor sees.
     """
     default = props["safeBox"]
     fps = props.get("fps", 30)
@@ -104,9 +104,9 @@ def faces_from_subjects(subjects, frame_w: int, frame_h: int,
     return out
 
 
-# ── daily-driver orchestration ─────────────────────────────────────────────────
+# ── local orchestration ─────────────────────────────────────────────────
 
-def run_qc(  # pragma: no cover - daily-driver orchestration (native deps + footage)
+def run_qc(  # pragma: no cover - local orchestration (native deps + footage)
     input_video: str,
     safezone_spec_path: str,
     *,

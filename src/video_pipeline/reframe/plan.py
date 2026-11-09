@@ -15,7 +15,7 @@ Two modes:
     the crop y) interpolate linearly between keyframes — continuous motion, no
     steps.
 
-Composition lock (INI-091 Phase 5)
+Composition lock
 ----------------------------------
 Dynamic mode gains a ``lock`` axis (``"none"`` | ``"x"`` | ``"y"`` | ``"both"``):
 
@@ -230,9 +230,9 @@ def _crop_y(
 ) -> int:
     """Top edge of the crop window.
 
-    ``pan_y`` (INI-091 manual pan) — when given — is the crop *centre* as a normalized
+    ``pan_y`` — when given — is the crop *centre* as a normalized
     source fraction (0–1); it overrides the subject-derived anchor entirely. Otherwise
-    ``subject_y_frac`` (INI-090 framing) anchors the subject's vertical centre at that
+    ``subject_y_frac`` anchors the subject's vertical centre at that
     fraction of the crop height; ``None`` centres the crop (legacy). Either way the
     result is clamped so the window stays inside the source frame — so a full-height
     crop (no vertical slack) is always ``y == 0``.
@@ -278,7 +278,7 @@ def _smooth_centre_track(
 
 def _static_plan(subjects, src_w, src_h, out_w, out_h, crop_w, crop_h, y, duration,
                  pan_x=None) -> CropPlan:
-    # pan_x (INI-091 manual pan) is the crop centre as a normalized source fraction;
+    # pan_x is the crop centre as a normalized source fraction;
     # it overrides the subject-derived centre. None keeps the legacy robust centre.
     cx = pan_x * src_w if pan_x is not None else _robust_center(subjects, src_w)
     x = window_x(cx, crop_w, src_w)
@@ -316,7 +316,7 @@ def _lock_plan(
     y_fixed, duration, lock, pan_x, pan_y,
     grid_fps, smoothing_seconds, max_pan_frac_per_s, simplify_tol_px,
 ) -> CropPlan:
-    """Composition-Lock dynamic plan (INI-091 Phase 5).
+    """Composition-Lock dynamic plan.
 
     The set box (``pan_x``/``pan_y``) fixes the subject's *relative placement* in the
     crop. A locked axis moves the crop each frame so the (smoothed, velocity-capped,
@@ -424,22 +424,22 @@ def build_crop_plan(
                             (caps how fast the crop can travel -> eased moves).
         simplify_tol_px:    keyframe simplification tolerance (Douglas-Peucker).
         duration:           clip duration (for the final keyframe's end time).
-        scale:              punch-in factor (INI-090 framing). 1.0 = widest native
+        scale:              punch-in factor. 1.0 = widest native
                             crop; > 1.0 punches in (crop = native / scale -> subject
                             larger). < 1.0 clamps to native — no pull-back past the
                             source bounds (no fill), so native is the widest framing.
         subject_y_frac:     where the subject's vertical centre sits in the crop
                             (0=top, 1=bottom). Only bites when crop_h < src_h.
                             None keeps the legacy centred crop.
-        pan_x:              INI-091 manual pan. Crop CENTRE x as a normalized source
+        pan_x:              Manual pan. Crop CENTRE x as a normalized source
                             fraction (0–1); overrides the subject-derived centre. None
                             keeps subject-derived centring (the default). In dynamic
                             mode an explicit pan_x pins the whole clip to that x (a
                             manual pan is a deliberate fixed framing, not a follow).
-        pan_y:              INI-091 manual pan. Crop CENTRE y as a normalized source
+        pan_y:              Manual pan. Crop CENTRE y as a normalized source
                             fraction (0–1); overrides subject_y_frac. None keeps the
                             subject-derived / centred vertical anchor.
-        lock:               INI-091 Phase 5 *Composition Lock* (dynamic only):
+        lock:               *Composition Lock* (dynamic only):
                             "none" (default) | "x" | "y" | "both".
                               - "none" keeps the legacy semantics exactly: an explicit
                                 pan_x pins the clip to a single static window, and the

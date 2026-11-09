@@ -1,7 +1,7 @@
 """Target-format model — aspect presets, resolution tiers, and the Auto resolver.
 
 The first-class "target format" the reframe (and every downstream render) recomposes
-toward. Two orthogonal axes, deliberately kept separate (INI-090):
+toward. Two orthogonal axes, deliberately kept separate:
 
   - **Aspect preset** — the *shape*. Drives the crop/reframe geometry. Stored as a
     reduced integer fraction so all crop arithmetic stays integer-exact (e.g. cinematic
@@ -56,7 +56,7 @@ class ResolutionTarget:
         return Fraction(self.width, self.height)
 
 
-# ── canonical tables (CEO-locked spec, 2026-06-22, INI-090) ────────────────────
+# ── canonical tables ────────────────────
 
 # Resolution ladder, ordered HIGH → LOW so the first tier that fits is the highest.
 TIERS: Tuple[str, ...] = ("4k", "1440p", "1080p", "720p")
@@ -198,13 +198,13 @@ def resolve(
     return resolution_target(aspect_key, selection)
 
 
-# ── project-level Target value object (INI-091) ─────────────────────────────────
+# ── project-level Target value object ─────────────────────────────────
 
 # Valid resolution selections: "auto" or a tier key.
 RESOLUTION_SELECTIONS: Tuple[str, ...] = ("auto", *TIERS)
 
 # Tolerant map: legacy per-step ``profile`` slugs -> a project Target. Lets existing
-# project.yml files (and INI-090 fixtures) keep declaring ``profile`` while the new
+# project.yml files (and older fixtures) keep declaring ``profile`` while the new
 # code reads a Target. Aspect is derived from the slug; resolution defaults to Auto
 # (the legacy profiles encoded a 1080-class fixed size, which Auto reproduces for the
 # common 1080-class crop and otherwise picks the best non-upscaling tier).
@@ -221,7 +221,7 @@ PROFILE_TO_ASPECT: Dict[str, str] = {
 class Target:
     """The project-level Target — one aspect shape + one resolution selection.
 
-    Chosen once per project (INI-091), upstream of safezone and reframe, replacing
+    Chosen once per project, upstream of safezone and reframe, replacing
     the legacy per-step ``--profile``/aspect selector. ``aspect`` is an aspect-preset
     key; ``resolution`` is ``"auto"`` or a tier key. Immutable and self-validating so
     an invalid Target can never reach the resolver/crop math.
@@ -253,14 +253,13 @@ class Target:
         """Tolerant back-compat: map a legacy ``profile`` slug to a Target.
 
         Unknown/absent profiles fall back to the default Target (full-portrait/auto)
-        rather than raising — the legacy path was always best-effort, and INI-091
-        keeps any existing project loadable.
+        rather than raising — the legacy path was always best-effort, and the later revision        keeps any existing project loadable.
         """
         aspect = PROFILE_TO_ASPECT.get(profile or "", DEFAULT_ASPECT)
         return cls(aspect=aspect, resolution="auto")
 
 
-# ── downstream reset cascade (INI-091, the testable heart) ──────────────────────
+# ── downstream reset cascade (the testable heart) ──────────────────────
 
 # Downstream artifacts a Target change can invalidate, in pipeline order.
 #   framing  — the reframe's composition proposal (subject_scale/subject_y).
@@ -313,7 +312,7 @@ class ResetResult:
 def reset_downstream(old: Target, new: Target) -> ResetResult:
     """Pure cascade: which downstream artifacts a Target change invalidates.
 
-    Rules (INI-091 locked spec):
+    Rules:
       - **Aspect change** resets *everything* downstream — framing re-proposes, the
         reframe crop geometry changes, the safe zone regenerates, captions/QC are
         invalidated — AND resolution snaps back to **Auto** (the new aspect's tiers

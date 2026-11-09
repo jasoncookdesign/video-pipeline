@@ -1,4 +1,4 @@
-"""visuals-render (#62 part A): style layer, props contract, named/sized outputs.
+"""visuals-render: style layer, props contract, named/sized outputs.
 
 The Node renderer is stubbed (a fake ``run`` that records argv and writes the file
 the real command would write), so this suite proves naming, sizing, props, and the
@@ -281,7 +281,7 @@ class CliTests(unittest.TestCase):
 
 
 @unittest.skipUnless(os.environ.get("VP_REMOTION_ACCEPTANCE") == "1",
-                     "real Remotion render — set VP_REMOTION_ACCEPTANCE=1 on the daily driver")
+                     "real Remotion render — set VP_REMOTION_ACCEPTANCE=1 on the local machine")
 class RemotionAcceptanceTests(unittest.TestCase):
     """Renders every gallery template for real and checks the clip's size/alpha."""
 

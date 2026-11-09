@@ -1,4 +1,4 @@
-"""Repeatable `rows` param (INI-089 GUI authoring) — schema emit + argv assembly,
+"""Repeatable `rows` param — schema emit + argv assembly,
 and that the resolved argv parses back through the CLI."""
 
 import io

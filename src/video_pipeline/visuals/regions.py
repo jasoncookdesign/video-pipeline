@@ -1,4 +1,4 @@
-"""Top-bottom layout regions, derived from the safe-zone spec (#62 part A). Pure.
+"""Top-bottom layout regions, derived from the safe-zone spec. Pure.
 
 The comedy-forward layout splits the 1080x1920 canvas into a **graphic panel** on
 top and the **presenter** (head-and-shoulders) below. The panels are fixed halves

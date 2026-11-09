@@ -1,4 +1,4 @@
-"""Tests for subject-occupancy projection + round-trip (INI-090 Phase 2)."""
+"""Tests for subject-occupancy projection + round-trip."""
 
 import os
 import tempfile

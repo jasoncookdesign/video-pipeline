@@ -1,6 +1,6 @@
 """Tests for the target-format model — aspect presets, resolution tiers, Auto resolver.
 
-Pure logic; no native deps. Encodes the CEO-locked spec (2026-06-22, INI-090) as
+Pure logic; no native deps. Encodes the fixed spec as
 executable assertions: the seven presets, the canonical resolution matrix, and the
 Auto resolution rules (highest non-upscaling tier within a 5% tolerance; tier-down
 fallback; largest-exact-fit when even 720p doesn't fit).
@@ -36,7 +36,7 @@ EXPECTED_PRESETS = {
     "classic-tv": (4, 3),
 }
 
-# The canonical matrix, exactly as locked with the CEO (2026-06-22).
+# The canonical matrix, exactly as specified.
 EXPECTED_MATRIX = {
     "cinematic":     {"4k": (5040, 2160), "1440p": (3360, 1440), "1080p": (2520, 1080), "720p": (1680, 720)},
     "widescreen":    {"4k": (3840, 2160), "1440p": (2560, 1440), "1080p": (1920, 1080), "720p": (1280, 720)},

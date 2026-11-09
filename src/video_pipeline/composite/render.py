@@ -80,13 +80,13 @@ def ffmpeg_composite_command(
     return cmd
 
 
-# ── timed / placed overlays (INI-089 Phase A) ──────────────────────────────────
+# ── timed / placed overlays ──────────────────────────────────
 #
 # The caption compositor above stacks full-frame, full-duration transparent layers
 # (``overlay=0:0``). The overlay subsystem needs each layer positioned, scaled, and
 # gated to a time window, with an optional fade — so it gets its own filtergraph
 # builder rather than overloading the caption one. Still pure argv assembly; the
-# runner executes it on the daily driver.
+# runner executes it on the local machine.
 
 
 @dataclass(frozen=True)

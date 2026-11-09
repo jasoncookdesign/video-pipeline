@@ -1,13 +1,13 @@
-"""Rough-cut runner — daily-driver (Ono-Sendai) glue.
+"""Rough-cut runner — local glue.
 
 Wires the pure pieces into the Phase-2 flow:
 
     media  ->  transcribe  ->  propose  ->  write decision file  ->  (rough render)
 
 Transcription (mlx-whisper) and the FFmpeg render need native deps / a real
-binary, so the orchestration here is exercised on the daily driver; the pure
+binary, so the orchestration here is exercised on the local machine; the pure
 pieces it calls (``propose``, ``concat_filtergraph``, decision round-trip) are
-unit-tested in the sandbox. A precomputed Whisper-JSON transcript can be passed
+unit-tested in the test suite. A precomputed Whisper-JSON transcript can be passed
 in to skip the MLX step (e.g. re-proposing from a cached ``work/`` transcript).
 """
 
@@ -56,7 +56,7 @@ def load_transcript_json(path: str) -> Transcript:
     return transcript_from_whisper_dict(data)
 
 
-def make_rough_cut(  # pragma: no cover - daily-driver orchestration (native deps + footage)
+def make_rough_cut(  # pragma: no cover - local orchestration (native deps + footage)
     input_path: str,
     decision_out: str,
     render_out: Optional[str] = None,

@@ -1,4 +1,4 @@
-"""Beat timing (#62 part A): planned durations, or transcript alignment + cut remap."""
+"""Beat timing: planned durations, or transcript alignment + cut remap."""
 
 import unittest
 

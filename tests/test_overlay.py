@@ -1,4 +1,4 @@
-"""Overlay subsystem (INI-089 Phase A) — pure logic: decision round-trip,
+"""Overlay subsystem — pure logic: decision round-trip,
 occupancy descriptor, and the timed/placed composite argv. No ffmpeg needed."""
 
 import unittest

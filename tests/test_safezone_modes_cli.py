@@ -1,6 +1,6 @@
-"""CLI + schema wiring for INI-091 safe-zone modes (none / generic / custom).
+"""CLI + schema wiring for safe-zone modes (none / generic / custom).
 
-Exercises the ``safezone-gen --mode`` surface added in INI-091:
+Exercises the ``safezone-gen --mode`` surface:
   * the parser makes the template positional optional + adds --mode/--aspect,
   * generic/none build a resolution-independent per-aspect spec (no PNG),
   * custom keeps the legacy PNG → polygon path unchanged,

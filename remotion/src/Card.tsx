@@ -5,7 +5,7 @@ import type { CardProps } from "./types";
 // renders in that typeface (shared with the caption composition).
 import "./fonts";
 
-// The source card (INI-089 Phase B). A deterministic, static tile: the component
+// The source card. A deterministic, static tile: the component
 // renders the card art filling its own composition frame (which equals the
 // placement rect chosen in overlay.def). The on-screen *window* and the fade are
 // applied downstream by the ffmpeg overlay primitive, so there is no per-frame

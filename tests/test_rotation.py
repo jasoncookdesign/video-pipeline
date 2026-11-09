@@ -1,4 +1,4 @@
-"""Tests for rotation-aware dimension reading (INI-090 follow-up).
+"""Tests for rotation-aware dimension reading.
 
 A portrait phone clip is often stored landscape-coded with a 90 degrees display
 rotation. The reframe must work in *display* space or it carves a wrong crop and

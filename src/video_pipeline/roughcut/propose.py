@@ -4,7 +4,7 @@ Given a word-level ``Transcript``, the clip ``duration``, and a ``ProposeConfig`
 produce a ``DecisionList`` that partitions ``[0, duration]`` end-to-end into
 KEEP / DROP segments. The machine removes three classes of mechanical waste —
 **filler** words, **false starts**, and **dead air** — and keeps everything else;
-taste stays with the CEO.
+taste stays with the editor.
 
 The ``rough_cut.trim_filler`` toggle is honored at the top: when it is ``False``
 the proposal makes **no speech-based edits** — a single whole-clip KEEP segment,
@@ -25,7 +25,7 @@ from .transcript import Transcript, Word
 
 # Conservative, high-precision filler lexicon. Words like "like" / "so" / "you
 # know" are intentionally excluded — they are too often content, and a false cut
-# is worse than a missed one (the CEO can always tighten further by hand).
+# is worse than a missed one (the editor can always tighten further by hand).
 FILLER_WORDS: FrozenSet[str] = frozenset(
     {"um", "umm", "uh", "uhh", "uhm", "er", "err", "erm", "ah", "ahh",
      "eh", "hmm", "mm", "mmm", "mhm"}

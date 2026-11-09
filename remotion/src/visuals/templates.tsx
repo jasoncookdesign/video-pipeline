@@ -1,4 +1,4 @@
-// The visual template library (#62). Each template mimics its target genre
+// The visual template library. Each template mimics its target genre
 // (game HUD, storefront, SaaS dashboard, installer, timeline, flowchart, title
 // card) inside the shared DH frame, and is built to read in a second or two:
 // one idea per panel, big type, everything settled by ~55% of the beat.

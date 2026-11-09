@@ -1,4 +1,4 @@
-"""Subject-track persistence — the tracker output as a referenced artifact (INI-091 P3).
+"""Subject-track persistence — the tracker output as a referenced artifact.
 
 Propose runs the (native, Mac-side) subject tracker once and persists its per-frame
 ``FrameSubject`` list to a file. The ``reframe.def`` decision file references that file,

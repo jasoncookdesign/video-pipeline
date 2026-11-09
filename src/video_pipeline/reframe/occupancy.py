@@ -1,10 +1,10 @@
-"""Subject occupancy — project the tracked subject into the reframed frame (INI-090 C).
+"""Subject occupancy — project the tracked subject into the reframed frame.
 
 The reframe already knows two things the caption layer needs but never received: the
 subject's bounding box (per sampled frame, from the tracker) and the crop transform
 that maps source pixels into the target frame. This module composes them into
 ``avoid_windows`` — the exact ``(x, y, w, h, start, end)`` shape the caption exporter
-already consumes for overlay occupancy (INI-089) — so captions dodge the *subject* the
+already consumes for overlay occupancy — so captions dodge the *subject* the
 same way they dodge overlays. No new caption machinery; one more producer on the
 existing seam.
 

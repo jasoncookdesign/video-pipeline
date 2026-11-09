@@ -12,7 +12,7 @@ included) and the speaker's face, then produces three outputs:
 
 The geometry/validation core (:mod:`report`, :mod:`validate`) is pure and
 unit-tested. The pixel/preview rendering (:mod:`overlay`) builds a PIL danger
-mask plus FFmpeg argv; the actual burn-in runs on the daily driver via
+mask plus FFmpeg argv; the actual burn-in runs on the local machine via
 :mod:`runner`.
 """
 

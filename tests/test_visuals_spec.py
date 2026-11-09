@@ -1,4 +1,4 @@
-"""visuals.json contract (#62 part A): schema validation at the Python boundary.
+"""visuals.json contract: schema validation at the Python boundary.
 
 The schema (schema/visuals.schema.json) is the contract part B (the reels plugin)
 writes against. These tests pin what it accepts and — more importantly — what it

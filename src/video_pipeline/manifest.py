@@ -76,7 +76,7 @@ class Manifest:
 
     @property
     def target(self):
-        """The project-level :class:`Target` (INI-091) — aspect + resolution.
+        """The project-level :class:`Target` — aspect + resolution.
 
         Source of truth is the ``target:`` block (``{aspect, resolution}``). For
         back-compat, a project that declares only the legacy ``profile`` gets a

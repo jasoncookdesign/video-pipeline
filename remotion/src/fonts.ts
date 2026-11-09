@@ -1,4 +1,4 @@
-// Font registry (INI-088 Phase 4) — make allowlisted brand fonts actually render.
+// Font registry — make allowlisted brand fonts actually render.
 //
 // Remotion registers no fonts on its own, so a `font_family` of "Archivo" (etc.)
 // previously fell back to the Helvetica chain. We register the loadable brand

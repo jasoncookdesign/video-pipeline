@@ -1,10 +1,10 @@
-"""TDD for the captions phase (INI-085 Phase 3).
+"""TDD for the captions phase.
 
 All the pure logic is tested here: glossary-aware chunking (timing layer), the
 caption-file round trip, SRT export, safe-zone-aware placement, layered style
 config, and the Remotion props contract. mlx-whisper transcription and the
-Remotion render are the daily-driver steps and are intentionally out of the
-sandbox suite (only the pure argv builder for Remotion is checked).
+Remotion render are the local steps and are intentionally out of the
+pure-logic suite (only the pure argv builder for Remotion is checked).
 """
 
 import json
@@ -110,7 +110,7 @@ class StyleLayeringTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             CaptionStyle(min_words=5, max_words=2)
 
-    # ── INI-088: per-run style knobs, caps + font allowlist ──
+    # ── per-run style knobs, caps + font allowlist ──
     def test_style_overrides_apply_visual_knobs(self):
         s = load_caption_style(
             CONFIG_ROOT, identity="dyson-hope",
@@ -149,7 +149,7 @@ class StyleLayeringTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             CaptionStyle(stroke_width=-1)
 
-    # ── INI-088 Phase 2: background plate ──
+    # ── background plate ──
     def test_bg_defaults_off(self):
         s = CaptionStyle()
         self.assertFalse(s.bg_enabled)
@@ -473,7 +473,7 @@ class PlacementTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             caption_box(self.spec, position="nope")
 
-    # ── INI-088 Phase 3: explicit horizontal offset ──
+    # ── explicit horizontal offset ──
     def test_bad_h_offset_rejected(self):
         with self.assertRaises(ValueError):
             caption_box(self.spec, h_offset="nope")
@@ -528,7 +528,7 @@ class RemotionPropsTests(unittest.TestCase):
     def test_props_only_kept_cues_with_frames(self):
         style = CaptionStyle(uppercase=False)
         props = build_props_from_safezone(self._track(), style, self.spec, fps=30)
-        self.assertEqual(props["schemaVersion"], 3)  # INI-089 caption-dodge (per-cue box)
+        self.assertEqual(props["schemaVersion"], 3)  # caption-dodge (per-cue box)
         self.assertEqual(len(props["cues"]), 1)  # dropped cue excluded
         c = props["cues"][0]
         self.assertEqual(c["from"], 0)
@@ -642,7 +642,7 @@ class RemotionCommandTests(unittest.TestCase):
         self.assertIn("--codec=prores", cmd)
 
 
-# ── INI-088: preview-frame verification seam (pure parts) ─────────────────────
+# ── preview-frame verification seam (pure parts) ─────────────────────
 
 class PreviewFrameTests(unittest.TestCase):
     @staticmethod

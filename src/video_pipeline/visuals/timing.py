@@ -1,4 +1,4 @@
-"""Beat timing for the handoff (#62 part A). Pure.
+"""Beat timing for the handoff. Pure.
 
 Two bases, picked by what the handoff is given:
 

@@ -1,16 +1,16 @@
-"""Caption preview-frame seam (INI-088 Phase 1) — the verification loop.
+"""Caption preview-frame seam — the verification loop.
 
-The JasonOS sandbox cannot render Remotion (network allowlist blocks npm + the
+A restricted environment cannot render Remotion (network allowlist blocks npm + the
 Chromium headless shell), so styling defects can only be caught by rendering on
-the Mac and reading the result back. This module is that seam: after the daily-
-driver Remotion render produces the transparent overlay ``.mov``, it grabs a
+the Mac and reading the result back. This module is that seam: after the local
+Remotion render produces the transparent overlay ``.mov``, it grabs a
 handful of representative still frames — each composited over a neutral
 background so the fill, stroke, and (Phase 2) background plate are all visible —
-and writes them as PNGs the President Agent reads in-session to confirm styling.
+and writes them as PNGs a reviewer reads to confirm styling.
 
 Split like the rest of the captions phase: the frame-time selection and the
 FFmpeg argv builder are **pure and unit-tested**; only :func:`extract_preview_frames`
-shells out and is daily-driver-bound.
+shells out and is local-bound.
 """
 
 from __future__ import annotations
@@ -84,7 +84,7 @@ def frame_extract_command(
     ]
 
 
-def extract_preview_frames(  # pragma: no cover - daily-driver: needs FFmpeg + a real .mov
+def extract_preview_frames(  # pragma: no cover - local: needs FFmpeg + a real .mov
     overlay_path: str,
     times: List[float],
     out_dir: str,

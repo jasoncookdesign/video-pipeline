@@ -1,4 +1,4 @@
-"""Tests for framing intents + the crop-plan scale / vertical-anchor knobs (INI-090 C)."""
+"""Tests for framing intents + the crop-plan scale / vertical-anchor knobs."""
 
 import unittest
 

@@ -1,4 +1,4 @@
-"""Overlay runner — resolve overlay.def → composite, emit occupancy (INI-089).
+"""Overlay runner — resolve overlay.def → composite, emit occupancy.
 
 The integration layer both phases converge on. It is the bridge from the editable
 ``overlay.def`` (the product) to the two things the rest of the pipeline needs:
@@ -10,8 +10,8 @@ The integration layer both phases converge on. It is the bridge from the editabl
     caption placement and safe-zone QC stay aware of where/when overlays sit.
 
 The resolution (``resolve_placed_overlays``) is pure and unit-tested; the ffmpeg
-invocation is the daily-driver seam (mirrors ``composite/runner.py``), kept thin so
-the interesting logic stays testable in the sandbox.
+invocation is the local seam (mirrors ``composite/runner.py``), kept thin so
+the interesting logic stays testable in the test suite.
 
 Audio note: image and card overlays carry no audio; the base audio is carried
 through (``0:a?``). Per-overlay ``audio=keep|duck|mute`` mixing for *video* overlays

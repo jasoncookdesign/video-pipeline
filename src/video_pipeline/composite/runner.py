@@ -1,4 +1,4 @@
-"""Run the composite ffmpeg command (daily-driver glue; argv lives in render.py).
+"""Run the composite ffmpeg command (local glue; argv lives in render.py).
 
 Kept thin and side-effect-only so the interesting logic (argv assembly) stays in
 the pure, unit-tested ``render`` module.

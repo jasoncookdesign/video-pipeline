@@ -19,7 +19,7 @@ reframed clip) and the cut-time caption track. Two differences from FCPXML:
     ``<alphatype>straight</alphatype>`` so Premiere keys its transparency.
 
 Layout: **V1** base cut, **V2** captions (higher track = on top); **A1/A2** the
-base cut's stereo audio. With a visual track (#62) the beat clips take **V2**
+base cut's stereo audio. With a visual track the beat clips take **V2**
 (positioned with Basic Motion) and captions move up to **V3**. Music and the final mix stay with the editor.
 """
 
@@ -255,7 +255,7 @@ def build_document(
     _text(v1, "enabled", "TRUE")
     _text(v1, "locked", "FALSE")
 
-    # V2 — visual track (#62): one clip per placed beat, sized to its region and
+    # V2 — visual track: one clip per placed beat, sized to its region and
     # moved into place with Basic Motion. Present only when visuals are given, so
     # a captions-only handoff keeps captions on V2 exactly as before.
     if visuals:

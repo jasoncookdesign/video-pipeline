@@ -1,9 +1,9 @@
-"""Transcript→window proposer — the overlay's AI leverage (INI-089). Pure.
+"""Transcript→window proposer — the overlay's AI leverage. Pure.
 
 The mechanical cost of an overlay is deciding **when** it is on screen, frame-
 matched to the narration. The word-level transcript already exists (rough cut /
 captions), so the pipeline proposes each overlay's ``[start, end)`` by matching it
-to the span where it is discussed and writes that into ``overlay.def``; the CEO
+to the span where it is discussed and writes that into ``overlay.def``; the editor
 nudges it. This proposer is the matching logic — deterministic, no model in the
 render path. It serves every producer: an image/video overlay (Phase A) and a
 source card (Phase B) all get their window from here.

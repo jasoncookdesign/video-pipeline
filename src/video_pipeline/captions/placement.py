@@ -102,7 +102,7 @@ def caption_box(
     intersection across that band's rows, so a lower-third box clears the
     action-button notch automatically.
 
-    ``h_offset`` (INI-088 Phase 3) chooses how the box sits horizontally when the
+    ``h_offset`` chooses how the box sits horizontally when the
     notch shrinks the available span:
 
     * ``"clear-notch"`` (default) — use the full notch-free span. At lower-third
@@ -147,7 +147,7 @@ def caption_box(
     return box
 
 
-# ── overlay-aware placement (INI-089 caption-dodge) ────────────────────────────
+# ── overlay-aware placement ────────────────────────────
 #
 # An overlay sitting on the frame is a region captions should avoid for the span
 # it is on screen. The overlay step emits ``overlay.occupancy`` (geometric rects +

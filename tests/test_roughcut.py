@@ -1,9 +1,9 @@
-"""TDD for the rough-cut phase (INI-085 Phase 2).
+"""TDD for the rough-cut phase.
 
 The pure logic — filler/false-start/silence proposal, the decision-file round
 trip, and the FFmpeg trim/concat command — is fully tested here. mlx-whisper
-transcription and the real-footage render are the daily-driver steps and are
-intentionally out of the sandbox suite.
+transcription and the real-footage render are the local steps and are
+intentionally out of the pure-logic suite.
 """
 
 import unittest
@@ -234,7 +234,7 @@ class TestDecisionRoundTrip(unittest.TestCase):
         d = self._sample()
         kept_before = len(d.kept())
         text = d.to_yaml()
-        # CEO hand-edit: drop the first kept segment
+        # Hand-edit: drop the first kept segment
         reloaded = DecisionList.from_yaml(text)
         first_kept = next(s for s in reloaded.segments if s.keep)
         first_kept.keep = False

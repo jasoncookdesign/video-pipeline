@@ -1,4 +1,4 @@
-"""Captions runner — daily-driver (Ono-Sendai) glue.
+"""Captions runner — local glue.
 
 Wires the pure pieces into the Phase-3 flow:
 
@@ -6,9 +6,9 @@ Wires the pure pieces into the Phase-3 flow:
                                                             -> (styled overlay render)
 
 Transcription (mlx-whisper) and the Remotion render need native deps, so the
-orchestration here is exercised on the daily driver; the pure pieces it calls
+orchestration here is exercised on the local machine; the pure pieces it calls
 (``chunk_transcript``, the caption round-trip, ``caption_box``, the exporters)
-are unit-tested in the sandbox. A precomputed Whisper-JSON transcript can be
+are unit-tested in the test suite. A precomputed Whisper-JSON transcript can be
 passed in to skip the MLX step — the same cached ``work/`` transcript the
 rough-cut phase produces re-uses here, so captions never re-transcribe.
 
@@ -66,7 +66,7 @@ def build_caption_track(
     )
 
 
-def make_captions(  # pragma: no cover - daily-driver orchestration (native deps + footage)
+def make_captions(  # pragma: no cover - local orchestration (native deps + footage)
     input_path: str,
     caption_out: str,
     identity: str,

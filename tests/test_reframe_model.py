@@ -1,4 +1,4 @@
-"""TDD for the INI-091 Phase 3 framing model + reframe.def + propose/render split.
+"""TDD for the framing model + reframe.def + propose/render split.
 
 Covers the headline DoD: the canonical framing model ``{scale, pan_x, pan_y}``
 round-trips exactly to/from a pixel crop window; Propose writes a correct

@@ -10,7 +10,7 @@ Public API:
     generate_spec(png_path, profile=...) -> SafeZoneSpec
     SafeZoneSpec  (dataclass; .to_dict() / .from_dict() / .contains())
 
-INI-091 Phase 2 adds a resolution-independent layer (``normalized``): safe zones
+A later revision adds a resolution-independent layer (``normalized``): safe zones
 stored as normalized 0–1 vector geometry with three modes (none/generic/custom)
 and two purposes (subject/text), resolved to a pixel ``SafeZoneSpec`` only once
 the target width/height are known. The legacy pixel API above stays intact.
@@ -43,7 +43,7 @@ __all__ = [
     "Band",
     "generate_spec",
     "GENERATOR_VERSION",
-    # normalized (INI-091 Phase 2)
+    # normalized
     "NormalizedSafeZone",
     "NormalizedZone",
     "SAFE_ZONE_MODES",

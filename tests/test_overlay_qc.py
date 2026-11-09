@@ -1,4 +1,4 @@
-"""QC consumption of overlay.occupancy (INI-089) — caption-over-overlay + the
+"""QC consumption of overlay.occupancy — caption-over-overlay + the
 occupancy→elements bridge + per-cue box in caption_elements_from_props."""
 
 import tempfile

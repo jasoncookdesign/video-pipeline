@@ -1,5 +1,5 @@
 # project.yml — per-project manifest (example).
-# Lives at ~/Video/Projects/{project-id}/project.yml on the daily driver.
+# Lives at ~/Video/Projects/{project-id}/project.yml on the local machine.
 #
 # project-id (folder name) convention:
 #   "YYYY-MM-DD <Token> Project - <Hook>"

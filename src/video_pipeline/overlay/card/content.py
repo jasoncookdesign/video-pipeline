@@ -1,8 +1,8 @@
-"""CardContent — the reviewable, editable source-card product (INI-089 Phase B).
+"""CardContent — the reviewable, editable source-card product.
 
 A card shows a heading, a short body, a footer, an optional image, and a citation.
 This is the *content* half of the content-vs-look split: a small JSON document the
-CEO can edit before rendering (fix a clumsy auto-summary, trim the body, swap the
+The editor can edit before rendering (fix a clumsy auto-summary, trim the body, swap the
 image), mirroring ``overlay.def`` / ``caption.def``. The deterministic Remotion
 ``Card`` component renders whatever this holds; the look lives there, not here.
 

@@ -244,7 +244,7 @@ def remap_track(
     return new.reindex()
 
 
-# ── overlay remap (INI-089) ────────────────────────────────────────────────────
+# ── overlay remap ────────────────────────────────────────────────────
 #
 # Overlays are authored in source time (the overlay.def window is the span where
 # the thing is discussed). On the compressed cut they must move with the base cut
