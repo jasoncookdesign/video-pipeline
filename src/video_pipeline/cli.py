@@ -739,6 +739,10 @@ def _cmd_qc(args: argparse.Namespace) -> int:
         for k in ("occlusion_frac", "face_danger_frac", "intrusion_frac"):
             if getattr(args, k) is None:
                 knobs[k] = cfg[k]
+        # The check_* keys can switch a face check off; --no-face-check (already
+        # applied above) switches both off and is never overridden by them.
+        for k in ("check_caption_over_face", "check_face_in_danger"):
+            knobs[k] = knobs[k] and cfg[k]
     # Fall back to validator defaults for any threshold still unset.
     knobs["occlusion_frac"] = knobs["occlusion_frac"] if knobs["occlusion_frac"] is not None else 0.1
     knobs["face_danger_frac"] = knobs["face_danger_frac"] if knobs["face_danger_frac"] is not None else 0.2

@@ -339,9 +339,12 @@ qc:
 | `check_face_in_danger` | boolean | `true` | Enables the face-in-danger check. |
 | `elements` | list | `[]` | Fixed overlay marks checked on every run, such as a logo or call to action. |
 
-The two `check_*` keys are accepted in `project.yml`, but the `qc` command
-currently takes its switch from the command line only: `--no-face-check` turns off
-face detection and with it both face checks.
+With `--project`, the `qc` command skips the caption-over-face check when
+`check_caption_over_face` is `false` and the face-in-danger check when
+`check_face_in_danger` is `false`; each key affects only its own check. When both
+are `false`, face detection is skipped too. `--no-face-check` turns off face
+detection and both face checks for that run regardless of these keys, and the keys
+cannot turn a check back on over the flag.
 
 Each entry in `elements` needs `kind` (`caption`, `logo`, `cta`, `text` or
 `graphic`), `x` and `y` (the top-left corner) and `width` and `height` (greater
